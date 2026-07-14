@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Wallet QR Bundle Demo</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem; }
+        .card { border: 1px solid #ddd; border-radius: 8px; padding: 1.5rem; text-align: center; }
+        img { max-width: 240px; height: auto; }
+        code { word-break: break-all; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <h1>Wallet QR Bundle Demo</h1>
+    <p>Sample QR codes for Android (Google Wallet) and iOS (Apple Wallet) save/download links.</p>
+
+    <div class="grid">
+        <div class="card">
+            <h2>Android · Google Wallet</h2>
+            <img src="{{ wallet_qr_data_uri(androidQr) }}" alt="Google Wallet QR">
+            <p><code>{{ androidQr.link.url }}</code></p>
+        </div>
+        <div class="card">
+            <h2>iOS · Apple Wallet</h2>
+            <img src="{{ wallet_qr_data_uri(iosQr) }}" alt="Apple Wallet QR">
+            <p><code>{{ iosQr.link.url }}</code></p>
+        </div>
+    </div>
+</body>
+</html>

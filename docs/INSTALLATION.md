@@ -1,0 +1,48 @@
+# Installation
+
+## Requirements
+
+- PHP 8.2 or higher
+- Symfony 7.x or 8.x
+- Doctrine ORM 2.15+ or 3.x
+- A user entity class (for blame fields; timestamps work without authentication)
+
+## Composer
+
+```bash
+composer require nowo-tech/audit-kit-bundle
+```
+
+## Enable the bundle
+
+Symfony Flex registers the bundle automatically. Manual registration:
+
+```php
+// config/bundles.php
+return [
+    // ...
+    Nowo\AuditKitBundle\NowoAuditKitBundle::class => ['all' => true],
+];
+```
+
+## Configuration file
+
+Create `config/packages/nowo_audit_kit.yaml`:
+
+```yaml
+nowo_audit_kit:
+    user_class: App\Entity\User
+```
+
+See [Configuration](CONFIGURATION.md) for all options.
+
+## Verify
+
+```bash
+php bin/console debug:config nowo_audit_kit
+php bin/console debug:container AuditableEntityListener
+```
+
+## Demo
+
+See [Demo with FrankenPHP](DEMO-FRANKENPHP.md).

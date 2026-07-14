@@ -1,0 +1,40 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Audit Kit Demo{% endblock %}
+
+{% block body %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h1 class="h3 mb-3">Automatic audit fields</h1>
+                <p class="text-muted">
+                    Each refresh persists a new <code>Article</code> with
+                    <code>AuditableTrait</code> while simulating an authenticated user
+                    (<strong>{{ user.email }}</strong>).
+                </p>
+                <p><a class="btn btn-primary" href="{{ path('demo_home') }}">Persist another article</a></p>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">Latest articles</div>
+            <ul class="list-group list-group-flush">
+                {% for article in articles %}
+                    <li class="list-group-item">
+                        <strong>{{ article.title }}</strong>
+                        <div class="small text-muted mt-1">
+                            createdAt: {{ article.createdAt ? article.createdAt|date('Y-m-d H:i:s') : '—' }} ·
+                            updatedAt: {{ article.updatedAt ? article.updatedAt|date('Y-m-d H:i:s') : '—' }} ·
+                            createdBy: {{ article.createdBy ? article.createdBy.email : 'null' }} ·
+                            updatedBy: {{ article.updatedBy ? article.updatedBy.email : 'null' }}
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="list-group-item text-muted">No articles yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
