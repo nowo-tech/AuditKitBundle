@@ -7,10 +7,12 @@ namespace Nowo\AuditKitBundle\DependencyInjection;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
+/** Defines the {@see Configuration::ALIAS} configuration tree for audit field options. */
 final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_audit_kit';
 
+    /** Builds the validated configuration schema for the bundle extension. */
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $treeBuilder = new TreeBuilder(self::ALIAS);

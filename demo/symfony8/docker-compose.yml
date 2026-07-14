@@ -20,6 +20,7 @@ services:
       - APP_ENV=dev
       - APP_DEBUG=1
       - APP_SECRET=${APP_SECRET:-demo-secret}
+    # Public DNS for Composer / Packagist (Docker/WSL resolver failures)
     dns:
       - 8.8.8.8
       - 8.8.4.4

@@ -101,7 +101,3 @@ MIT — see [LICENSE](LICENSE).
 
 - **Composer:** `nowo-tech/audit-kit-bundle`
 - **Config root:** `nowo_audit_kit`
-
-## Found this useful?
-
-If this bundle helps your project, consider starring the repository on GitHub.

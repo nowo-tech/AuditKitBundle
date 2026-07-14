@@ -6,6 +6,7 @@ namespace Nowo\AuditKitBundle\Model;
 
 use DateTimeInterface;
 
+/** Contract for entities with created/updated timestamps. */
 interface TimestampableInterface
 {
     public function getCreatedAt(): ?DateTimeInterface;

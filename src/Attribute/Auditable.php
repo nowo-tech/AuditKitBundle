@@ -6,6 +6,7 @@ namespace Nowo\AuditKitBundle\Attribute;
 
 use Attribute;
 
+/** Opt-in/out marker for the Doctrine auditing listener on a class. */
 #[Attribute(Attribute::TARGET_CLASS)]
 final class Auditable
 {

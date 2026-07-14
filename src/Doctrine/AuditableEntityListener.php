@@ -13,6 +13,7 @@ use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
 use Throwable;
 
+/** Sets timestamp and blame fields on Doctrine persist and update events. */
 final class AuditableEntityListener
 {
     /**
