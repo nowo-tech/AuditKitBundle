@@ -62,7 +62,7 @@ make release-check
 make -C demo/symfony8 up   # http://localhost:8013 (default PORT)
 ```
 
-Each page load persists a demo `Article` with audit columns populated. See [demo/symfony8/README.md](demo/symfony8/README.md) and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
+Each demo persists entities with automatic audit columns (see `demo/symfony8/src/Entity/Article.php` and `LegacyRecord.php` for audited vs opt-out). See [demo/symfony8/README.md](demo/symfony8/README.md) and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
 
 ## Tests and coverage
 

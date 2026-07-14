@@ -4,6 +4,11 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.0.5
+
+- **No action required** for Packagist consumers. Demo-only release; public API unchanged since 1.0.0.
+- **Contributors / demo users:** the Symfony 8 demo now persists `LegacyRecord` with `#[Auditable(enabled: false)]` on each page load. Run `make -C demo/symfony8 link-bundle` (or `make up`) so Doctrine creates the `legacy_records` table.
+
 ### 1.0.4
 
 - **No action required** for Packagist consumers. Demo and maintainer-tooling release; public API unchanged since 1.0.0.

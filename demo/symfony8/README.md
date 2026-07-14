@@ -1,6 +1,6 @@
 # Audit Kit Bundle — Symfony 8 demo
 
-FrankenPHP demo showing automatic `createdAt`, `updatedAt`, `createdBy`, and `updatedBy` fields via `AuditableTrait`.
+FrankenPHP demo showing automatic `createdAt`, `updatedAt`, `createdBy`, and `updatedBy` fields via traits, plus a `LegacyRecord` entity with `#[Auditable(enabled: false)]` for per-entity opt-out.
 
 See also [Demo with FrankenPHP](../../docs/DEMO-FRANKENPHP.md) (development vs **worker mode** for production).
 

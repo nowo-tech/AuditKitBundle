@@ -16,5 +16,7 @@ final class DemoControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Automatic audit fields');
         self::assertSelectorTextContains('body', 'createdAt');
+        self::assertSelectorTextContains('body', 'Auditable(enabled: false)');
+        self::assertSelectorTextContains('body', 'Latest legacy records');
     }
 }

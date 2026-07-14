@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Article;
+use App\Entity\LegacyRecord;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -35,12 +36,18 @@ final class DemoController extends AbstractController
 
         $article = (new Article())->setTitle('AuditKit demo · ' . date('Y-m-d H:i:s'));
         $this->entityManager->persist($article);
+
+        $legacyRecord = (new LegacyRecord())->setLabel('Opt-out demo · ' . date('Y-m-d H:i:s'));
+        $this->entityManager->persist($legacyRecord);
+
         $this->entityManager->flush();
 
         $articles = $this->entityManager->getRepository(Article::class)->findBy([], ['id' => 'DESC'], 5);
+        $legacyRecords = $this->entityManager->getRepository(LegacyRecord::class)->findBy([], ['id' => 'DESC'], 5);
 
         return $this->render('demo/index.html.twig', [
             'articles' => $articles,
+            'legacyRecords' => $legacyRecords,
             'user' => $user,
         ]);
     }
