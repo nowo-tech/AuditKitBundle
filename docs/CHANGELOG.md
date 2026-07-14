@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-07-14
+
+### Fixed
+
+- Root `make update-deps` now refreshes Composer dependencies in the bundle **and** every demo (REQ-MAKE-008).
+- Demo `symfony8`: added `update` / `update-deps` Makefile targets for containerized `composer update`.
+- Demo `symfony8`: removed unused Postgres service and `compose.override.yaml` port mapping; stack is SQLite-only (REQ-DEMO-006).
+- `release-check-demos` no longer swallows demo failures during pre-release checks.
+
+### Changed
+
+- Demo `symfony8`: `ensure-up` copies `.env.example` to `.env` when missing so `release-check` and `composer update` post-scripts succeed.
+- `docs/DEMO-FRANKENPHP.md`: documents only the maintained `demo/symfony8` demo (removed stale symfony7 / symfony8-php85 references).
+
 ## [1.0.3] - 2026-07-14
 
 ### Changed
