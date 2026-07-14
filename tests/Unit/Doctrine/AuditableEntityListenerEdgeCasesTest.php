@@ -11,6 +11,7 @@ use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver;
 use Nowo\AuditKitBundle\Model\AuditableTrait;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
+use Nowo\AuditKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 
@@ -19,18 +20,14 @@ final class AuditableEntityListenerEdgeCasesTest extends TestCase
     public function testSkipsWhenDisabled(): void
     {
         $entity   = new EdgeArticle();
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'enabled'        => false,
+            'timestamp_type' => 'datetime',
+        ]);
+
         $listener = new AuditableEntityListener(
-            enabled: false,
-            timestampable: true,
-            blameable: true,
-            userClass: TestUser::class,
-            timestampType: 'datetime',
-            propertyResolver: new AuditablePropertyResolver([
-                'created_at' => 'createdAt',
-                'updated_at' => 'updatedAt',
-                'created_by' => 'createdBy',
-                'updated_by' => 'updatedBy',
-            ]),
+            registry: $registry,
+            propertyResolver: new AuditablePropertyResolver(),
             currentUserResolver: new CurrentUserResolver(new TokenStorage()),
             entityManager: $this->createMock(EntityManagerInterface::class),
         );
@@ -44,18 +41,14 @@ final class AuditableEntityListenerEdgeCasesTest extends TestCase
     public function testTimestampOnlyMode(): void
     {
         $entity   = new EdgeArticle();
+        $registry = ProfileRegistryFactory::single(TestUser::class, [
+            'blameable'      => false,
+            'timestamp_type' => 'datetime',
+        ]);
+
         $listener = new AuditableEntityListener(
-            enabled: true,
-            timestampable: true,
-            blameable: false,
-            userClass: TestUser::class,
-            timestampType: 'datetime',
-            propertyResolver: new AuditablePropertyResolver([
-                'created_at' => 'createdAt',
-                'updated_at' => 'updatedAt',
-                'created_by' => 'createdBy',
-                'updated_by' => 'updatedBy',
-            ]),
+            registry: $registry,
+            propertyResolver: new AuditablePropertyResolver(),
             currentUserResolver: new CurrentUserResolver(new TokenStorage()),
             entityManager: $this->createMock(EntityManagerInterface::class),
         );

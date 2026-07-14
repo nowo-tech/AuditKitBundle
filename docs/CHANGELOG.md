@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-14
+
+### Added
+
+- **Named configuration profiles** under `nowo_audit_kit.profiles` for applications with multiple user entities (e.g. `App\Entity\User` and `App\Entity\Admin`).
+- **`ProfileRegistry`** with O(1) class lookup and per-class resolution cache (inheritance supported).
+- `default_profile` configuration key.
+- Backward-compatible parameters (`nowo_audit_kit.user_class`, `enabled`, `fields`, etc.) mirroring the default profile.
+
+### Changed
+
+- `AuditableEntityListener` resolves timestamp and blame settings from the matching profile (by authenticated entity class; default profile for CLI/guest).
+- `AuditablePropertyResolver` receives field mappings per profile at runtime instead of fixed constructor configuration.
+- Configuration YAML templates and Flex recipe migrated to the `profiles` layout (flat config still accepted and normalized to `profiles.default`).
+- `docs/CONFIGURATION.md`, `docs/USAGE.md`, and README document profiles and runtime resolution.
+
 ## [1.0.5] - 2026-07-14
 
 ### Added

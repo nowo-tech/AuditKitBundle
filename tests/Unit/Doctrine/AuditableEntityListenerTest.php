@@ -12,7 +12,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver;
 use Nowo\AuditKitBundle\Model\AuditableTrait;
+use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
+use Nowo\AuditKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
@@ -76,20 +78,16 @@ final class AuditableEntityListenerTest extends TestCase
         $this->assertSame(99, $updatedBy->id);
     }
 
-    private function createListener(TokenStorage $tokenStorage, EntityManagerInterface $em): AuditableEntityListener
-    {
+    private function createListener(
+        TokenStorage $tokenStorage,
+        EntityManagerInterface $em,
+        ?ProfileRegistry $registry = null,
+    ): AuditableEntityListener {
+        $registry ??= ProfileRegistryFactory::single(TestUser::class);
+
         return new AuditableEntityListener(
-            enabled: true,
-            timestampable: true,
-            blameable: true,
-            userClass: TestUser::class,
-            timestampType: 'datetime_immutable',
-            propertyResolver: new AuditablePropertyResolver([
-                'created_at' => 'createdAt',
-                'updated_at' => 'updatedAt',
-                'created_by' => 'createdBy',
-                'updated_by' => 'updatedBy',
-            ]),
+            registry: $registry,
+            propertyResolver: new AuditablePropertyResolver(),
             currentUserResolver: new CurrentUserResolver($tokenStorage),
             entityManager: $em,
         );

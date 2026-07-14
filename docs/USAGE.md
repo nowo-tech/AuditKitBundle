@@ -1,5 +1,13 @@
 # Usage
 
+## Configuration profiles
+
+Since **1.1.0**, settings can be grouped under named **profiles** when the application has more than one user entity. Each profile maps a `user_class` to its own field names, `timestamp_type`, and `blameable` / `timestampable` flags.
+
+The listener resolves the profile automatically from the authenticated entity class at runtime. Timestamps fall back to `default_profile` when no user is present (CLI/guest) or when the user class is not mapped to any profile.
+
+See [Configuration — Profiles](CONFIGURATION.md#profiles) for the YAML structure.
+
 ## Quick start with AuditableTrait
 
 ```php
@@ -82,7 +90,8 @@ Recommended column types:
 | ----- | ---------- | ----- |
 | `prePersist` | sets `createdAt` and `updatedAt` | sets `createdBy` and `updatedBy` |
 | `preUpdate` | refreshes `updatedAt` only | refreshes `updatedBy` only |
-| No authenticated user | timestamps still set | blame fields remain `null` |
+| No authenticated user | timestamps use `default_profile` | blame fields remain `null` |
+| Authenticated user not in any profile | timestamps use `default_profile` | blame fields remain `null` |
 
 ## Related bundles
 

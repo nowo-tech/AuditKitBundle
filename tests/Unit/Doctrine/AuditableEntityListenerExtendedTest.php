@@ -12,7 +12,9 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver;
 use Nowo\AuditKitBundle\Model\AuditableTrait;
+use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
+use Nowo\AuditKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use stdClass;
@@ -41,15 +43,10 @@ final class AuditableEntityListenerExtendedTest extends TestCase
         $entity->setCreatedAt(new DateTimeImmutable());
         $em = $this->createMock(EntityManagerInterface::class);
 
-        $listener = new AuditableEntityListener(
-            enabled: false,
-            timestampable: true,
-            blameable: true,
-            userClass: ExtendedTestUser::class,
-            timestampType: 'datetime_immutable',
-            propertyResolver: $this->createResolver(),
-            currentUserResolver: new CurrentUserResolver(new TokenStorage()),
-            entityManager: $em,
+        $listener = $this->createListener(
+            new TokenStorage(),
+            $em,
+            ProfileRegistryFactory::single(ExtendedTestUser::class, ['enabled' => false]),
         );
 
         $before    = $entity->getUpdatedAt();
@@ -85,16 +82,7 @@ final class AuditableEntityListenerExtendedTest extends TestCase
     {
         $entity   = new ExtendedTestArticle();
         $em       = $this->createMock(EntityManagerInterface::class);
-        $listener = new AuditableEntityListener(
-            enabled: true,
-            timestampable: true,
-            blameable: true,
-            userClass: ExtendedTestUser::class,
-            timestampType: 'datetime_immutable',
-            propertyResolver: $this->createResolver(),
-            currentUserResolver: new CurrentUserResolver(new TokenStorage()),
-            entityManager: $em,
-        );
+        $listener = $this->createListener(new TokenStorage(), $em);
 
         $listener->prePersist($entity, new PrePersistEventArgs($entity, $em));
 
@@ -142,15 +130,13 @@ final class AuditableEntityListenerExtendedTest extends TestCase
         $tokenStorage->setToken(new UsernamePasswordToken($user, 'main', $user->getRoles()));
         $em = $this->createMock(EntityManagerInterface::class);
 
-        $listener = new AuditableEntityListener(
-            enabled: true,
-            timestampable: false,
-            blameable: false,
-            userClass: ExtendedTestUser::class,
-            timestampType: 'datetime_immutable',
-            propertyResolver: $this->createResolver(),
-            currentUserResolver: new CurrentUserResolver($tokenStorage),
-            entityManager: $em,
+        $listener = $this->createListener(
+            $tokenStorage,
+            $em,
+            ProfileRegistryFactory::single(ExtendedTestUser::class, [
+                'timestampable' => false,
+                'blameable'     => false,
+            ]),
         );
 
         $changeSet = [];
@@ -158,28 +144,19 @@ final class AuditableEntityListenerExtendedTest extends TestCase
         $this->assertNull($entity->getUpdatedBy());
     }
 
-    private function createListener(TokenStorage $tokenStorage, EntityManagerInterface $em): AuditableEntityListener
-    {
+    private function createListener(
+        TokenStorage $tokenStorage,
+        EntityManagerInterface $em,
+        ?ProfileRegistry $registry = null,
+    ): AuditableEntityListener {
+        $registry ??= ProfileRegistryFactory::single(ExtendedTestUser::class);
+
         return new AuditableEntityListener(
-            enabled: true,
-            timestampable: true,
-            blameable: true,
-            userClass: ExtendedTestUser::class,
-            timestampType: 'datetime_immutable',
-            propertyResolver: $this->createResolver(),
+            registry: $registry,
+            propertyResolver: new AuditablePropertyResolver(),
             currentUserResolver: new CurrentUserResolver($tokenStorage),
             entityManager: $em,
         );
-    }
-
-    private function createResolver(): AuditablePropertyResolver
-    {
-        return new AuditablePropertyResolver([
-            'created_at' => 'createdAt',
-            'updated_at' => 'updatedAt',
-            'created_by' => 'createdBy',
-            'updated_by' => 'updatedBy',
-        ]);
     }
 }
 

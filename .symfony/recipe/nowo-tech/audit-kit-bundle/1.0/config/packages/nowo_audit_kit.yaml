@@ -1,2 +1,15 @@
 nowo_audit_kit:
-    user_class: App\Entity\User
+    default_profile: default
+
+    profiles:
+        default:
+            user_class: App\Entity\User
+            enabled: true
+            fields:
+                created_at: createdAt
+                updated_at: updatedAt
+                created_by: createdBy
+                updated_by: updatedBy
+            timestamp_type: datetime_immutable
+            blameable: true
+            timestampable: true

@@ -1242,17 +1242,20 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  * }
  * @psalm-type NowoAuditKitConfig = array{
- *     enabled?: bool|Param, // Master switch for the auditing listener. // Default: true
- *     user_class?: scalar|Param|null, // FQCN used for createdBy / updatedBy references.
- *     fields?: array{
- *         created_at?: scalar|Param|null, // Default: "createdAt"
- *         updated_at?: scalar|Param|null, // Default: "updatedAt"
- *         created_by?: scalar|Param|null, // Default: "createdBy"
- *         updated_by?: scalar|Param|null, // Default: "updatedBy"
- *     },
- *     timestamp_type?: "datetime_immutable"|"datetime"|Param, // Default: "datetime_immutable"
- *     blameable?: bool|Param, // When false, blame fields are not managed. // Default: true
- *     timestampable?: bool|Param, // When false, timestamp fields are not managed. // Default: true
+ *     default_profile?: scalar|Param|null, // Profile name used when no profile is resolved from the authenticated user. // Default: "default"
+ *     profiles?: array<string, array{ // Default: []
+ *         enabled?: bool|Param, // Enable auditing for this profile. // Default: true
+ *         user_class?: scalar|Param|null, // FQCN used for createdBy / updatedBy references. // Default: null
+ *         fields?: array{
+ *             created_at?: scalar|Param|null, // Default: "createdAt"
+ *             updated_at?: scalar|Param|null, // Default: "updatedAt"
+ *             created_by?: scalar|Param|null, // Default: "createdBy"
+ *             updated_by?: scalar|Param|null, // Default: "updatedBy"
+ *         },
+ *         timestamp_type?: "datetime_immutable"|"datetime"|Param, // Default: "datetime_immutable"
+ *         blameable?: bool|Param, // When false, blame fields are not managed for this profile. // Default: true
+ *         timestampable?: bool|Param, // When false, timestamp fields are not managed for this profile. // Default: true
+ *     }>,
  * }
  * @psalm-type NowoTwigInspectorConfig = array{
  *     enabled_extensions?: list<scalar|Param|null>,
