@@ -6,14 +6,14 @@
 4. Commit all changes, create an annotated tag (e.g. `v1.0.1`), and push branch and tag. The release workflow will create the GitHub Release with the changelog.
 5. Publish the package to Packagist if applicable (usually automatic when the tag is pushed).
 
-## Example for v1.0.5
+## Example for v1.1.0
 
 ```bash
 git add -A
 git status   # review
 make release-check
-git commit -m "Release 1.0.5: demo LegacyRecord Auditable opt-out example"
-git tag -a v1.0.5 -m "Release 1.0.5"
+git commit -m "Release 1.1.0: named configuration profiles"
+git tag -a v1.1.0 -m "Release 1.1.0"
 git push origin main
-git push origin v1.0.5
+git push origin v1.1.0
 ```

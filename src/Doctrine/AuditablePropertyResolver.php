@@ -20,13 +20,8 @@ final class AuditablePropertyResolver
 {
     private readonly PropertyAccessorInterface $propertyAccessor;
 
-    /**
-     * @param array{created_at: string, updated_at: string, created_by: string, updated_by: string} $fields
-     */
-    public function __construct(
-        private readonly array $fields,
-        ?PropertyAccessorInterface $propertyAccessor = null,
-    ) {
+    public function __construct(?PropertyAccessorInterface $propertyAccessor = null)
+    {
         $this->propertyAccessor = $propertyAccessor ?? PropertyAccess::createPropertyAccessor();
     }
 
@@ -46,33 +41,48 @@ final class AuditablePropertyResolver
         return true;
     }
 
-    public function hasTimestampFields(object $entity): bool
+    /**
+     * @param array{created_at: string, updated_at: string, created_by: string, updated_by: string} $fields
+     */
+    public function hasTimestampFields(object $entity, array $fields): bool
     {
         return $entity instanceof TimestampableInterface
-            || $this->hasProperty($entity, $this->fields['created_at'])
-            || $this->hasProperty($entity, $this->fields['updated_at']);
+            || $this->hasProperty($entity, $fields['created_at'])
+            || $this->hasProperty($entity, $fields['updated_at']);
     }
 
-    public function hasBlameFields(object $entity): bool
+    /**
+     * @param array{created_at: string, updated_at: string, created_by: string, updated_by: string} $fields
+     */
+    public function hasBlameFields(object $entity, array $fields): bool
     {
         return $entity instanceof BlameableInterface
-            || $this->hasProperty($entity, $this->fields['created_by'])
-            || $this->hasProperty($entity, $this->fields['updated_by']);
+            || $this->hasProperty($entity, $fields['created_by'])
+            || $this->hasProperty($entity, $fields['updated_by']);
     }
 
-    public function setTimestamp(object $entity, string $configKey, DateTimeInterface $value): void
+    /**
+     * @param array{created_at: string, updated_at: string, created_by: string, updated_by: string} $fields
+     */
+    public function setTimestamp(object $entity, string $configKey, DateTimeInterface $value, array $fields): void
     {
-        $this->propertyAccessor->setValue($entity, $this->fields[$configKey], $value);
+        $this->propertyAccessor->setValue($entity, $fields[$configKey], $value);
     }
 
-    public function setBlame(object $entity, string $configKey, ?object $user): void
+    /**
+     * @param array{created_at: string, updated_at: string, created_by: string, updated_by: string} $fields
+     */
+    public function setBlame(object $entity, string $configKey, ?object $user, array $fields): void
     {
-        $this->propertyAccessor->setValue($entity, $this->fields[$configKey], $user);
+        $this->propertyAccessor->setValue($entity, $fields[$configKey], $user);
     }
 
-    public function getTimestamp(object $entity, string $configKey): ?DateTimeInterface
+    /**
+     * @param array{created_at: string, updated_at: string, created_by: string, updated_by: string} $fields
+     */
+    public function getTimestamp(object $entity, string $configKey, array $fields): ?DateTimeInterface
     {
-        $value = $this->propertyAccessor->getValue($entity, $this->fields[$configKey]);
+        $value = $this->propertyAccessor->getValue($entity, $fields[$configKey]);
 
         return $value instanceof DateTimeInterface ? $value : null;
     }

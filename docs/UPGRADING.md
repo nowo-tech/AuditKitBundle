@@ -4,6 +4,55 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.0
+
+From **1.0.5**, **1.0.4**, **1.0.3**, **1.0.2**, **1.0.1**, or **1.0.0** — backward compatible for single-entity setups.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+**No migration required** if you keep the flat configuration (`user_class` at root). It is normalized internally to a single `default` profile.
+
+**What is new:**
+
+- Multiple user entities can each have their own audit field mapping and feature flags under `nowo_audit_kit.profiles`.
+- Automatic profile resolution uses the authenticated entity class (cached O(1) lookup).
+- Legacy DI parameters (`nowo_audit_kit.user_class`, `nowo_audit_kit.enabled`, etc.) still reflect the default profile.
+
+**Optional migration to profiles layout:**
+
+```yaml
+nowo_audit_kit:
+    default_profile: app_user
+    profiles:
+        app_user:
+            user_class: App\Entity\User
+            enabled: true
+            fields:
+                created_at: createdAt
+                updated_at: updatedAt
+                created_by: createdBy
+                updated_by: updatedBy
+            timestamp_type: datetime_immutable
+            blameable: true
+            timestampable: true
+        admin:
+            user_class: App\Entity\Admin
+            enabled: true
+            fields:
+                created_at: insertedAt
+                updated_at: modifiedAt
+                created_by: author
+                updated_by: editor
+```
+
+**Behavior notes:**
+
+- **Timestamps:** resolved from the authenticated user's profile when possible; otherwise the `default_profile` is used (CLI, guest, or unmapped user classes).
+- **Blame fields:** only populated when the authenticated user matches the active profile's `user_class`. Unmapped users (e.g. a third-party SSO user) do not set blame fields even if timestamps are applied via the default profile.
+- When **all profiles** have `enabled: false`, the Doctrine listener is not registered (same as global `enabled: false` before 1.1.0).
+
 ### 1.0.5
 
 - **No action required** for Packagist consumers. Demo-only release; public API unchanged since 1.0.0.

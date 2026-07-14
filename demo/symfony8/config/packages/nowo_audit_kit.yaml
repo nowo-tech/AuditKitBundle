@@ -1,2 +1,6 @@
 nowo_audit_kit:
-    user_class: App\Entity\User
+    default_profile: default
+
+    profiles:
+        default:
+            user_class: App\Entity\User

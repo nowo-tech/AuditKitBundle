@@ -17,6 +17,7 @@ Complements [`nowo-tech/user-kit-bundle`](https://github.com/nowo-tech/UserKitBu
 
 - Optional traits: `TimestampableTrait`, `BlameableTrait`, `AuditableTrait`
 - Doctrine entity listener (`prePersist` / `preUpdate`)
+- **Named profiles** — separate field mapping and flags per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable property names and `user_class`
 - Per-entity opt-out via `#[Auditable(enabled: false)]`
 - Guest / CLI safe — blame fields stay `null` without errors
@@ -36,8 +37,13 @@ composer require nowo-tech/audit-kit-bundle
 ```yaml
 # config/packages/nowo_audit_kit.yaml
 nowo_audit_kit:
-    user_class: App\Entity\User
+    default_profile: default
+    profiles:
+        default:
+            user_class: App\Entity\User
 ```
+
+The legacy flat layout (`user_class` at root) remains supported. See [Configuration](docs/CONFIGURATION.md).
 
 ```php
 use Nowo\AuditKitBundle\Model\AuditableTrait;

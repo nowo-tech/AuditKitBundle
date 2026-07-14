@@ -1,11 +1,33 @@
+# Default configuration for Audit Kit Bundle.
+# Copy to your app: config/packages/nowo_audit_kit.yaml (or use the Symfony Flex recipe).
+# See docs/CONFIGURATION.md for all options.
+#
 nowo_audit_kit:
-    enabled: true
-    user_class: App\Entity\User
-    fields:
-        created_at: createdAt
-        updated_at: updatedAt
-        created_by: createdBy
-        updated_by: updatedBy
-    timestamp_type: datetime_immutable
-    blameable: true
-    timestampable: true
+    default_profile: default
+
+    profiles:
+        default:
+            # FQCN used for createdBy / updatedBy references.
+            user_class: App\Entity\User
+            enabled: true
+            fields:
+                created_at: createdAt
+                updated_at: updatedAt
+                created_by: createdBy
+                updated_by: updatedBy
+            timestamp_type: datetime_immutable
+            blameable: true
+            timestampable: true
+
+        # Example second profile (uncomment and adjust user_class as needed):
+        # admin:
+        #     user_class: App\Entity\Admin
+        #     enabled: true
+        #     fields:
+        #         created_at: createdAt
+        #         updated_at: updatedAt
+        #         created_by: createdBy
+        #         updated_by: updatedBy
+        #     timestamp_type: datetime_immutable
+        #     blameable: true
+        #     timestampable: true
