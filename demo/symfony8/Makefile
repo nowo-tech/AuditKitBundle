@@ -1,4 +1,4 @@
-.PHONY: help up down build install shell logs test test-coverage cache-clear link-bundle update-bundle ensure-up restart release-check
+.PHONY: help up down build install shell logs test test-coverage cache-clear link-bundle update update-bundle update-deps ensure-up restart release-check
 
 help:
 	@echo "Symfony 8 Demo - Audit Kit Bundle"
@@ -26,6 +26,7 @@ build:
 	docker-compose build --no-cache
 
 ensure-up:
+	@if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
 	@if ! docker-compose exec -T php true 2>/dev/null; then docker-compose up -d; sleep 3; fi
 
 install: ensure-up
@@ -50,6 +51,9 @@ cache-clear: ensure-up
 link-bundle: ensure-up
 	# REQ-DEMO-007: sync mounted bundle before tests and schema update
 	docker-compose exec php sh -c "mkdir -p var/data && rm -rf vendor/nowo-tech/audit-kit-bundle && ln -sf /var/audit-kit-bundle vendor/nowo-tech/audit-kit-bundle && php bin/console doctrine:schema:update --force --complete && php bin/console cache:clear"
+
+update: ensure-up
+	docker-compose exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer update --no-interaction
 
 update-bundle: ensure-up
 	docker-compose exec php composer update nowo-tech/audit-kit-bundle --no-interaction

@@ -117,7 +117,7 @@ qa: ensure-up
 release-check: ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage release-check-demos
 
 release-check-demos:
-	@if [ -f demo/Makefile ]; then $(MAKE) -C demo release-check 2>/dev/null || true; else true; fi
+	@if [ -f demo/Makefile ]; then $(MAKE) -C demo release-check; fi
 
 # Validate composer and sync lock (no install)
 composer-sync: ensure-up
@@ -151,6 +151,10 @@ setup-hooks:
 	@echo "✅ Git hooks installed! CS-check and tests will run before each commit."
 
 
-# REQ-MAKE-008: update-deps (REQ-MAKE-008)
+# REQ-MAKE-008: update-deps (bundle root + all demos)
 BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
+
+update-deps:
+	@$(MAKE) update
+	@$(MAKE) update-deps-demos

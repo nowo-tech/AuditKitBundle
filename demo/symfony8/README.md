@@ -20,6 +20,8 @@ Open the URL printed by `make up` (default **http://localhost:8013**). Each page
 | `make up` | Build, install deps, sync bundle, run schema update |
 | `make down` | Stop containers |
 | `make test` | Run demo PHPUnit smoke tests |
+| `make update` | Run `composer update` inside the demo container |
+| `make update-deps` | Same as `update` (REQ-MAKE-008 shared target) |
 | `make link-bundle` | Symlink `/var/audit-kit-bundle` and refresh schema |
 
 ## Stack

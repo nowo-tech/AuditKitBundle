@@ -932,7 +932,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/audit-kit-bundle",
-                "reference": "aa12a530d36f90d205046cfe9da9841cc41133e3"
+                "reference": "0fd3126e38530490a1e46e98825b0c155a617481"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",

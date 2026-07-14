@@ -4,6 +4,11 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.0.4
+
+- **No action required** for Packagist consumers. Demo and maintainer-tooling release; public API unchanged since 1.0.0.
+- **Contributors / demo users:** `make update-deps` from the bundle root now updates demo dependencies too. The Symfony 8 demo no longer starts a Postgres container (SQLite only). If you relied on `compose.override.yaml` for a local Postgres port, remove that expectation or restore a local override outside the repo.
+
 ### 1.0.3
 
 - **No action required** for Packagist consumers. Documentation and PHPDoc-only release; public API unchanged since 1.0.0.

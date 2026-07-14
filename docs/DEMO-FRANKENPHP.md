@@ -25,7 +25,7 @@ The demos use:
 - **Two Caddyfiles**: `Caddyfile` (production, with worker) and `Caddyfile.dev` (development, no worker).
 - An **entrypoint** that, when `APP_ENV=dev`, copies `Caddyfile.dev` over the default Caddyfile and then starts FrankenPHP.
 
-Demos are available for **Symfony 7.4** and **8.x** (`demo/symfony7`, `demo/symfony8`, `demo/symfony8-php85`). From the bundle root run e.g. `make -C demo/symfony8 up` (see each demo README for URL and port).
+Demos are available for **Symfony 8.x** (`demo/symfony8`). From the bundle root run `make -C demo/symfony8 up` (see the demo README for URL and port).
 
 | Aspect | Development | Production |
 |--------|-------------|------------|
