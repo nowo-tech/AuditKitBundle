@@ -59,6 +59,12 @@ jobs:
       - name: Install dependencies with Symfony ${{ matrix.symfony }}
         run: |
           echo "📦 Installing dependencies for Symfony ${{ matrix.symfony }}..."
+          # doctrine/doctrine-bundle ^3.0 requires PHP ^8.4; use ^2.10 on PHP 8.2/8.3.
+          if [ "${{ matrix.php }}" = "8.4" ] || [ "${{ matrix.php }}" = "8.5" ]; then
+            DOCTRINE_BUNDLE='doctrine/doctrine-bundle:^3.0'
+          else
+            DOCTRINE_BUNDLE='doctrine/doctrine-bundle:^2.10'
+          fi
           composer require \
             symfony/framework-bundle:^${{ matrix.symfony }} \
             symfony/security-core:^${{ matrix.symfony }} \
@@ -66,10 +72,10 @@ jobs:
             symfony/config:^${{ matrix.symfony }} \
             symfony/dependency-injection:^${{ matrix.symfony }} \
             symfony/http-kernel:^${{ matrix.symfony }} \
-            symfony/yaml:^${{ matrix.symfony }} \
             doctrine/orm:^3.0 \
-            doctrine/doctrine-bundle:^3.0 \
+            "$DOCTRINE_BUNDLE" \
             --no-interaction --no-update
+          composer require symfony/yaml:^${{ matrix.symfony }} --dev --no-interaction --no-update
           composer update --with-all-dependencies --no-interaction --prefer-dist --no-progress
 
       - name: Run tests
