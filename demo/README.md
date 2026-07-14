@@ -1,6 +1,13 @@
 # Audit Kit Bundle — Demo
 
-FrankenPHP demo for **Symfony 8.x** showing automatic audit fields on Doctrine entities.
+FrankenPHP demo for **Symfony 8.x** showing automatic audit fields on Doctrine entities, plus a `LegacyRecord` example with `#[Auditable(enabled: false)]` for per-entity opt-out.
+
+## Entities
+
+| Entity | Behavior |
+| ------ | -------- |
+| `Article` | Full audit fields populated by the listener |
+| `LegacyRecord` | Same columns; listener skipped via `#[Auditable(enabled: false)]` |
 
 ## Quick start
 

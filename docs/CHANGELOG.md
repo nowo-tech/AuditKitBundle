@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-07-14
+
+### Added
+
+- Demo `symfony8`: `LegacyRecord` entity with `#[Auditable(enabled: false)]` alongside audited `Article`, illustrating per-entity opt-out in the UI and smoke tests.
+
 ## [1.0.4] - 2026-07-14
 
 ### Fixed

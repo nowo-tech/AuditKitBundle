@@ -9,16 +9,17 @@
             <div class="card-body">
                 <h1 class="h3 mb-3">Automatic audit fields</h1>
                 <p class="text-muted">
-                    Each refresh persists a new <code>Article</code> with
-                    <code>AuditableTrait</code> while simulating an authenticated user
+                    Each refresh persists a new audited <code>Article</code> and a
+                    <code>LegacyRecord</code> with <code>#[Auditable(enabled: false)]</code>
+                    while simulating an authenticated user
                     (<strong>{{ user.email }}</strong>).
                 </p>
-                <p><a class="btn btn-primary" href="{{ path('demo_home') }}">Persist another article</a></p>
+                <p><a class="btn btn-primary" href="{{ path('demo_home') }}">Persist another row</a></p>
             </div>
         </div>
 
         <div class="card shadow-sm mt-4">
-            <div class="card-header">Latest articles</div>
+            <div class="card-header">Latest articles <span class="badge text-bg-success">audited</span></div>
             <ul class="list-group list-group-flush">
                 {% for article in articles %}
                     <li class="list-group-item">
@@ -32,6 +33,25 @@
                     </li>
                 {% else %}
                     <li class="list-group-item text-muted">No articles yet.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">Latest legacy records <span class="badge text-bg-secondary">#[Auditable(enabled: false)]</span></div>
+            <ul class="list-group list-group-flush">
+                {% for record in legacyRecords %}
+                    <li class="list-group-item">
+                        <strong>{{ record.label }}</strong>
+                        <div class="small text-muted mt-1">
+                            createdAt: {{ record.createdAt ? record.createdAt|date('Y-m-d H:i:s') : '—' }} ·
+                            updatedAt: {{ record.updatedAt ? record.updatedAt|date('Y-m-d H:i:s') : '—' }} ·
+                            createdBy: {{ record.createdBy ? record.createdBy.email : 'null' }} ·
+                            updatedBy: {{ record.updatedBy ? record.updatedBy.email : 'null' }}
+                        </div>
+                    </li>
+                {% else %}
+                    <li class="list-group-item text-muted">No legacy records yet.</li>
                 {% endfor %}
             </ul>
         </div>
