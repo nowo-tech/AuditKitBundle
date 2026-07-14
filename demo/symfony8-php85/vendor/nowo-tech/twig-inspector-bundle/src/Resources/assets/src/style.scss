@@ -1,0 +1,114 @@
+/**
+ * Twig Inspector Bundle - Styles
+ * SCSS styles for the Twig Inspector toolbar and overlay
+ */
+
+// Variables
+$icon-padding: 0 7px;
+$icon-font-size: 20px;
+$icon-line-height: 36px;
+$status-margin-right: 5px;
+
+$overlay-block-bg: blue;
+$overlay-block-opacity: 0.3;
+$overlay-block-z-index: 1000001;
+$overlay-block-height: 40px;
+
+$overlay-block-static-color: #0a0a0a;
+$overlay-block-static-bg: #fffac9;
+$overlay-block-static-border: #7f94a1;
+$overlay-block-static-padding: 5px 10px;
+
+$overlay-link-color: #0000EE;
+$overlay-link-hover-color: #551A8B;
+
+$overlay-info-z-index: 1000000;
+$overlay-info-font-size: 12px;
+$overlay-info-line-height: 16px;
+$overlay-info-color: #0a0a0a;
+$overlay-info-padding: 0 5px;
+$overlay-info-bg: #fffac9;
+$overlay-info-border: #7f94a1;
+
+// Icon styles
+#_twig_inspector__icon {
+  cursor: pointer;
+
+  .sf-toolbar-icon {
+    padding: $icon-padding;
+  }
+
+  .icon {
+    font-size: $icon-font-size;
+    line-height: $icon-line-height;
+  }
+
+  &:hover .sf-toolbar-icon {
+    background-color: transparent;
+    cursor: pointer;
+  }
+}
+
+// Status checkbox
+#_twig_inspector__status {
+  margin-right: $status-margin-right;
+}
+
+// Visible state
+._twig_inspector__visible {
+  display: flex !important;
+}
+
+// Overlay block
+#_twig_inspector__overlay__block {
+  position: absolute;
+  display: none;
+  background-color: $overlay-block-bg;
+  opacity: $overlay-block-opacity;
+  z-index: $overlay-block-z-index;
+  height: $overlay-block-height;
+  cursor: pointer;
+
+  // Static state (when showing multiple templates)
+  &._twig_inspector__overlay__block_static {
+    color: $overlay-block-static-color;
+    opacity: 1;
+    background: $overlay-block-static-bg;
+    border: 1px solid $overlay-block-static-border;
+    width: auto !important;
+    height: auto !important;
+    padding: $overlay-block-static-padding;
+    cursor: auto;
+    display: block !important;
+
+    > div {
+      cursor: pointer;
+      display: block;
+      clear: both;
+      float: left;
+      color: $overlay-link-color;
+
+      &:hover {
+        color: $overlay-link-hover-color;
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+// Overlay info
+#_twig_inspector__overlay__info {
+  display: none;
+  position: absolute;
+  justify-content: center;
+  margin: 0;
+  font-size: $overlay-info-font-size;
+  min-width: 12px;
+  line-height: $overlay-info-line-height;
+  color: $overlay-info-color;
+  z-index: $overlay-info-z-index;
+  padding: $overlay-info-padding;
+  background: $overlay-info-bg;
+  border: 1px solid $overlay-info-border;
+}
+

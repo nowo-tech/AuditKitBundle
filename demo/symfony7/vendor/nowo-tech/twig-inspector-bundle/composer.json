@@ -1,0 +1,85 @@
+{
+    "name": "nowo-tech/twig-inspector-bundle",
+    "description": "Symfony bundle that adds the possibility to find Twig templates and blocks used for rendering HTML pages faster during development",
+    "type": "symfony-bundle",
+    "license": "MIT",
+    "keywords": [
+        "symfony",
+        "bundle",
+        "twig",
+        "debug",
+        "inspect",
+        "template",
+        "toolbar-extension",
+        "web-profiler"
+    ],
+    "homepage": "https://github.com/nowo-tech/twig-inspector-bundle",
+    "support": {
+        "issues": "https://github.com/nowo-tech/twig-inspector-bundle/issues",
+        "source": "https://github.com/nowo-tech/twig-inspector-bundle"
+    },
+    "authors": [
+        {
+            "name": "Héctor Franco Aceituno",
+            "email": "hectorfranco@nowo.com",
+            "homepage": "https://github.com/HecFranco",
+            "role": "Developer"
+        },
+        {
+            "name": "Nowo.tech",
+            "homepage": "https://nowo.tech"
+        }
+    ],
+    "require": {
+        "php": ">=8.1 <8.6",
+        "symfony/config": "^6.0 || ^7.0 || ^8.0",
+        "symfony/console": "^6.0 || ^7.0 || ^8.0",
+        "symfony/dependency-injection": "^6.0 || ^7.0 || ^8.0",
+        "symfony/filesystem": "^6.0 || ^7.0 || ^8.0",
+        "symfony/http-kernel": "^6.0 || ^7.0 || ^8.0",
+        "symfony/http-foundation": "^6.0 || ^7.0 || ^8.0",
+        "symfony/routing": "^6.0 || ^7.0 || ^8.0",
+        "symfony/web-profiler-bundle": "^6.0 || ^7.0 || ^8.0",
+        "twig/twig": "^3.8 || ^4.0"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.0",
+        "phpunit/phpunit": "^10.0",
+        "symfony/yaml": "^6.0 || ^7.0 || ^8.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nowo\\TwigInspectorBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nowo\\TwigInspectorBundle\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "composer/package-versions-deprecated": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "scripts": {
+        "test": "phpunit",
+        "test-coverage": "phpunit --coverage-html coverage --coverage-clover coverage.xml",
+        "cs-check": "php-cs-fixer fix --dry-run --diff",
+        "cs-fix": "php-cs-fixer fix",
+        "qa": [
+            "@cs-check",
+            "@test"
+        ]
+    },
+    "scripts-descriptions": {
+        "test": "Run PHPUnit tests",
+        "test-coverage": "Run PHPUnit tests with code coverage",
+        "cs-check": "Check code style with PHP-CS-Fixer",
+        "cs-fix": "Fix code style with PHP-CS-Fixer",
+        "qa": "Run all quality assurance checks"
+    }
+}

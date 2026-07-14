@@ -1,0 +1,6 @@
+  * <fg=green>Setup</>
+    1. Set <comment>nowo_audit_kit.user_class</comment> to your user entity FQCN in <comment>config/packages/nowo_audit_kit.yaml</>
+    2. Add <comment>AuditableTrait</comment> (or timestamp/blame traits) to entities and run Doctrine migrations
+    3. Ensure Symfony Security is configured when blame fields should be populated
+
+  Documentation: https://github.com/nowo-tech/AuditKitBundle

@@ -1,0 +1,41 @@
+# Twig Inspector Bundle Configuration
+# This file was automatically created by Symfony Flex.
+# You can modify it according to your needs.
+
+nowo_twig_inspector:
+    # List of template file extensions to inspect
+    # Default: ['.html.twig']
+    enabled_extensions:
+        - '.html.twig'
+        # Uncomment to also inspect other Twig files:
+        # - '.twig'
+        # - '.xml.twig'
+
+    # Templates to exclude from inspection (supports wildcards with *)
+    # Useful for excluding admin panels, email templates, or other sensitive areas
+    excluded_templates:
+        # - 'admin/*'           # Exclude all admin templates
+        # - 'email/*.html.twig' # Exclude email templates
+        # - 'security/*'        # Exclude security-related templates
+
+    # Blocks to exclude from inspection (supports wildcards with *)
+    # Useful for excluding large blocks like JavaScript or CSS
+    excluded_blocks:
+        # - 'javascript'        # Exclude 'javascript' block
+        # - 'head_*'            # Exclude blocks starting with 'head_'
+        # - 'styles'            # Exclude 'styles' block
+
+    # Enable template usage metrics in Web Profiler
+    # When enabled, collects statistics about templates and blocks used in each request
+    # Default: true
+    enable_metrics: true
+
+    # Optimize performance by skipping output buffering when inspector is disabled
+    # This reduces overhead when the inspector cookie is not set
+    # Default: true
+    optimize_output_buffering: true
+
+    # Custom cookie name for enabling/disabling inspector
+    # Default: 'twig_inspector_is_active'
+    cookie_name: 'twig_inspector_is_active'
+

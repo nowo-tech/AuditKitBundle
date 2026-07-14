@@ -1,0 +1,12 @@
+# This route should only be available in dev and test environments
+# Applications should wrap this import with when@dev or when@test
+nowo_twig_inspector_template_link:
+  path: /_template/{template}
+  requirements:
+    template: "[^/\\0]+"  # More restrictive: no slashes, no null bytes
+  defaults:
+    _controller: nowo_twig_inspector.controller.open_template
+    line: 1
+  options:
+    frontend: true
+

@@ -2,6 +2,8 @@
 
 FrankenPHP demo showing automatic `createdAt`, `updatedAt`, `createdBy`, and `updatedBy` fields via `AuditableTrait`.
 
+See also [Demo with FrankenPHP](../../docs/DEMO-FRANKENPHP.md) (development vs **worker mode** for production).
+
 ## Quick start
 
 ```bash

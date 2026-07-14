@@ -33,6 +33,7 @@ help:
 	@echo "  composer-sync Validate composer.json and align composer.lock (no install)"
 	@echo "  clean         Remove vendor and cache"
 	@echo "  update        Update composer.lock (composer update)"
+	@echo "  update-deps   Update bundle and demo dependencies (REQ-MAKE-008)"
 	@echo "  validate      Run composer validate --strict"
 	@echo "  assets        No-op (no frontend assets in this bundle)"
 	@echo "  setup-hooks   Install git pre-commit hooks"

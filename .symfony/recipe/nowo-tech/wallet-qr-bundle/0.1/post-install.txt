@@ -1,7 +1,0 @@
-  * <fg=green>Setup</>
-    1. Configure <comment>config/packages/nowo_wallet_qr.yaml</>
-    2. Add your Google service account JSON path for Android wallet links
-    3. Set <comment>apple_wallet.pass_download_url_pattern</comment> for iOS pass downloads
-    4. Inject <comment>Nowo\WalletQrBundle\Service\WalletQrService</comment> in your controllers
-
-  Documentation: https://github.com/nowo-tech/WalletQrBundle

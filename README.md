@@ -1,5 +1,9 @@
 # Audit Kit Bundle
 
+[![CI](https://github.com/nowo-tech/AuditKitBundle/actions/workflows/ci.yml/badge.svg)](https://github.com/nowo-tech/AuditKitBundle/actions/workflows/ci.yml) [![Packagist Version](https://img.shields.io/packagist/v/nowo-tech/audit-kit-bundle.svg?style=flat)](https://packagist.org/packages/nowo-tech/audit-kit-bundle) [![Packagist Downloads](https://img.shields.io/packagist/dt/nowo-tech/audit-kit-bundle.svg)](https://packagist.org/packages/nowo-tech/audit-kit-bundle) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE) [![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?logo=php)](https://php.net) [![Symfony](https://img.shields.io/badge/Symfony-7.4%20%7C%208.0%20%7C%208.1%2B-000000?logo=symfony)](https://symfony.com) [![GitHub stars](https://img.shields.io/github/stars/nowo-tech/AuditKitBundle.svg?style=social&label=Star)](https://github.com/nowo-tech/AuditKitBundle) [![Coverage](https://img.shields.io/badge/Coverage-100%25-brightgreen)](#tests-and-coverage)
+
+> ⭐ **Found this useful?** Install from [Packagist](https://packagist.org/packages/nowo-tech/audit-kit-bundle) and give the repo a star on GitHub.
+
 Symfony + Doctrine bundle for **automatic auditing fields** on any opt-in entity:
 
 | Field | Set on |
@@ -7,7 +11,7 @@ Symfony + Doctrine bundle for **automatic auditing fields** on any opt-in entity
 | `createdAt` / `updatedAt` | `prePersist` + `preUpdate` (timestamps only on update) |
 | `createdBy` / `updatedBy` | When an authenticated user is present (nullable in CLI) |
 
-Complements [`nowo-tech/user-kit-bundle`](../UserKitBundle) (account state / presence) and [`nowo-tech/auth-kit-bundle`](https://github.com/nowo-tech/AuthKitBundle) (auth flows).
+Complements [`nowo-tech/user-kit-bundle`](https://github.com/nowo-tech/UserKitBundle) (account state / presence) and [`nowo-tech/auth-kit-bundle`](https://github.com/nowo-tech/AuthKitBundle) (auth flows).
 
 ## Features
 
@@ -44,32 +48,54 @@ class Article
 }
 ```
 
-## Documentation
-
-| Document | Purpose |
-| -------- | ------- |
-| [`docs/INSTALLATION.md`](docs/INSTALLATION.md) | Install and enable |
-| [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Configuration reference |
-| [`docs/USAGE.md`](docs/USAGE.md) | Traits, listener, migrations |
-| [`docs/CHANGELOG.md`](docs/CHANGELOG.md) | Version history |
-| [`docs/UPGRADING.md`](docs/UPGRADING.md) | Upgrade guide |
-| [`docs/RELEASE.md`](docs/RELEASE.md) | Release process |
-| [`specs/001-baseline/spec.md`](specs/001-baseline/spec.md) | Product spec |
-| [`specs/001-baseline/code-inventory.md`](specs/001-baseline/code-inventory.md) | Source traceability |
-
 ## Development
 
 ```bash
 make up
 make test-coverage
-make phpstan
+make release-check
 ```
 
-## Tests
+## Demo
 
-PHPUnit unit tests target **100% line coverage** on `src/` (verified via `make test-coverage-100`).
+```bash
+make -C demo/symfony8 up   # http://localhost:8013 (default PORT)
+```
 
-**Compatibility:** PHP 8.2+ · Symfony 7.4 / 8.x (CI matrix).
+Each page load persists a demo `Article` with audit columns populated. See [demo/symfony8/README.md](demo/symfony8/README.md) and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
+
+## Tests and coverage
+
+- Tests: PHPUnit (unit + integration)
+- PHP: 100%
+- TS/JS: N/A
+- Python: N/A
+
+**Compatibility:** PHP 8.2+ · Symfony 7.4 / 8.0 / 8.1 (CI matrix).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Documentation
+
+- [Installation](docs/INSTALLATION.md)
+- [Configuration](docs/CONFIGURATION.md)
+- [Usage](docs/USAGE.md)
+- [Contributing](docs/CONTRIBUTING.md)
+- [Changelog](docs/CHANGELOG.md)
+- [Upgrading](docs/UPGRADING.md)
+- [Release](docs/RELEASE.md)
+- [Security](docs/SECURITY.md)
+- [Engram](docs/ENGRAM.md)
+- [Spec-driven development](docs/SPEC-DRIVEN-DEVELOPMENT.md)
+- [GitHub Spec Kit](docs/SPEC-KIT.md)
+
+### Additional documentation
+
+- [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
+- [Product spec](specs/001-baseline/spec.md)
+- [Code inventory](specs/001-baseline/code-inventory.md)
 
 ## Package
 
