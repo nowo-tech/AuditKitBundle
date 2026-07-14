@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuditKitBundle\Model;
 
+/** Contract for entities with created/updated user references. */
 interface BlameableInterface
 {
     public function getCreatedBy(): ?object;

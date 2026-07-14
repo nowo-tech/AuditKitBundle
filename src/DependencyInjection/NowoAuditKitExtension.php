@@ -9,8 +9,10 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
+/** Loads bundle parameters and services from processed configuration. */
 final class NowoAuditKitExtension extends Extension
 {
+    /** Registers parameters and loads service definitions from YAML. */
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();

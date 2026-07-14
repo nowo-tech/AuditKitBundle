@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.3] - 2026-07-14
+
+### Changed
+
+- English PHPDoc on all public classes in `src/` (REQ-CS-001).
+- `docs/SPEC-DRIVEN-DEVELOPMENT.md` completed with public API table, `REQ-*` traceability, contributor workflow, and See also (REQ-DOCS-013).
+- Demo `symfony8`: commented `PORT` in `.env.example`, DNS comment in `docker-compose.yml`, `REQ-DEMO-*` anchors in Makefile.
+
+## [1.0.2] - 2026-07-14
+
+### Fixed
+
+- Removed accidentally committed `demo/symfony7` and `demo/symfony8-php85` directories (including `vendor/`); only `demo/symfony8` remains.
+
 ## [1.0.1] - 2026-07-14
 
 ### Changed

@@ -4,6 +4,14 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.0.3
+
+- **No action required** for Packagist consumers. Documentation and PHPDoc-only release; public API unchanged since 1.0.0.
+
+### 1.0.2
+
+- **No action required** for Packagist consumers. Repository-only fix: removed stale demo folders that were accidentally included in the v1.0.1 tag.
+
 ### 1.0.1
 
 - **No action required** for applications consuming the bundle from Packagist. Public API, configuration keys, and traits are unchanged since 1.0.0.

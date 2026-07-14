@@ -3,6 +3,7 @@
 help:
 	@echo "Symfony 8 Demo - Audit Kit Bundle"
 
+# REQ-DEMO-005: canonical up target prints demo URL from PORT
 up:
 	@if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
 	docker-compose up -d --build
@@ -47,6 +48,7 @@ cache-clear: ensure-up
 	docker-compose exec php php bin/console cache:clear
 
 link-bundle: ensure-up
+	# REQ-DEMO-007: sync mounted bundle before tests and schema update
 	docker-compose exec php sh -c "mkdir -p var/data && rm -rf vendor/nowo-tech/audit-kit-bundle && ln -sf /var/audit-kit-bundle vendor/nowo-tech/audit-kit-bundle && php bin/console doctrine:schema:update --force --complete && php bin/console cache:clear"
 
 update-bundle: ensure-up

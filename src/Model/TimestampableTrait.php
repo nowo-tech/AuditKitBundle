@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\Mapping as ORM;
 
+/** Default Doctrine mappings and accessors for created/updated timestamps. */
 trait TimestampableTrait
 {
     #[ORM\Column(type: 'datetime_immutable', nullable: true)]

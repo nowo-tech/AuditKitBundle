@@ -7,6 +7,7 @@ namespace Nowo\AuditKitBundle\Security;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
+/** Resolves the authenticated user from Symfony Security token storage. */
 final class CurrentUserResolver
 {
     public function __construct(
@@ -14,6 +15,7 @@ final class CurrentUserResolver
     ) {
     }
 
+    /** Returns the current user or null when guest / CLI context. */
     public function resolve(): ?UserInterface
     {
         $token = $this->tokenStorage->getToken();
