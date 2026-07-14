@@ -1,0 +1,24 @@
+# Symfony demo projects
+demo-symfony6/vendor/
+demo-symfony6/var/
+demo-symfony6/.env.local
+demo-symfony6/.env.local.php
+demo-symfony6/.env.*.local
+demo-symfony6/config/secrets/
+demo-symfony6/.phpunit.cache/
+
+demo-symfony7/vendor/
+demo-symfony7/var/
+demo-symfony7/.env.local
+demo-symfony7/.env.local.php
+demo-symfony7/.env.*.local
+demo-symfony7/config/secrets/
+demo-symfony7/.phpunit.cache/
+
+demo-symfony8/vendor/
+demo-symfony8/var/
+demo-symfony8/.env.local
+demo-symfony8/.env.local.php
+demo-symfony8/.env.*.local
+demo-symfony8/config/secrets/
+demo-symfony8/.phpunit.cache/

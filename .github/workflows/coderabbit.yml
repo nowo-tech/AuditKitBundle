@@ -1,6 +1,6 @@
 # CodeRabbit integration for pull requests and pushes to main.
 #
-# 1. GitHub App (recommended): install https://github.com/apps/coderabbitai on nowo-tech/WalletQrBundle.
+# 1. GitHub App (recommended): install https://github.com/apps/coderabbitai on nowo-tech/AuditKitBundle.
 #    Reviews pull requests automatically (no workflow required).
 # 2. CLI job (optional): set repository secret CODERABBIT_API_KEY (Agentic API key from CodeRabbit dashboard).
 #

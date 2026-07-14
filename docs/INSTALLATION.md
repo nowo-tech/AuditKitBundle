@@ -46,3 +46,11 @@ php bin/console debug:container AuditableEntityListener
 ## Demo
 
 See [Demo with FrankenPHP](DEMO-FRANKENPHP.md).
+
+## Symfony Flex recipe
+
+When using Symfony Flex, the recipe at `.symfony/recipe/nowo-tech/audit-kit-bundle/1.0/` copies:
+
+- `config/packages/nowo_audit_kit.yaml` — default bundle configuration (`user_class` placeholder)
+
+See `post-install.txt` in the recipe for next steps after `composer require`.

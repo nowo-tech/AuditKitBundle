@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-07-14
+
+### Changed
+
+- README aligned with Nowo bundle standards: badges, canonical `## Documentation` links, `## Tests and coverage`, demo and FrankenPHP notes.
+- `docs/SPEC-DRIVEN-DEVELOPMENT.md` updated for v1.0.0 implementation status.
+- GitHub issue templates, Spec Kit constitution, and CodeRabbit workflow comments reference **AuditKitBundle** (removed WalletQr leftovers).
+- Symfony Flex recipe: `nowo-tech/audit-kit-bundle` replaces incorrect `wallet-qr-bundle` recipe.
+- `demo/README.md` and `demo/symfony8/README.md` document Audit Kit demo only.
+- Added `tests/Integration/` smoke tests for bundle extension wiring.
+
+### Removed
+
+- Stale Wallet QR demo projects `demo/symfony7` and `demo/symfony8-php85` (not part of this bundle).
+
 ## [1.0.0] - 2026-07-14
 
 ### Added
@@ -15,5 +30,5 @@ All notable changes to this project will be documented in this file.
 - Per-entity opt-out via `#[Auditable(enabled: false)]`.
 - Symfony configuration tree `nowo_audit_kit` (`user_class`, `fields`, `timestamp_type`, `blameable`, `timestampable`, `enabled`).
 - `CurrentUserResolver` integration with Symfony Security (guest / CLI safe — blame fields stay `null`).
-- Demo applications for Symfony 7.4 and 8.x (FrankenPHP, SQLite).
+- Demo application for Symfony 8.x (FrankenPHP, SQLite).
 - GitHub Spec Kit baseline (`specs/001-baseline/`), CI matrix (PHP 8.2–8.5, Symfony 7.0 / 7.4 / 8.0 / 8.1), and **100%** unit test coverage on `src/`.

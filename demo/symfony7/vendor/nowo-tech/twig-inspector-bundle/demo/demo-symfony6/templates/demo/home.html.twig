@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Symfony 6.4</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        .demo-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .demo-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        .demo-header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        .demo-header p {
+            color: #6c757d;
+        }
+        .version-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 15px;
+            margin-bottom: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+            padding: 20px;
+            margin-top: 30px;
+        }
+        .code-block {
+            background: #f4f4f4;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🔍 Twig Inspector Bundle <span class="version-badge">Symfony 6.4</span></h1>
+            <p>Symfony Bundle Demo</p>
+        </div>
+
+        <div class="content">
+            <h2>Welcome!</h2>
+            <p>{{ message }}</p>
+
+            <h3 class="mt-4">How to Use:</h3>
+            <ul class="feature-list">
+                {% for item in items %}
+                    <li>{{ item }}</li>
+                {% endfor %}
+            </ul>
+
+            <div class="info-box">
+                <h4>📝 Instructions:</h4>
+                <ol>
+                    <li>Look at the bottom of the page for the Symfony Web Profiler toolbar</li>
+                    <li>Find the <code>&lt;/&gt;</code> icon (Twig Inspector)</li>
+                    <li>Check the "enable" checkbox to activate Twig Inspector</li>
+                    <li>The page will reload with inspection enabled</li>
+                    <li>Hover over any HTML element to see which template rendered it</li>
+                    <li>Click on elements to open the template in your IDE</li>
+                </ol>
+            </div>
+
+            <div class="mt-4">
+                <h3>Example Template Structure</h3>
+                <p>This page uses the following template structure:</p>
+                <div class="code-block">
+                    templates/demo/home.html.twig<br>
+                    └── Extends base template<br>
+                    └── Contains blocks and includes
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <h3>Template Blocks</h3>
+                <p>This template demonstrates various Twig features:</p>
+                <ul>
+                    <li><strong>Variables:</strong> {{ title }}, {{ message }}</li>
+                    <li><strong>Loops:</strong> Iterating over items array</li>
+                    <li><strong>Includes:</strong> Can include other templates</li>
+                    <li><strong>Blocks:</strong> Extendable template structure</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <small class="text-muted">
+                Powered by <a href="https://github.com/nowo-tech/twig-inspector-bundle" target="_blank">Twig Inspector Bundle</a>
+            </small>
+        </div>
+    </div>
+</body>
+</html>

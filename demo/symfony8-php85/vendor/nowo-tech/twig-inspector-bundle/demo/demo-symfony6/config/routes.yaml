@@ -1,0 +1,10 @@
+demo_home:
+    path: /
+    controller: App\Controller\DemoController::home
+    methods: [GET]
+
+# Twig Inspector Bundle routes
+when@dev:
+    nowo_twig_inspector:
+        resource: '@NowoTwigInspectorBundle/Resources/config/routes.yaml'
+

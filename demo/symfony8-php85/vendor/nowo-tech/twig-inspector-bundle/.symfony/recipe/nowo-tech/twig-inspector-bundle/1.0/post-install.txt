@@ -1,0 +1,13 @@
+Twig Inspector Bundle has been installed!
+
+The configuration file has been created at:
+  config/packages/nowo_twig_inspector.yaml
+
+You can customize the configuration according to your needs.
+The bundle works with default values if you delete this file.
+
+To use the bundle:
+1. Make sure Symfony Web Profiler is enabled
+2. Access your application in dev environment
+3. Enable the inspector via the Web Profiler toolbar (</> icon)
+

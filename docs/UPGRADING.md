@@ -4,6 +4,11 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.0.1
+
+- **No action required** for applications consuming the bundle from Packagist. Public API, configuration keys, and traits are unchanged since 1.0.0.
+- **Contributors / clones:** stale Wallet QR demo folders were removed; use `demo/symfony8` only.
+
 ### 1.0.0
 
 First stable release.

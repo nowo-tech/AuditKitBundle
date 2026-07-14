@@ -1,0 +1,6 @@
+security:
+  firewalls:
+    twig_inspector:
+      pattern: ^/_template/
+      security: false
+
