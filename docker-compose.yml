@@ -1,0 +1,29 @@
+name: audit-kit-bundle
+
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: audit-kit-bundle-php
+    working_dir: /app
+    volumes:
+      - .:/app
+      - composer-cache:/root/.composer/cache
+      - coverage-data:/app/coverage
+    environment:
+      - COMPOSER_ALLOW_SUPERUSER=1
+      - XDEBUG_MODE=coverage
+    command: ["tail", "-f", "/dev/null"]
+    networks:
+      - audit-kit-bundle-network
+
+volumes:
+  composer-cache:
+    driver: local
+  coverage-data:
+    driver: local
+
+networks:
+  audit-kit-bundle-network:
+    driver: bridge

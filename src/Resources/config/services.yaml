@@ -1,0 +1,28 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Nowo\AuditKitBundle\:
+        resource: '../../'
+        exclude:
+            - '../../DependencyInjection/'
+            - '../../Model/'
+            - '../../Attribute/'
+            - '../../NowoAuditKitBundle.php'
+
+    Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver:
+        arguments:
+            $fields: '%nowo_audit_kit.fields%'
+
+    Nowo\AuditKitBundle\Doctrine\AuditableEntityListener:
+        arguments:
+            $enabled: '%nowo_audit_kit.enabled%'
+            $timestampable: '%nowo_audit_kit.timestampable%'
+            $blameable: '%nowo_audit_kit.blameable%'
+            $userClass: '%nowo_audit_kit.user_class%'
+            $timestampType: '%nowo_audit_kit.timestamp_type%'
+        tags:
+            - { name: doctrine.orm.entity_listener, event: prePersist, entity: null, lazy: true }
+            - { name: doctrine.orm.entity_listener, event: preUpdate, entity: null, lazy: true }

@@ -1,0 +1,13 @@
+nowo_wallet_qr:
+    google_wallet:
+        enabled: false
+        issuer_id: ''
+        service_account_json: '%kernel.project_dir%/config/google-wallet-service-account.json'
+        origins: []
+    apple_wallet:
+        enabled: false
+        pass_download_url_pattern: 'https://demo.example.com/wallet/{pass_id}.pkpass'
+    qr_code:
+        size: 240
+        margin: 8
+        error_correction: high

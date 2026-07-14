@@ -1,0 +1,11 @@
+nowo_audit_kit:
+    enabled: true
+    user_class: App\Entity\User
+    fields:
+        created_at: createdAt
+        updated_at: updatedAt
+        created_by: createdBy
+        updated_by: updatedBy
+    timestamp_type: datetime_immutable
+    blameable: true
+    timestampable: true

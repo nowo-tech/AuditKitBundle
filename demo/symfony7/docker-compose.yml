@@ -1,0 +1,36 @@
+# Single service "php" (FrankenPHP); no separate nginx (§2.4, pattern TwigInspector)
+name: wallet-qr-bundle-demo-symfony-7
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wallet-qr-demo-symfony7-php
+    working_dir: /app
+    ports:
+      - "${PORT:-8002}:80"
+    volumes:
+      - .:/app
+      - ../..:/var/wallet-qr-bundle
+      - ./docker/frankenphp/Caddyfile.dev:/etc/frankenphp/Caddyfile.dev
+      - ./docker/php-dev.ini:/usr/local/etc/php/conf.d/99-dev.ini:ro
+      - composer-cache:/root/.composer/cache
+    environment:
+      - COMPOSER_ALLOW_SUPERUSER=1
+      - APP_ENV=dev
+      - APP_DEBUG=1
+      - APP_SECRET=${APP_SECRET:-demo-secret}
+    # Mitigate Docker/WSL DNS failures resolving repo.packagist.org (composer curl error 6).
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    networks:
+      - wallet-qr-demo-network
+
+volumes:
+  composer-cache:
+    driver: local
+
+networks:
+  wallet-qr-demo-network:
+    driver: bridge
