@@ -6,7 +6,7 @@ COMPOSE_FILE := docker-compose.yml
 COMPOSE := docker-compose -f $(COMPOSE_FILE)
 SERVICE_PHP := php
 
-.PHONY: help up down build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan qa release-check release-check-demos composer-sync clean update validate assets setup-hooks
+.PHONY: help up down build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
 
 # Default target
 help:
@@ -114,7 +114,7 @@ qa: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer qa
 
 # Pre-release checks (no demos healthcheck if demo/Makefile has no release-verify; optional)
-release-check: ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage release-check-demos
+release-check: check-no-cursor-coauthor ensure-up composer-sync cs-fix cs-check rector-dry phpstan test-coverage release-check-demos
 
 release-check-demos:
 	@if [ -f demo/Makefile ]; then $(MAKE) -C demo release-check; fi
@@ -145,10 +145,15 @@ assets:
 	@echo "No frontend assets in this bundle."
 
 # Setup git hooks for pre-commit checks
+check-no-cursor-coauthor:
+	@chmod +x .scripts/check-no-cursor-coauthor.sh
+	@./.scripts/check-no-cursor-coauthor.sh HEAD
+
 setup-hooks:
-	chmod +x .githooks/pre-commit
-	git config core.hooksPath .githooks
-	@echo "✅ Git hooks installed! CS-check and tests will run before each commit."
+	@chmod +x .githooks/pre-commit 2>/dev/null || true
+	@chmod +x .githooks/commit-msg 2>/dev/null || true
+	@git config core.hooksPath .githooks
+	@echo "✅ Git hooks installed (.githooks — includes commit-msg for REQ-GIT-001)."
 
 
 # REQ-MAKE-008: update-deps (bundle root + all demos)
@@ -158,3 +163,7 @@ include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
 update-deps:
 	@$(MAKE) update
 	@$(MAKE) update-deps-demos
+
+strip-cursor-coauthor-from-history:
+	@chmod +x .scripts/strip-cursor-coauthor-from-history.sh
+	@./.scripts/strip-cursor-coauthor-from-history.sh main

@@ -4,6 +4,13 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.1
+
+From **1.1.0** (or any **1.0.x**) — **no action required** for Packagist consumers. Public API and configuration unchanged.
+
+- Repository / contributor tooling only: REQ-GIT-001 (no Cursor co-author trailers in git history), Code of Conduct, and CI matrix fix for Doctrine Bundle on PHP 8.2/8.3.
+- **Contributors:** run `make setup-hooks` once per clone; `make check-no-cursor-coauthor` is part of `make release-check`. See [GITHUB_CI.md](GITHUB_CI.md).
+
 ### 1.1.0
 
 From **1.0.5**, **1.0.4**, **1.0.3**, **1.0.2**, **1.0.1**, or **1.0.0** — backward compatible for single-entity setups.

@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-07-16
+
+### Added
+
+- **REQ-GIT-001**: CI job `git-hygiene`, `.scripts/check-no-cursor-coauthor.sh`, `.scripts/strip-cursor-coauthor-from-history.sh`, `.githooks/commit-msg`, and `.cursor/rules/01-git-commits.mdc` so commit messages stay free of Cursor `Co-authored-by` trailers.
+- `docs/GITHUB_CI.md` — operator and CI reference for REQ-GIT-001.
+- `CODE_OF_CONDUCT.md` (Contributor Covenant) linked from README and Contributing.
+
+### Changed
+
+- `make release-check` and `make setup-hooks` enforce / install the co-author checks (REQ-GIT-001).
+- `docs/CONTRIBUTING.md` and `docs/RELEASE.md` document hooks, verification, and post-release re-check before push.
+- CI matrix: pin `doctrine/doctrine-bundle` to `^2.10` on PHP 8.2/8.3 and `^3.0` on PHP 8.4/8.5 (Doctrine Bundle 3 requires PHP ^8.4).
+- Dev lockfile: `friendsofphp/php-cs-fixer` → v3.95.15; demo lockfile refreshed (`twig-inspector-bundle` → v1.0.36).
+
 ## [1.1.0] - 2026-07-14
 
 ### Added
