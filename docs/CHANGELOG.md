@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.2] - 2026-07-22
+
+### Added
+
+- Demo `symfony8`: `FRANKENPHP_MODE` (`classic` \| `worker`, default `worker`) via `.env` / Compose, with dedicated `docker/entrypoint.sh` (REQ-DEMO-010).
+
+### Changed
+
+- Demo FrankenPHP entrypoint no longer switches Caddyfile from `APP_ENV`; mode is controlled only by `FRANKENPHP_MODE`.
+- `docs/DEMO-FRANKENPHP.md` documents classic vs worker switching.
+- CI: `actions/checkout` bumped from v6 to v7.
+
 ## [1.1.1] - 2026-07-16
 
 ### Added

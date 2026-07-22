@@ -4,6 +4,12 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.2
+
+From **1.1.1** (or any earlier **1.x**) — **no action required** for Packagist consumers. Public API and configuration unchanged.
+
+- Demo / contributor only: FrankenPHP classic vs worker is selected with `FRANKENPHP_MODE` (default `worker`). If you previously relied on `APP_ENV=dev` alone to disable worker mode, set `FRANKENPHP_MODE=classic` in `demo/symfony8/.env` and recreate the container. See [DEMO-FRANKENPHP.md](DEMO-FRANKENPHP.md).
+
 ### 1.1.1
 
 From **1.1.0** (or any **1.0.x**) — **no action required** for Packagist consumers. Public API and configuration unchanged.

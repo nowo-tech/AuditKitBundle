@@ -8,7 +8,7 @@ This document describes how the bundle's demo applications run under **FrankenPH
 - [What the demos include](#what-the-demos-include)
 - [Development configuration](#development-configuration)
 - [Production configuration](#production-configuration)
-- [Switching between development and production](#switching-between-development-and-production)
+- [Switching classic vs worker (`FRANKENPHP_MODE`)](#switching-classic-vs-worker-frankenphp_mode)
 - [Reproducing in another bundle](#reproducing-in-another-bundle)
 - [Troubleshooting](#troubleshooting)
 
@@ -23,7 +23,7 @@ The demos use:
 - **FrankenPHP** (Caddy + PHP) in a single container.
 - **Docker Compose** with the app and the parent bundle mounted as volumes (`../..` → `/var/audit-kit-bundle`).
 - **Two Caddyfiles**: `Caddyfile` (production, with worker) and `Caddyfile.dev` (development, no worker).
-- An **entrypoint** that, when `APP_ENV=dev`, copies `Caddyfile.dev` over the default Caddyfile and then starts FrankenPHP.
+- An **entrypoint** that selects classic vs worker Caddyfile from **`FRANKENPHP_MODE`** (`classic` \| `worker`, default **`worker`** in `.env.example`)
 
 Demos are available for **Symfony 8.x** (`demo/symfony8`). From the bundle root run `make -C demo/symfony8 up` (see the demo README for URL and port).
 
@@ -83,9 +83,22 @@ Use the default Caddyfile (with worker). Set `APP_ENV=prod` and `APP_DEBUG=0`. D
 
 ---
 
-## Switching between development and production
+## Switching classic vs worker (`FRANKENPHP_MODE`)
 
-After changing env or Caddyfile, restart: `docker-compose restart` or `make -C demo/symfony8 restart`.
+`FRANKENPHP_MODE` is independent of `APP_ENV`. Set it in `demo/symfony8/.env` (see `.env.example`):
+
+| Value | Behavior |
+|-------|----------|
+| `worker` (default) | Long-lived FrankenPHP workers (production-like Caddyfile) |
+| `classic` | One process per request / easier hot-reload (`Caddyfile.dev`) |
+
+After changing the value, recreate the container so the entrypoint re-reads env:
+
+```bash
+# from demo/symfony8
+docker compose up -d
+# or: make -C demo/symfony8 restart
+```
 
 ---
 
