@@ -13,6 +13,10 @@ Symfony + Doctrine bundle for **automatic auditing fields** on any opt-in entity
 
 Complements [`nowo-tech/user-kit-bundle`](https://github.com/nowo-tech/UserKitBundle) (account state / presence) and [`nowo-tech/auth-kit-bundle`](https://github.com/nowo-tech/AuthKitBundle) (auth flows).
 
+![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
+
+This bundle is **FrankenPHP worker mode friendly**.
+
 ## Features
 
 - Optional traits: `TimestampableTrait`, `BlameableTrait`, `AuditableTrait`

@@ -101,6 +101,7 @@ make test-coverage-100
 1. Create a branch from `main`
 2. Make your changes with tests and documentation updates
 3. Run `make release-check` or at least `make qa phpstan test-coverage-100`
+   - PHPStan includes **FrankenPHP classic + worker** rulesets via `nowo-tech/phpstan-frankenphp` (**require-dev only**, REQ-CS-005).
 4. Open a Pull Request on GitHub
 
 #### Checklist Before PR
@@ -109,6 +110,7 @@ make test-coverage-100
 - [ ] Ran `make cs-fix`
 - [ ] All tests pass (`make test`)
 - [ ] Code coverage is 100% on `src/` (`make test-coverage-100`)
+- [ ] `make phpstan` passes (includes FrankenPHP rulesets)
 - [ ] Added tests for new functionality
 - [ ] Documentation updated (if necessary)
 - [ ] CHANGELOG.md updated (if necessary)

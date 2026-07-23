@@ -7,8 +7,11 @@ namespace Nowo\AuditKitBundle\Doctrine;
 use DateTimeInterface;
 use Nowo\AuditKitBundle\Attribute\Auditable as AuditableAttribute;
 use Nowo\AuditKitBundle\Model\AuditableInterface;
+use Nowo\AuditKitBundle\Model\AuditableTrait;
 use Nowo\AuditKitBundle\Model\BlameableInterface;
+use Nowo\AuditKitBundle\Model\BlameableTrait;
 use Nowo\AuditKitBundle\Model\TimestampableInterface;
+use Nowo\AuditKitBundle\Model\TimestampableTrait;
 use ReflectionClass;
 use Symfony\Component\PropertyAccess\PropertyAccess;
 use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
@@ -99,9 +102,9 @@ final class AuditablePropertyResolver
     {
         $traits = $this->collectTraits($entity);
 
-        return in_array(\Nowo\AuditKitBundle\Model\AuditableTrait::class, $traits, true)
-            || in_array(\Nowo\AuditKitBundle\Model\TimestampableTrait::class, $traits, true)
-            || in_array(\Nowo\AuditKitBundle\Model\BlameableTrait::class, $traits, true);
+        return in_array(AuditableTrait::class, $traits, true)
+            || in_array(TimestampableTrait::class, $traits, true)
+            || in_array(BlameableTrait::class, $traits, true);
     }
 
     /**

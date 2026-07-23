@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-07-23
+
+### Added
+
+- **REQ-CS-005**: `nowo-tech/phpstan-frankenphp` (require-dev) with `ruleset-classic` + `ruleset-worker` in `phpstan.neon.dist`.
+- **REQ-DOCS-017**: FrankenPHP Friendly Worker Mode banner (`docs/images/frankenphp-friendly.png`) and canonical claim in README.
+- Root Makefile `down-dev` alias (REQ-MAKE-007); demo aggregator `update-bundle` target (REQ-MAKE-003).
+
+### Changed
+
+- PHP-CS-Fixer `fully_qualified_strict_types.import_symbols` enabled; source/tests use imported symbols instead of leading-backslash FQCNs (no runtime behavior change).
+- `docs/CONTRIBUTING.md` notes FrankenPHP PHPStan rulesets in the PR checklist.
+
 ## [1.1.2] - 2026-07-22
 
 ### Added

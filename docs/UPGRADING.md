@@ -4,6 +4,12 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.3
+
+From **1.1.2** (or any earlier **1.x**) — **no action required** for Packagist consumers. Public API, configuration, and runtime behavior unchanged.
+
+- Maintainer / contributor tooling: PHPStan FrankenPHP rulesets (REQ-CS-005), README worker-mode banner (REQ-DOCS-017), and Makefile targets `down-dev` / demo `update-bundle`.
+
 ### 1.1.2
 
 From **1.1.1** (or any earlier **1.x**) — **no action required** for Packagist consumers. Public API and configuration unchanged.

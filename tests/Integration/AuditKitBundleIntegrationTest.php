@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Tests\Integration;
 
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
+use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -23,7 +24,7 @@ final class AuditKitBundleIntegrationTest extends TestCase
 
         self::assertTrue($container->hasParameter('nowo_audit_kit.user_class'));
         self::assertSame('App\\Entity\\User', $container->getParameter('nowo_audit_kit.user_class'));
-        self::assertTrue($container->hasDefinition(\Nowo\AuditKitBundle\Doctrine\AuditableEntityListener::class));
+        self::assertTrue($container->hasDefinition(AuditableEntityListener::class));
     }
 
     public function testBundleRegistersExtensionAlias(): void

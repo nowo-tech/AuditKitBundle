@@ -6,7 +6,7 @@ COMPOSE_FILE := docker-compose.yml
 COMPOSE := docker-compose -f $(COMPOSE_FILE)
 SERVICE_PHP := php
 
-.PHONY: help up down build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
+.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor strip-cursor-coauthor-from-history
 
 # Default target
 help:
@@ -17,6 +17,7 @@ help:
 	@echo "Targets:"
 	@echo "  up            Start Docker container"
 	@echo "  down          Stop Docker container"
+	@echo "  down-dev      Stop root container (alias of down; non-destructive)"
 	@echo "  build         Rebuild Docker image (no cache)"
 	@echo "  shell         Open shell in container"
 	@echo "  install       Install Composer dependencies (starts container if needed)"
@@ -58,6 +59,9 @@ up:
 # Stop container
 down:
 	$(COMPOSE) down
+
+# REQ-MAKE-007: alias of down (non-destructive stop for root/dev container)
+down-dev: down
 
 # Open shell in container
 shell: ensure-up
