@@ -934,12 +934,13 @@
             "dist": {
                 "type": "path",
                 "url": "/var/audit-kit-bundle",
-                "reference": "fda1be975b02f2a7057cdf2b8edb9df075d68d7e"
+                "reference": "c331efac206d9e19f78cc29bd329fd00cd8bac94"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
                 "doctrine/orm": "^2.15 || ^3.0",
                 "php": ">=8.2 <8.6",
+                "psr/clock": "^1.0",
                 "symfony/config": "^7.0 || ^8.0",
                 "symfony/dependency-injection": "^7.0 || ^8.0",
                 "symfony/framework-bundle": "^7.0 || ^8.0",
@@ -956,6 +957,7 @@
                 "phpstan/phpstan-symfony": "^2.0",
                 "phpunit/phpunit": "^11.0",
                 "rector/rector": "^2.0",
+                "symfony/clock": "^7.0 || ^8.0",
                 "symfony/yaml": "^7.0 || ^8.0"
             },
             "type": "symfony-bundle",

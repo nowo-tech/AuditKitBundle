@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Doctrine;
 
 use DateTime;
-use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PrePersistEventArgs;
@@ -13,6 +12,7 @@ use Doctrine\ORM\Event\PreUpdateEventArgs;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Profile\ProfileSettings;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Throwable;
 
@@ -24,6 +24,7 @@ final class AuditableEntityListener
         private readonly AuditablePropertyResolver $propertyResolver,
         private readonly CurrentUserResolver $currentUserResolver,
         private readonly EntityManagerInterface $entityManager,
+        private readonly ClockInterface $clock,
     ) {
     }
 
@@ -79,9 +80,11 @@ final class AuditableEntityListener
 
     private function createTimestamp(ProfileSettings $profile): DateTimeInterface
     {
+        $now = $this->clock->now();
+
         return $profile->timestampType === 'datetime'
-            ? new DateTime()
-            : new DateTimeImmutable();
+            ? DateTime::createFromImmutable($now)
+            : $now;
     }
 
     private function resolveBlameUser(ProfileSettings $profile): ?object

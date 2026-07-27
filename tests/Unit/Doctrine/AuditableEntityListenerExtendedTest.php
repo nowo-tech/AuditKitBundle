@@ -18,6 +18,7 @@ use Nowo\AuditKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use stdClass;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -156,6 +157,7 @@ final class AuditableEntityListenerExtendedTest extends TestCase
             propertyResolver: new AuditablePropertyResolver(),
             currentUserResolver: new CurrentUserResolver($tokenStorage),
             entityManager: $em,
+            clock: new NativeClock(),
         );
     }
 }

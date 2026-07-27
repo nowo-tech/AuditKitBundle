@@ -13,6 +13,7 @@ use Nowo\AuditKitBundle\Model\AuditableTrait;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
 use Nowo\AuditKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Clock\NativeClock;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 
 final class AuditableEntityListenerEdgeCasesTest extends TestCase
@@ -30,6 +31,7 @@ final class AuditableEntityListenerEdgeCasesTest extends TestCase
             propertyResolver: new AuditablePropertyResolver(),
             currentUserResolver: new CurrentUserResolver(new TokenStorage()),
             entityManager: $this->createMock(EntityManagerInterface::class),
+            clock: new NativeClock(),
         );
 
         $em = $this->createMock(EntityManagerInterface::class);
@@ -51,6 +53,7 @@ final class AuditableEntityListenerEdgeCasesTest extends TestCase
             propertyResolver: new AuditablePropertyResolver(),
             currentUserResolver: new CurrentUserResolver(new TokenStorage()),
             entityManager: $this->createMock(EntityManagerInterface::class),
+            clock: new NativeClock(),
         );
 
         $em = $this->createMock(EntityManagerInterface::class);

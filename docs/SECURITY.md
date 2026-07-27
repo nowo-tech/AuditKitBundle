@@ -7,6 +7,7 @@
 - [Preferred Languages](#preferred-languages)
 - [Contact](#contact)
 - [Release security checklist (12.4.1)](#release-security-checklist-1241)
+- [AI security audit](#ai-security-audit)
 
 ## Supported Versions
 
@@ -69,5 +70,16 @@ Before tagging a release, confirm:
 | **Dependencies** | `composer audit` run; issues triaged. |
 | **Logging** | Logs do not print secrets, tokens, or session identifiers unnecessarily. |
 | **Permissions / exposure** | Bundle does not expose HTTP routes; auditing runs in Doctrine lifecycle only. |
+| **AI security audit (REQ-SEC-004)** | Grade **Pass (good)** / risk **Low** (2026-07-27). Recorded in the Nowo monorepo `BUNDLES_SECURITY_ANALYSIS.md`. |
 
 Record confirmation in the release PR or tag notes.
+
+## AI security audit
+
+| Field | Value |
+| ----- | ----- |
+| Date | 2026-07-27 |
+| Grade | Pass (good) |
+| Risk | Low |
+| Method | Cursor security-review / monorepo static pass |
+| Open residuals | None (Critical/High). App-owned: PII retention for audit columns. |

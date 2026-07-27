@@ -34,6 +34,7 @@
         "php": ">=8.2 <8.6",
         "doctrine/doctrine-bundle": "^2.10 || ^3.0",
         "doctrine/orm": "^2.15 || ^3.0",
+        "psr/clock": "^1.0",
         "symfony/config": "^7.0 || ^8.0",
         "symfony/dependency-injection": "^7.0 || ^8.0",
         "symfony/framework-bundle": "^7.0 || ^8.0",
@@ -50,6 +51,7 @@
         "phpstan/phpstan-symfony": "^2.0",
         "phpunit/phpunit": "^11.0",
         "rector/rector": "^2.0",
+        "symfony/clock": "^7.0 || ^8.0",
         "symfony/yaml": "^7.0 || ^8.0"
     },
     "autoload": {

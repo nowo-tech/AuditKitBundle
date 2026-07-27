@@ -4,6 +4,14 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.4
+
+From **1.1.3** (or any earlier **1.x**) — **no action required** for applications that load the listener via Symfony DI (autowire provides `ClockInterface`).
+
+- New runtime Composer requirement: `psr/clock` (^1.0). Run `composer update nowo-tech/audit-kit-bundle`.
+- If you **manually** instantiate `AuditableEntityListener`, pass a `Psr\Clock\ClockInterface` as the fifth constructor argument (e.g. `Symfony\Component\Clock\NativeClock`).
+- Public config, traits, and audit field behavior are unchanged.
+
 ### 1.1.3
 
 From **1.1.2** (or any earlier **1.x**) — **no action required** for Packagist consumers. Public API, configuration, and runtime behavior unchanged.

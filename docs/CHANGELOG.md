@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-07-27
+
+### Added
+
+- **`Psr\Clock\ClockInterface`** injected into `AuditableEntityListener` (REQ-DI-001); timestamps use the clock instead of `new DateTimeImmutable()` / `new DateTime()`.
+- Runtime dependency `psr/clock` (^1.0); `symfony/clock` in require-dev for tests.
+- **REQ-SF-005**: `SYMFONY_DEPRECATIONS_HELPER=max[direct]=0` in `phpunit.xml.dist`.
+- **REQ-SEC-004**: AI security audit grade **Pass (good)** / risk **Low** recorded in `docs/SECURITY.md`.
+
+### Changed
+
+- Timestamp creation is clock-driven (same “now” semantics under the default Symfony clock; tests can freeze time via `MockClock`).
+- Dev tooling lockfile: `friendsofphp/php-cs-fixer` → v3.95.17, `phpstan/phpstan` → 2.2.6, `rector/rector` → 2.5.8.
+
 ## [1.1.3] - 2026-07-23
 
 ### Added
