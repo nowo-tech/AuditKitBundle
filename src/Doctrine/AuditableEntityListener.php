@@ -13,6 +13,8 @@ use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Profile\ProfileSettings;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Throwable;
 
@@ -25,6 +27,7 @@ final class AuditableEntityListener
         private readonly CurrentUserResolver $currentUserResolver,
         private readonly EntityManagerInterface $entityManager,
         private readonly ClockInterface $clock,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -107,8 +110,14 @@ final class AuditableEntityListener
             if ($idValue !== null) {
                 return $this->entityManager->getReference($profile->userClass, $idValue);
             }
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             // Fall back to the managed/authenticated user instance.
+            $this->logger->warning('AuditKit: failed to resolve blame user Doctrine reference; using token user.', [
+                'bundle'    => 'nowo-tech/audit-kit-bundle',
+                'action'    => 'resolve_blame_user',
+                'exception' => $e::class,
+                'message'   => $e->getMessage(),
+            ]);
         }
 
         return $user;

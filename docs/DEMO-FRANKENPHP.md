@@ -20,12 +20,14 @@ This document describes how the bundle's demo applications run under **FrankenPH
 
 The demos use:
 
-- **FrankenPHP** (Caddy + PHP) in a single container.
+- **FrankenPHP** (Caddy + PHP) in a single container — base image `dunglas/frankenphp:1-php8.5-alpine` (REQ-DEMO-010; newest PHP allowed by Symfony 8 / demo `require.php`).
 - **Docker Compose** with the app and the parent bundle mounted as volumes (`../..` → `/var/audit-kit-bundle`).
 - **Two Caddyfiles**: `Caddyfile` (production, with worker) and `Caddyfile.dev` (development, no worker).
 - An **entrypoint** that selects classic vs worker Caddyfile from **`FRANKENPHP_MODE`** (`classic` \| `worker`, default **`worker`** in `.env.example`)
 
 Demos are available for **Symfony 8.x** (`demo/symfony8`). From the bundle root run `make -C demo/symfony8 up` (see the demo README for URL and port).
+
+**Smoke check (REQ-TEST-011):** from the bundle root, `make demo-smoke` boots `demo/symfony8` and asserts `HTTP 200` on `http://localhost:$PORT/` (default port **8013**). Also available as `.github/workflows/demo-smoke.yml` (schedule / tag / dispatch).
 
 | Aspect | Development | Production |
 |--------|-------------|------------|

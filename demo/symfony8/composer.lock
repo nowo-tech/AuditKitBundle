@@ -934,13 +934,14 @@
             "dist": {
                 "type": "path",
                 "url": "/var/audit-kit-bundle",
-                "reference": "c331efac206d9e19f78cc29bd329fd00cd8bac94"
+                "reference": "384a6251342be24d9f13008b518e5a94c9531aa2"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
                 "doctrine/orm": "^2.15 || ^3.0",
                 "php": ">=8.2 <8.6",
                 "psr/clock": "^1.0",
+                "psr/log": "^1 || ^2 || ^3",
                 "symfony/config": "^7.0 || ^8.0",
                 "symfony/dependency-injection": "^7.0 || ^8.0",
                 "symfony/framework-bundle": "^7.0 || ^8.0",

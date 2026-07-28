@@ -4,6 +4,14 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.5
+
+From **1.1.4** (or any earlier **1.x**) — **no action required** for applications that load the listener via Symfony DI (autowire provides `LoggerInterface`).
+
+- New runtime Composer requirement: `psr/log` (^1 || ^2 || ^3). Run `composer update nowo-tech/audit-kit-bundle`.
+- If you **manually** instantiate `AuditableEntityListener`, optional sixth constructor argument: `Psr\Log\LoggerInterface` (defaults to `NullLogger`).
+- Public config, traits, and audit field behavior are unchanged. Failed blame Doctrine references now emit a warning log (NullLogger by default).
+
 ### 1.1.4
 
 From **1.1.3** (or any earlier **1.x**) — **no action required** for applications that load the listener via Symfony DI (autowire provides `ClockInterface`).

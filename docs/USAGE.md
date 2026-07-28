@@ -1,5 +1,17 @@
 # Usage
 
+## Table of contents
+
+- [Configuration profiles](#configuration-profiles)
+- [Quick start with AuditableTrait](#quick-start-with-auditabletrait)
+- [Traits and interfaces](#traits-and-interfaces)
+- [Custom property names](#custom-property-names)
+- [Opt-out per entity](#opt-out-per-entity)
+- [Blame fields without the trait](#blame-fields-without-the-trait)
+- [Doctrine migrations](#doctrine-migrations)
+- [Behaviour summary](#behaviour-summary)
+- [Related bundles](#related-bundles)
+
 ## Configuration profiles
 
 Since **1.1.0**, settings can be grouped under named **profiles** when the application has more than one user entity. Each profile maps a `user_class` to its own field names, `timestamp_type`, and `blameable` / `timestampable` flags.

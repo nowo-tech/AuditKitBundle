@@ -2,7 +2,59 @@
 
 All notable changes to this project will be documented in this file.
 
+## Table of contents
+
+- [[Unreleased]](#unreleased)
+- [[1.1.5] - 2026-07-28](#115-2026-07-28)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.1.4] - 2026-07-27](#114-2026-07-27)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.1.3] - 2026-07-23](#113-2026-07-23)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.1.2] - 2026-07-22](#112-2026-07-22)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.1.1] - 2026-07-16](#111-2026-07-16)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.1.0] - 2026-07-14](#110-2026-07-14)
+  - [Added](#added)
+  - [Changed](#changed)
+- [[1.0.5] - 2026-07-14](#105-2026-07-14)
+  - [Added](#added)
+- [[1.0.4] - 2026-07-14](#104-2026-07-14)
+  - [Fixed](#fixed)
+  - [Changed](#changed)
+- [[1.0.3] - 2026-07-14](#103-2026-07-14)
+  - [Changed](#changed)
+- [[1.0.2] - 2026-07-14](#102-2026-07-14)
+  - [Fixed](#fixed)
+- [[1.0.1] - 2026-07-14](#101-2026-07-14)
+  - [Changed](#changed)
+  - [Removed](#removed)
+- [[1.0.0] - 2026-07-14](#100-2026-07-14)
+  - [Added](#added)
+
 ## [Unreleased]
+
+## [1.1.5] - 2026-07-28
+
+### Added
+
+- **`LoggerInterface`** on `AuditableEntityListener` (default `NullLogger`); warning log when blame Doctrine reference fails (REQ-OBS-001).
+- Runtime dependency `psr/log` (^1 || ^2 || ^3).
+- **`make demo-smoke`** + `.github/workflows/demo-smoke.yml` (REQ-TEST-011).
+- **`make check-open-prs`** / `.scripts/check-open-prs.sh` wired into `release-check` (REQ-REL-003).
+
+### Changed
+
+- Demo FrankenPHP image: `dunglas/frankenphp:1-php8.5-alpine` (REQ-DEMO-010).
+- Spec Kit baseline inventory: `Profile/*` mapped; last audited **2026-07-28** (REQ-SPECKIT-001 / REQ-SPECKIT-003).
+- Long docs: Table of contents (REQ-DOCS-005).
+- `docs/SECURITY.md`: Attack surface, threat model, mitigations, logging (REQ-SEC-001).
 
 ## [1.1.4] - 2026-07-27
 

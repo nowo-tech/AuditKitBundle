@@ -1,5 +1,15 @@
 # Installation
 
+## Table of contents
+
+- [Requirements](#requirements)
+- [Composer](#composer)
+- [Enable the bundle](#enable-the-bundle)
+- [Configuration file](#configuration-file)
+- [Verify](#verify)
+- [Demo](#demo)
+- [Symfony Flex recipe](#symfony-flex-recipe)
+
 ## Requirements
 
 - PHP 8.2 or higher

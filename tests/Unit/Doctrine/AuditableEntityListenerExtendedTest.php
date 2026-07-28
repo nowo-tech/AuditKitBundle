@@ -16,6 +16,8 @@ use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
 use Nowo\AuditKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use RuntimeException;
 use stdClass;
 use Symfony\Component\Clock\NativeClock;
@@ -114,7 +116,15 @@ final class AuditableEntityListenerExtendedTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('getClassMetadata')->willThrowException(new RuntimeException('metadata error'));
 
-        $listener = $this->createListener($tokenStorage, $em);
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('warning')->with(
+            $this->stringContains('blame user'),
+            $this->callback(static fn (array $context): bool => ($context['bundle'] ?? null) === 'nowo-tech/audit-kit-bundle'
+                && ($context['action'] ?? null) === 'resolve_blame_user'
+                && ($context['exception'] ?? null) === RuntimeException::class),
+        );
+
+        $listener = $this->createListener($tokenStorage, $em, logger: $logger);
         $listener->prePersist($entity, new PrePersistEventArgs($entity, $em));
 
         $this->assertSame($user, $entity->getCreatedBy());
@@ -149,6 +159,7 @@ final class AuditableEntityListenerExtendedTest extends TestCase
         TokenStorage $tokenStorage,
         EntityManagerInterface $em,
         ?ProfileRegistry $registry = null,
+        ?LoggerInterface $logger = null,
     ): AuditableEntityListener {
         $registry ??= ProfileRegistryFactory::single(ExtendedTestUser::class);
 
@@ -158,6 +169,7 @@ final class AuditableEntityListenerExtendedTest extends TestCase
             currentUserResolver: new CurrentUserResolver($tokenStorage),
             entityManager: $em,
             clock: new NativeClock(),
+            logger: $logger ?? new NullLogger(),
         );
     }
 }

@@ -1,4 +1,4 @@
-FROM dunglas/frankenphp:1-php8.4-alpine
+FROM dunglas/frankenphp:1-php8.5-alpine
 
 RUN apk add --no-cache git unzip bash sqlite
 RUN install-php-extensions intl zip pdo_sqlite

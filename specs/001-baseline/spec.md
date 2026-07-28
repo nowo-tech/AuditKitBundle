@@ -21,11 +21,11 @@ Symfony + Doctrine bundle providing **four automatic auditing fields** on persis
 | `createdBy` | insert | authenticated user (nullable) |
 | `updatedBy` | insert + update | authenticated user (nullable) |
 
-All four are **in scope for v1.0.0**. Property names are configurable under `nowo_audit_kit.fields` (defaults: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`).
+All four are **in scope**. Property names are configurable per **named profile** under `nowo_audit_kit.profiles` (canonical) or legacy flat `nowo_audit_kit.fields` (defaults: `createdAt`, `updatedAt`, `createdBy`, `updatedBy`).
 
-Implemented via optional **traits**, marker **interfaces**, and a **Doctrine entity listener** (`prePersist` / `preUpdate`). Timestamps are always written; blame fields use Symfony Security when a user is logged in. Works on **any** auditable entity, not only `User`.
+Implemented via optional **traits**, marker **interfaces**, **profile registry**, and a **Doctrine entity listener** (`prePersist` / `preUpdate`). Timestamps are always written; blame fields use Symfony Security when a user is logged in. Works on **any** auditable entity, not only `User`.
 
-Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user_class` and an authenticated token when blame fields should be populated.
+Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user_class` (per profile) and an authenticated token when blame fields should be populated.
 
 ---
 
@@ -92,6 +92,13 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
   - `blameable` (bool, default `true`) — master switch for blame fields.
   - `timestampable` (bool, default `true`) — master switch for timestamps.
 - **FR-CFG-002**: Default YAML template under `Resources/config/packages/nowo_audit_kit.yaml`.
+- **FR-CFG-003**: Canonical multi-profile config: `default_profile` + `profiles` map; Extension validates that the default key exists; legacy flat keys still normalize into a default profile.
+
+### Profiles
+
+- **FR-PROFILE-001**: `ProfileSettings` readonly DTO — enabled, userClass, fields, timestampType, blameable, timestampable.
+- **FR-PROFILE-002**: `ProfileRegistry` — resolve profile by authenticated user class; fall back to `default_profile`.
+- **FR-PROFILE-003**: `UnknownProfileException` when `default_profile` is missing from `profiles`.
 
 ### Contracts & traits
 
@@ -109,6 +116,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 - **FR-ORM-003**: `AuditablePropertyResolver` — resolves configured field names on entity metadata or PropertyAccessor.
 - **FR-ORM-004**: Idempotent behavior — on update, listener refreshes `updatedAt` (and `updatedBy` when authenticated) but never overwrites `createdAt` or `createdBy`.
 - **FR-ORM-005**: On insert, listener sets both timestamps to the same instant; on update, only `updatedAt` changes.
+- **FR-OBS-001**: Listener injects `LoggerInterface`; blame-reference failures log a warning with structured non-PII context (REQ-OBS-001).
 
 ### Security integration
 
@@ -124,7 +132,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 
 ## Success Criteria
 
-- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped.
+- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**18** units as of 2026-07-28).
 - **SC-002**: Persist with authenticated user sets all four fields (functional test).
 - **SC-003**: Update changes only `updatedAt` / `updatedBy` (functional test).
 - **SC-004**: CLI persist leaves blame null, sets timestamps (functional test).
