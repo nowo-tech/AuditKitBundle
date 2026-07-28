@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.9] - 2026-07-28](#119-2026-07-28)
+  - [Fixed](#fixed)
 - [[1.1.8] - 2026-07-28](#118-2026-07-28)
   - [Fixed](#fixed)
 - [[1.1.7] - 2026-07-28](#117-2026-07-28)
@@ -45,6 +47,12 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.1.9] - 2026-07-28
+
+### Fixed
+
+- `make demo-smoke`: boot with `FRANKENPHP_MODE=classic`, wait for container readiness, retry HTTP 200 (REQ-TEST-011).
 
 ## [1.1.8] - 2026-07-28
 

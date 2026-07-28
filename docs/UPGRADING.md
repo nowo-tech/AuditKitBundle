@@ -4,6 +4,10 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.9
+
+From **1.1.8** — **no action required**. Maintainer / CI only: more resilient `make demo-smoke` (classic FrankenPHP boot + readiness wait).
+
 ### 1.1.8
 
 From **1.1.7** — **no action required**. Maintainer / CI only: demo Makefile uses Compose V2 (`docker compose`) when the classic `docker-compose` binary is absent.

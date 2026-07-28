@@ -123,14 +123,20 @@ qa: ensure-up
 release-check: ensure-up check-no-cursor-coauthor check-open-prs composer-sync cs-fix cs-check rector-dry phpstan test-coverage release-check-demos
 
 # REQ-TEST-011 — boot demo stack and assert one HTTP 200
+# classic mode keeps FrankenPHP up before vendor/ is installed on fresh CI checkouts
 demo-smoke:
-	@$(MAKE) -C demo/symfony8 up
+	@FRANKENPHP_MODE=classic $(MAKE) -C demo/symfony8 up
 	@PORT=$$(grep "^PORT=" demo/symfony8/.env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" demo/symfony8/.env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=8013; \
 	echo "Smoke GET http://localhost:$$PORT/"; \
-	code=$$(curl -fsS -o /dev/null -w "%{http_code}" "http://localhost:$$PORT/" || true); \
-	if [ "$$code" != "200" ]; then echo "demo-smoke failed: HTTP $$code"; exit 1; fi; \
+	code=000; \
+	for i in 1 2 3 4 5 6 7 8 9 10; do \
+		code=$$(curl -fsS -o /dev/null -w "%{http_code}" "http://localhost:$$PORT/" || true); \
+		[ "$$code" = "200" ] && break; \
+		sleep 3; \
+	done; \
+	if [ "$$code" != "200" ]; then echo "demo-smoke failed: HTTP $$code"; (cd demo/symfony8 && docker compose logs --tail 80 php) || true; exit 1; fi; \
 	echo "demo-smoke OK (HTTP 200)"
 
 release-check-demos:

@@ -16,7 +16,16 @@ up:
 	@if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
 	$(DOCKER_COMPOSE) up -d --build
 	@echo "Waiting for container to be ready..."
-	@sleep 5
+	@i=0; \
+	until $(DOCKER_COMPOSE) exec -T php true 2>/dev/null; do \
+		i=$$((i+1)); \
+		if [ $$i -ge 30 ]; then \
+			echo "Container failed to become ready; last logs:"; \
+			$(DOCKER_COMPOSE) logs --tail 80 php || true; \
+			exit 1; \
+		fi; \
+		sleep 2; \
+	done
 	@echo "Installing dependencies..."
 	@$(DOCKER_COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer install --no-interaction
 	@$(MAKE) link-bundle

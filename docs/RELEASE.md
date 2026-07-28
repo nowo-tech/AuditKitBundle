@@ -8,15 +8,15 @@
 
 After creating the release commit and tag, run `make check-no-cursor-coauthor` again **before** `git push` (REQ-GIT-001). The release commit itself is not covered by an earlier `release-check` run.
 
-## Example for v1.1.8
+## Example for v1.1.9
 
 ```bash
 git add -A
 git status   # review
 make release-check
-git commit -m "Release 1.1.8: Demo Makefile Compose V2 fallback for CI"
+git commit -m "Release 1.1.9: Harden demo-smoke for fresh CI checkouts"
 make check-no-cursor-coauthor
-git tag -a v1.1.8 -m "Release 1.1.8"
+git tag -a v1.1.9 -m "Release 1.1.9"
 git push origin main
-git push origin v1.1.8
+git push origin v1.1.9
 ```
