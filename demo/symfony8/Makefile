@@ -63,4 +63,5 @@ release-check: ensure-up update-bundle test test-coverage
 
 DOCKER_COMPOSE := docker-compose
 SERVICE_PHP := php
-include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)
+# Optional: monorepo helper absent on standalone GitHub Actions checkout.
+-include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)
