@@ -4,6 +4,10 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.8
+
+From **1.1.7** — **no action required**. Maintainer / CI only: demo Makefile uses Compose V2 (`docker compose`) when the classic `docker-compose` binary is absent.
+
 ### 1.1.7
 
 From **1.1.6** — **no action required**. Maintainer / CI only: demo Makefiles optionally include monorepo `update-deps` helpers.

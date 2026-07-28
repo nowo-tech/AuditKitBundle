@@ -1,67 +1,73 @@
 .PHONY: help up down build install shell logs test test-coverage cache-clear link-bundle update update-bundle update-deps ensure-up restart release-check
 
+# Prefer classic docker-compose; fall back to Compose V2 plugin (GitHub Actions).
+ifeq ($(shell command -v docker-compose 2>/dev/null),)
+DOCKER_COMPOSE := docker compose
+else
+DOCKER_COMPOSE := docker-compose
+endif
+SERVICE_PHP := php
+
 help:
 	@echo "Symfony 8 Demo - Audit Kit Bundle"
 
 # REQ-DEMO-005: canonical up target prints demo URL from PORT
 up:
 	@if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
-	docker-compose up -d --build
+	$(DOCKER_COMPOSE) up -d --build
 	@echo "Waiting for container to be ready..."
 	@sleep 5
 	@echo "Installing dependencies..."
-	@docker-compose exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer install --no-interaction
+	@$(DOCKER_COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer install --no-interaction
 	@$(MAKE) link-bundle
 	@PORT=$$(grep "^PORT=" .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	[ -z "$$PORT" ] && PORT=$$(grep "^PORT=" .env.example 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	echo "Demo started at: http://localhost:$$PORT"
 
 down:
-	docker-compose down
+	$(DOCKER_COMPOSE) down
 
 restart: ensure-up
-	docker-compose restart
+	$(DOCKER_COMPOSE) restart
 
 build:
-	docker-compose build --no-cache
+	$(DOCKER_COMPOSE) build --no-cache
 
 ensure-up:
 	@if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
-	@if ! docker-compose exec -T php true 2>/dev/null; then docker-compose up -d; sleep 3; fi
+	@if ! $(DOCKER_COMPOSE) exec -T php true 2>/dev/null; then $(DOCKER_COMPOSE) up -d; sleep 3; fi
 
 install: ensure-up
-	docker-compose exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer install --no-interaction
+	$(DOCKER_COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer install --no-interaction
 
 shell: ensure-up
-	docker-compose exec php sh
+	$(DOCKER_COMPOSE) exec php sh
 
 logs:
-	docker-compose logs -f
+	$(DOCKER_COMPOSE) logs -f
 
 test: ensure-up link-bundle
-	docker-compose exec -e APP_ENV=test php sh -c "mkdir -p var/data && php bin/console doctrine:schema:update --force"
-	docker-compose exec -e APP_ENV=test php composer test
+	$(DOCKER_COMPOSE) exec -e APP_ENV=test php sh -c "mkdir -p var/data && php bin/console doctrine:schema:update --force"
+	$(DOCKER_COMPOSE) exec -e APP_ENV=test php composer test
 
 test-coverage: ensure-up link-bundle
-	docker-compose exec -e APP_ENV=test php composer test-coverage
+	$(DOCKER_COMPOSE) exec -e APP_ENV=test php composer test-coverage
 
 cache-clear: ensure-up
-	docker-compose exec php php bin/console cache:clear
+	$(DOCKER_COMPOSE) exec php php bin/console cache:clear
 
 link-bundle: ensure-up
 	# REQ-DEMO-007: sync mounted bundle before tests and schema update
-	docker-compose exec php sh -c "mkdir -p var/data && rm -rf vendor/nowo-tech/audit-kit-bundle && ln -sf /var/audit-kit-bundle vendor/nowo-tech/audit-kit-bundle && php bin/console doctrine:schema:update --force --complete && php bin/console cache:clear"
+	$(DOCKER_COMPOSE) exec php sh -c "mkdir -p var/data && rm -rf vendor/nowo-tech/audit-kit-bundle && ln -sf /var/audit-kit-bundle vendor/nowo-tech/audit-kit-bundle && php bin/console doctrine:schema:update --force --complete && php bin/console cache:clear"
 
 update: ensure-up
-	docker-compose exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer update --no-interaction
+	$(DOCKER_COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer update --no-interaction
 
 update-bundle: ensure-up
-	docker-compose exec php composer update nowo-tech/audit-kit-bundle --no-interaction
+	$(DOCKER_COMPOSE) exec php composer update nowo-tech/audit-kit-bundle --no-interaction
 	@$(MAKE) link-bundle
 
 release-check: ensure-up update-bundle test test-coverage
 
-DOCKER_COMPOSE := docker-compose
-SERVICE_PHP := php
 # Optional: monorepo helper absent on standalone GitHub Actions checkout.
 -include $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/../../../.scripts/Makefile.demo-update-deps.mk)

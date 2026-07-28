@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.8] - 2026-07-28](#118-2026-07-28)
+  - [Fixed](#fixed)
 - [[1.1.7] - 2026-07-28](#117-2026-07-28)
   - [Fixed](#fixed)
 - [[1.1.6] - 2026-07-28](#116-2026-07-28)
@@ -43,6 +45,12 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.1.8] - 2026-07-28
+
+### Fixed
+
+- Demo Makefile: fall back to `docker compose` when `docker-compose` is missing (GitHub Actions / Compose V2) (REQ-TEST-011).
 
 ## [1.1.7] - 2026-07-28
 
