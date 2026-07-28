@@ -4,6 +4,10 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.6
+
+From **1.1.5** — **no action required**. Maintainer / CI only: Makefile include of monorepo `update-deps` is optional so standalone GitHub checkouts can run `make demo-smoke`.
+
 ### 1.1.5
 
 From **1.1.4** (or any earlier **1.x**) — **no action required** for applications that load the listener via Symfony DI (autowire provides `LoggerInterface`).

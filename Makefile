@@ -178,9 +178,10 @@ setup-hooks:
 	@echo "✅ Git hooks installed (.githooks — includes commit-msg for REQ-GIT-001)."
 
 
-# REQ-MAKE-008: update-deps (bundle root + all demos)
+# REQ-MAKE-008: update-deps (bundle root + all demos).
+# Optional include: monorepo path exists locally; absent on GitHub Actions checkout.
 BUNDLE_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
+-include $(BUNDLE_ROOT)/../.scripts/Makefile.update-deps.mk
 
 update-deps:
 	@$(MAKE) update

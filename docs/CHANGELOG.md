@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.6] - 2026-07-28](#116-2026-07-28)
+  - [Fixed](#fixed)
 - [[1.1.5] - 2026-07-28](#115-2026-07-28)
   - [Added](#added)
   - [Changed](#changed)
@@ -39,6 +41,12 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.1.6] - 2026-07-28
+
+### Fixed
+
+- Makefile: optional `-include` of monorepo `Makefile.update-deps.mk` so `make demo-smoke` works on GitHub Actions (REQ-TEST-011).
 
 ## [1.1.5] - 2026-07-28
 
