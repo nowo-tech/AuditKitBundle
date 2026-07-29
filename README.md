@@ -5,12 +5,10 @@
 > ⭐ **Found this useful?** Install from [Packagist](https://packagist.org/packages/nowo-tech/audit-kit-bundle) and give the repo a star on GitHub.
 
 Symfony + Doctrine bundle for **automatic auditing fields** on any opt-in entity:
-
 | Field | Set on |
 | ----- | ------ |
 | `createdAt` / `updatedAt` | `prePersist` + `preUpdate` (timestamps only on update) |
 | `createdBy` / `updatedBy` | When an authenticated user is present (nullable in CLI) |
-
 Complements [`nowo-tech/user-kit-bundle`](https://github.com/nowo-tech/UserKitBundle) (account state / presence) and [`nowo-tech/auth-kit-bundle`](https://github.com/nowo-tech/AuthKitBundle) (auth flows).
 
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
@@ -25,12 +23,6 @@ This bundle is **FrankenPHP worker mode friendly**.
 - Configurable property names and `user_class`
 - Per-entity opt-out via `#[Auditable(enabled: false)]`
 - Guest / CLI safe — blame fields stay `null` without errors
-
-## Requirements
-
-- PHP 8.2+
-- Symfony 7.4 | 8.x
-- Doctrine ORM 2.15+ | 3.x
 
 ## Quick start
 
@@ -58,13 +50,11 @@ class Article
 }
 ```
 
-## Development
+## Requirements
 
-```bash
-make up
-make test-coverage
-make release-check
-```
+- PHP 8.2+
+- Symfony 7.4 | 8.x
+- Doctrine ORM 2.15+ | 3.x
 
 ## Demo
 
@@ -74,18 +64,13 @@ make -C demo/symfony8 up   # http://localhost:8013 (default PORT)
 
 Each demo persists entities with automatic audit columns (see `demo/symfony8/src/Entity/Article.php` and `LegacyRecord.php` for audited vs opt-out). See [demo/symfony8/README.md](demo/symfony8/README.md) and [docs/DEMO-FRANKENPHP.md](docs/DEMO-FRANKENPHP.md) for FrankenPHP setup (including **worker mode** for production).
 
-## Tests and coverage
+## Development
 
-- Tests: PHPUnit (unit + integration)
-- PHP: 100%
-- TS/JS: N/A
-- Python: N/A
-
-**Compatibility:** PHP 8.2+ · Symfony 7.4 / 8.0 / 8.1 (CI matrix).
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+```bash
+make up
+make test-coverage
+make release-check
+```
 
 ## Documentation
 
@@ -108,6 +93,19 @@ MIT — see [LICENSE](LICENSE).
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
 - [Product spec](specs/001-baseline/spec.md)
 - [Code inventory](specs/001-baseline/code-inventory.md)
+
+## Tests and coverage
+
+- Tests: PHPUnit (unit + integration)
+- PHP: 100%
+- TS/JS: N/A
+- Python: N/A
+
+**Compatibility:** PHP 8.2+ · Symfony 7.4 / 8.0 / 8.1 (CI matrix).
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ## Package
 
