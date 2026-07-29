@@ -1,12 +1,11 @@
 .PHONY: help up down build install shell logs test test-coverage cache-clear link-bundle update update-bundle update-deps ensure-up restart release-check
 
-# Prefer Compose V2; fall back to V1. Absolute `docker` path avoids a local `docker/` dir
-# shadowing the CLI under GNU make (REQ-MAKE-010).
+# Prefer Compose V2; absolute docker path avoids shadowing by local docker/ when PATH has "." (REQ-MAKE-010).
 DOCKER_BIN := $(shell command -v docker 2>/dev/null)
-ifeq ($(shell test -n "$(DOCKER_BIN)" && "$(DOCKER_BIN)" compose version >/dev/null 2>&1 && echo ok),ok)
-DOCKER_COMPOSE := $(DOCKER_BIN) compose
-else
+ifeq ($(DOCKER_BIN),)
 DOCKER_COMPOSE := docker-compose
+else
+DOCKER_COMPOSE := $(shell $(DOCKER_BIN) compose version >/dev/null 2>&1 && echo "$(DOCKER_BIN) compose" || echo "docker-compose")
 endif
 SERVICE_PHP := php
 

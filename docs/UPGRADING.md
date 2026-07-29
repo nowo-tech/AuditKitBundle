@@ -4,9 +4,13 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.11
+
+From **1.1.10** — **no action required**. Maintainer / contributor only: more robust Makefile Compose binary detection when `docker` is missing from `PATH`.
+
 ### 1.1.10
 
-From **1.1.9** — **no action required**. Maintainer / contributor only: Makefiles prefer `docker compose` (V2) over `docker-compose` (V1), using an absolute `docker` path to avoid clashes with a local `docker/` directory.
+From **1.1.9** — **no action required**. Maintainer / contributor only: Makefiles prefer `docker compose` (V2) over `docker-compose` (V1).
 
 ### 1.1.9
 

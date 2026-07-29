@@ -3,13 +3,12 @@
 # All dev targets use the root docker-compose.yml (single file).
 
 COMPOSE_FILE := docker-compose.yml
-# Prefer Compose V2 (`docker compose`); fall back to V1. Use absolute `docker` path so a
-# local `docker/` directory cannot shadow the CLI under GNU make (REQ-MAKE-010).
+# Prefer Compose V2; absolute docker path avoids shadowing by local docker/ when PATH has "." (REQ-MAKE-010).
 DOCKER_BIN := $(shell command -v docker 2>/dev/null)
-ifeq ($(shell test -n "$(DOCKER_BIN)" && "$(DOCKER_BIN)" compose version >/dev/null 2>&1 && echo ok),ok)
-COMPOSE_BIN := $(DOCKER_BIN) compose
-else
+ifeq ($(DOCKER_BIN),)
 COMPOSE_BIN := docker-compose
+else
+COMPOSE_BIN := $(shell $(DOCKER_BIN) compose version >/dev/null 2>&1 && echo "$(DOCKER_BIN) compose" || echo "docker-compose")
 endif
 COMPOSE     := $(COMPOSE_BIN) -f $(COMPOSE_FILE)
 SERVICE_PHP := php
