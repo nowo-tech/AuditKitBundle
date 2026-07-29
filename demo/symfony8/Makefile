@@ -1,8 +1,10 @@
 .PHONY: help up down build install shell logs test test-coverage cache-clear link-bundle update update-bundle update-deps ensure-up restart release-check
 
-# Prefer classic docker-compose; fall back to Compose V2 plugin (GitHub Actions).
-ifeq ($(shell command -v docker-compose 2>/dev/null),)
-DOCKER_COMPOSE := docker compose
+# Prefer Compose V2; fall back to V1. Absolute `docker` path avoids a local `docker/` dir
+# shadowing the CLI under GNU make (REQ-MAKE-010).
+DOCKER_BIN := $(shell command -v docker 2>/dev/null)
+ifeq ($(shell test -n "$(DOCKER_BIN)" && "$(DOCKER_BIN)" compose version >/dev/null 2>&1 && echo ok),ok)
+DOCKER_COMPOSE := $(DOCKER_BIN) compose
 else
 DOCKER_COMPOSE := docker-compose
 endif

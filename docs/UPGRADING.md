@@ -4,6 +4,10 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.10
+
+From **1.1.9** — **no action required**. Maintainer / contributor only: Makefiles prefer `docker compose` (V2) over `docker-compose` (V1), using an absolute `docker` path to avoid clashes with a local `docker/` directory.
+
 ### 1.1.9
 
 From **1.1.8** — **no action required**. Maintainer / CI only: more resilient `make demo-smoke` (classic FrankenPHP boot + readiness wait).

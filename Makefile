@@ -3,7 +3,15 @@
 # All dev targets use the root docker-compose.yml (single file).
 
 COMPOSE_FILE := docker-compose.yml
-COMPOSE := docker-compose -f $(COMPOSE_FILE)
+# Prefer Compose V2 (`docker compose`); fall back to V1. Use absolute `docker` path so a
+# local `docker/` directory cannot shadow the CLI under GNU make (REQ-MAKE-010).
+DOCKER_BIN := $(shell command -v docker 2>/dev/null)
+ifeq ($(shell test -n "$(DOCKER_BIN)" && "$(DOCKER_BIN)" compose version >/dev/null 2>&1 && echo ok),ok)
+COMPOSE_BIN := $(DOCKER_BIN) compose
+else
+COMPOSE_BIN := docker-compose
+endif
+COMPOSE     := $(COMPOSE_BIN) -f $(COMPOSE_FILE)
 SERVICE_PHP := php
 
 .PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history demo-smoke

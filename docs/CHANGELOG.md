@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.10] - 2026-07-29](#1110-2026-07-29)
+  - [Changed](#changed)
 - [[1.1.9] - 2026-07-28](#119-2026-07-28)
   - [Fixed](#fixed)
 - [[1.1.8] - 2026-07-28](#118-2026-07-28)
@@ -47,6 +49,12 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.1.10] - 2026-07-29
+
+### Changed
+
+- Root and demo Makefiles prefer Compose V2 (`docker compose`) and fall back to `docker-compose` V1; resolve `docker` via absolute path so a local `docker/` directory does not shadow the CLI under GNU make (REQ-MAKE-010).
 
 ## [1.1.9] - 2026-07-28
 
