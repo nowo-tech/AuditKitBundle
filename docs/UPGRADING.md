@@ -4,6 +4,10 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.12
+
+From **1.1.11** — **no action required**. Demos only: Hot Reload Bundle `^1.4` (FrankenPHP Mercure/`hot_reload`, `dev`/`test`).
+
 ### 1.1.11
 
 From **1.1.10** — **no action required**. Maintainer / contributor only: more robust Makefile Compose binary detection when `docker` is missing from `PATH`.
