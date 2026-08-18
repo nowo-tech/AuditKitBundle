@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.12] - 2026-08-18](#1112-2026-08-18)
 - [[1.1.11] - 2026-07-29](#1111-2026-07-29)
   - [Fixed](#fixed)
 - [[1.1.10] - 2026-07-29](#1110-2026-07-29)
@@ -51,6 +52,12 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.1.12] - 2026-08-18
+
+### Changed
+
+- **Demos:** pin `nowo-tech/hot-reload-bundle` to `^1.4` with FrankenPHP Mercure/`hot_reload` (`dev`/`test` only).
 
 ## [1.1.11] - 2026-07-29
 
