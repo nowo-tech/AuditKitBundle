@@ -4,6 +4,10 @@ This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
 
+### 1.1.13
+
+From **1.1.12** — **no action required**.
+
 ### 1.1.12
 
 From **1.1.11** — **no action required**. Demos only: Hot Reload Bundle `^1.4` (FrankenPHP Mercure/`hot_reload`, `dev`/`test`).

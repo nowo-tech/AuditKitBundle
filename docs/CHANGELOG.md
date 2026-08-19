@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.13] - 2026-08-19](#1113-2026-08-19)
 - [[1.1.12] - 2026-08-18](#1112-2026-08-18)
 - [[1.1.11] - 2026-07-29](#1111-2026-07-29)
   - [Fixed](#fixed)
@@ -52,6 +53,12 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.1.13] - 2026-08-19
+
+### Security
+
+- **CI:** run `composer audit --locked` after dependency install (REQ-SEC / P3).
 
 ## [1.1.12] - 2026-08-18
 
