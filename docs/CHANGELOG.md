@@ -54,6 +54,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+
+## [1.1.15] - 2026-08-24
+
+### Changed
+
+- **Demos:** MySQL env policy in FrankenPHP stack (REQ-DEMO-011).
+- **Docs:** PHP-FIG PSR evaluation (REQ-CS-007).
+- **Style:** PHP CS Fixer alignment.
+
+### Notes
+
+- **No API or configuration changes** for integrators unless noted above.
+
+[1.1.15]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.1.15
+
 ## [1.1.14] - 2026-08-19
 
 ### Changed

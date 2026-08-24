@@ -1,5 +1,27 @@
 # Upgrading
 
+## Table of contents
+
+- [From 1.1.14 to 1.1.15](#from-1114-to-1115)
+
+## From 1.1.14 to 1.1.15
+
+No breaking changes. **No application upgrade steps.**
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+## From 1.1.14 to 1.1.15
+
+No breaking changes. **No application upgrade steps.**
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+# Upgrading
+
 This document describes how to upgrade between versions of Audit Kit Bundle.
 
 ## 1.x
