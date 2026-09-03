@@ -68,7 +68,20 @@ cache-clear: ensure-up
 
 link-bundle: ensure-up
 	# REQ-DEMO-007: sync mounted bundle before tests and schema update
-	$(DOCKER_COMPOSE) exec php sh -c "mkdir -p var/data && rm -rf vendor/nowo-tech/audit-kit-bundle && ln -sf /var/audit-kit-bundle vendor/nowo-tech/audit-kit-bundle && php bin/console doctrine:schema:update --force --complete && php bin/console cache:clear"
+	@echo "Waiting for MySQL from PHP container..."
+	@i=0; \
+	while [ $$i -lt 30 ]; do \
+		if $(DOCKER_COMPOSE) exec php sh -c "mkdir -p var/data && rm -rf vendor/nowo-tech/audit-kit-bundle && ln -sf /var/audit-kit-bundle vendor/nowo-tech/audit-kit-bundle && php bin/console doctrine:schema:update --force --complete && php bin/console cache:clear" 2>/dev/null; then \
+			break; \
+		fi; \
+		i=$$((i+1)); \
+		sleep 2; \
+	done; \
+	if [ $$i -ge 30 ]; then \
+		echo "MySQL not reachable from demo PHP container"; \
+		$(DOCKER_COMPOSE) logs --tail=50 db php || true; \
+		exit 1; \
+	fi
 
 update: ensure-up
 	$(DOCKER_COMPOSE) exec -T -e COMPOSER_MEMORY_LIMIT=-1 php composer update --no-interaction
