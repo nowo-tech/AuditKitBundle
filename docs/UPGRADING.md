@@ -1,30 +1,28 @@
 # Upgrading
 
-## Table of contents
-
-- [From 1.1.14 to 1.1.15](#from-1114-to-1115)
-
-## From 1.1.14 to 1.1.15
-
-No breaking changes. **No application upgrade steps.**
-
-```bash
-composer update nowo-tech/audit-kit-bundle
-```
-
-## From 1.1.14 to 1.1.15
-
-No breaking changes. **No application upgrade steps.**
-
-```bash
-composer update nowo-tech/audit-kit-bundle
-```
-
-# Upgrading
-
 This document describes how to upgrade between versions of Audit Kit Bundle.
 
+## Table of contents
+
+- [1.x](#1x)
+
 ## 1.x
+
+### 1.1.16
+
+No configuration changes for typical Symfony DI apps (`RequestStack` and `@?security.firewall.map` are autowired).
+
+**Behaviour (FrankenPHP worker / no kernel reset):** during an HTTP request, blame fields (`created_by` / `updated_by`) stay `null` when the request is not behind a firewall with `security: true` (public paths, `security: false` routes, or flushes before the firewall runs), even if `TokenStorage` still holds a previous request's token. With Symfony's default `services_resetter` the token is already cleared there, so classic PHP-FPM and reset-enabled worker setups are unchanged. CLI and Messenger (no main request) keep using the token set by the caller.
+
+If you **manually** instantiate `CurrentUserResolver`, optional constructor arguments: `RequestStack` and the SecurityBundle firewall map (defaults keep the previous trust-all-tokens behaviour when omitted).
+
+Blame Doctrine references prefer the event's `ObjectManager` (injected `EntityManagerInterface` remains as fallback for BC). New runtime Composer requirement: `symfony/http-foundation` (^7 || ^8) — normally already present via FrameworkBundle. Run `composer update nowo-tech/audit-kit-bundle`.
+
+See [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md).
+
+### 1.1.15
+
+From **1.1.14** — **no action required**.
 
 ### 1.1.14
 

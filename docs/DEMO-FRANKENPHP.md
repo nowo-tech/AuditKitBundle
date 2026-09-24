@@ -29,6 +29,8 @@ Demos are available for **Symfony 8.x** (`demo/symfony8`). From the bundle root 
 
 **Smoke check (REQ-TEST-011):** from the bundle root, `make demo-smoke` boots `demo/symfony8` and asserts `HTTP 200` on `http://localhost:$PORT/` (default port **8013**). Also available as `.github/workflows/demo-smoke.yml` (schedule / tag / dispatch).
 
+**Worker / no kernel reset:** the bundle is audited for FrankenPHP worker mode when the kernel is not reset between requests — see [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md).
+
 | Aspect | Development | Production |
 |--------|-------------|------------|
 | FrankenPHP worker mode | **Off** | **On** |

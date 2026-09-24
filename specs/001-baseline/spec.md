@@ -116,12 +116,14 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 - **FR-ORM-003**: `AuditablePropertyResolver` — resolves configured field names on entity metadata or PropertyAccessor.
 - **FR-ORM-004**: Idempotent behavior — on update, listener refreshes `updatedAt` (and `updatedBy` when authenticated) but never overwrites `createdAt` or `createdBy`.
 - **FR-ORM-005**: On insert, listener sets both timestamps to the same instant; on update, only `updatedAt` changes.
+- **FR-ORM-006**: Blame `getReference` prefers the Doctrine event's `ObjectManager` when it is an `EntityManagerInterface`; injected EM is BC fallback only.
 - **FR-OBS-001**: Listener injects `LoggerInterface`; blame-reference failures log a warning with structured non-PII context (REQ-OBS-001).
 
 ### Security integration
 
-- **FR-SEC-001**: `CurrentUserResolver` — wraps `Security` service; returns `null` when anonymous or CLI.
-- **FR-SEC-002**: No hard dependency on AuthKitBundle; only `symfony/security-core` (or equivalent).
+- **FR-SEC-001**: `CurrentUserResolver` — reads `TokenStorageInterface`; returns `null` when anonymous / no token.
+- **FR-SEC-002**: No hard dependency on AuthKitBundle; only `symfony/security-core` (or equivalent). Optional `RequestStack` + SecurityBundle `security.firewall.map` for HTTP trust checks.
+- **FR-SEC-003**: FrankenPHP worker / no kernel reset — during an HTTP request, trust the token only when the main request passed a firewall with security enabled (`_firewall_context` + firewall config); without a main request (CLI, Messenger) use the token set by the caller.
 
 ### Documentation
 
@@ -132,7 +134,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 
 ## Success Criteria
 
-- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**18** units as of 2026-07-28).
+- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**18** units as of 2026-09-24).
 - **SC-002**: Persist with authenticated user sets all four fields (functional test).
 - **SC-003**: Update changes only `updatedAt` / `updatedBy` (functional test).
 - **SC-004**: CLI persist leaves blame null, sets timestamps (functional test).

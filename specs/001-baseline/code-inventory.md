@@ -2,14 +2,14 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-07-28  
+**Last audited**: 2026-09-24  
 **Status**: Implemented
 
 ## Symfony config (`src/Resources/config/`)
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
-| `Resources/config/services.yaml` | DI wiring | FR-ORM-001 | Mapped |
+| `Resources/config/services.yaml` | DI wiring | FR-ORM-001, FR-SEC-002, FR-SEC-003 | Mapped |
 | `Resources/config/packages/nowo_audit_kit.yaml` | Default config template | FR-CFG-002 | Mapped |
 
 ## PHP — bundle core
@@ -43,9 +43,9 @@
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
-| `Doctrine/AuditableEntityListener.php` | prePersist/preUpdate | FR-ORM-001, FR-ORM-004, FR-OBS-001 | Mapped |
+| `Doctrine/AuditableEntityListener.php` | prePersist/preUpdate | FR-ORM-001, FR-ORM-004, FR-ORM-006, FR-OBS-001 | Mapped |
 | `Doctrine/AuditablePropertyResolver.php` | Field name resolution | FR-ORM-003 | Mapped |
-| `Security/CurrentUserResolver.php` | Current user | FR-SEC-001 | Mapped |
+| `Security/CurrentUserResolver.php` | Current user | FR-SEC-001, FR-SEC-002, FR-SEC-003 | Mapped |
 
 ## PHP — attributes
 

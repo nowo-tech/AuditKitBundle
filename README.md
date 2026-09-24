@@ -13,7 +13,7 @@ Complements [`nowo-tech/user-kit-bundle`](https://github.com/nowo-tech/UserKitBu
 
 ![FrankenPHP Friendly Worker Mode](docs/images/frankenphp-friendly.png)
 
-This bundle is **FrankenPHP worker mode friendly**.
+This bundle is **FrankenPHP worker mode friendly**, including the strict case where the kernel is **not** reset between requests. See [docs/FRANKENPHP-WORKER-AUDIT.md](docs/FRANKENPHP-WORKER-AUDIT.md).
 
 ## Features
 

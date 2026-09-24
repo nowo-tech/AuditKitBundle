@@ -19,6 +19,10 @@ services:
 
     Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver: ~
 
+    Nowo\AuditKitBundle\Security\CurrentUserResolver:
+        arguments:
+            $firewallMap: '@?security.firewall.map'
+
     Nowo\AuditKitBundle\Doctrine\AuditableEntityListener:
         tags:
             - { name: doctrine.orm.entity_listener, event: prePersist, entity: null, lazy: true }

@@ -9,6 +9,7 @@ use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
+use Doctrine\Persistence\ObjectManager;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Profile\ProfileSettings;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
@@ -46,7 +47,7 @@ final class AuditableEntityListener
         }
 
         if ($profile->blameable && $this->propertyResolver->hasBlameFields($entity, $profile->fields)) {
-            $user = $this->resolveBlameUser($profile);
+            $user = $this->resolveBlameUser($profile, $event->getObjectManager());
             $this->propertyResolver->setBlame($entity, 'created_by', $user, $profile->fields);
             $this->propertyResolver->setBlame($entity, 'updated_by', $user, $profile->fields);
         }
@@ -64,7 +65,7 @@ final class AuditableEntityListener
         }
 
         if ($profile->blameable && $this->propertyResolver->hasBlameFields($entity, $profile->fields)) {
-            $this->propertyResolver->setBlame($entity, 'updated_by', $this->resolveBlameUser($profile), $profile->fields);
+            $this->propertyResolver->setBlame($entity, 'updated_by', $this->resolveBlameUser($profile, $event->getObjectManager()), $profile->fields);
         }
     }
 
@@ -90,7 +91,7 @@ final class AuditableEntityListener
             : $now;
     }
 
-    private function resolveBlameUser(ProfileSettings $profile): ?object
+    private function resolveBlameUser(ProfileSettings $profile, ObjectManager $objectManager): ?object
     {
         $user = $this->currentUserResolver->resolve();
         if (!$user instanceof UserInterface) {
@@ -101,14 +102,17 @@ final class AuditableEntityListener
             return null;
         }
 
+        // Prefer the event's ObjectManager (correct EM under multi-manager apps / worker scenario B).
+        $em = $objectManager instanceof EntityManagerInterface ? $objectManager : $this->entityManager;
+
         try {
-            $metadata = $this->entityManager->getClassMetadata($profile->userClass);
+            $metadata = $em->getClassMetadata($profile->userClass);
             $idField  = $metadata->getSingleIdentifierFieldName();
             $idValues = $metadata->getIdentifierValues($user);
             $idValue  = $idValues[$idField] ?? null;
 
             if ($idValue !== null) {
-                return $this->entityManager->getReference($profile->userClass, $idValue);
+                return $em->getReference($profile->userClass, $idValue);
             }
         } catch (Throwable $e) {
             // Fall back to the managed/authenticated user instance.

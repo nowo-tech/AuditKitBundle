@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.16] - 2026-09-24](#1116-2026-09-24)
+  - [Fixed](#fixed)
+  - [Changed](#changed)
+- [[1.1.15] - 2026-08-24](#1115-2026-08-24)
+  - [Changed](#changed)
+- [[1.1.14] - 2026-08-19](#1114-2026-08-19)
 - [[1.1.13] - 2026-08-19](#1113-2026-08-19)
 - [[1.1.12] - 2026-08-18](#1112-2026-08-18)
 - [[1.1.11] - 2026-07-29](#1111-2026-07-29)
@@ -54,6 +60,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.16] - 2026-09-24
+
+### Fixed
+
+- **FrankenPHP worker mode without kernel reset:** `CurrentUserResolver` no longer attributes `created_by` / `updated_by` (or picks the profile) from a token left over from a previous request. During an HTTP request it only trusts the token when the main request passed a firewall with security enabled (`_firewall_context` + `security.firewall.map`); CLI and Messenger (no main request) keep using the token set by the caller. New optional constructor arguments `$requestStack` and `$firewallMap` (autowired). See [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md).
+- **Blame `getReference`:** uses the Doctrine event's `ObjectManager` when it is an `EntityManagerInterface` (safer under multi-EM apps and worker scenario B); injected EM kept as fallback (BC).
+- Runtime dependency declared: `symfony/http-foundation` (used by `CurrentUserResolver` / `RequestStack`).
+
+### Changed
+
+- Worker-mode audit document: [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md) (scenario B: kernel not reset between requests).
+- README FrankenPHP claim links to the worker audit.
+- Spec Kit baseline: FR-ORM-006, FR-SEC-003; inventory last audited **2026-09-24**.
 
 ## [1.1.15] - 2026-08-24
 

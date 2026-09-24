@@ -936,7 +936,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/audit-kit-bundle",
-                "reference": "3020416ba8aa631470c4042c4a00d910411fb3c2"
+                "reference": "d88d1986ff0d68dfa9a1632c3deb2e4e124e07c2"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
@@ -947,6 +947,7 @@
                 "symfony/config": "^7.0 || ^8.0",
                 "symfony/dependency-injection": "^7.0 || ^8.0",
                 "symfony/framework-bundle": "^7.0 || ^8.0",
+                "symfony/http-foundation": "^7.0 || ^8.0",
                 "symfony/http-kernel": "^7.0 || ^8.0",
                 "symfony/property-access": "^7.0 || ^8.0",
                 "symfony/security-core": "^7.0 || ^8.0"

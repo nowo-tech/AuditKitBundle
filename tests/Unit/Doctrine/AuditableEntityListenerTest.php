@@ -17,6 +17,8 @@ use Nowo\AuditKitBundle\Security\CurrentUserResolver;
 use Nowo\AuditKitBundle\Tests\Support\ProfileRegistryFactory;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Clock\NativeClock;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Symfony\Component\Security\Core\User\UserInterface;
@@ -77,6 +79,53 @@ final class AuditableEntityListenerTest extends TestCase
         $updatedBy = $entity->getUpdatedBy();
         $this->assertInstanceOf(TestUser::class, $updatedBy);
         $this->assertSame(99, $updatedBy->id);
+    }
+
+    public function testSecondRequestOutsideFirewallIsNotBlamedOnPreviousUser(): void
+    {
+        $alice        = new TestUser(7);
+        $tokenStorage = new TokenStorage();
+        $requestStack = new RequestStack();
+        $firewallMap  = new class {
+            public function getFirewallConfig(Request $request): object
+            {
+                return new class {
+                    public function isSecurityEnabled(): bool
+                    {
+                        return true;
+                    }
+                };
+            }
+        };
+
+        $em       = $this->createEntityManagerMock($alice);
+        $listener = new AuditableEntityListener(
+            registry: ProfileRegistryFactory::single(TestUser::class),
+            propertyResolver: new AuditablePropertyResolver(),
+            currentUserResolver: new CurrentUserResolver($tokenStorage, $requestStack, $firewallMap),
+            entityManager: $em,
+            clock: new NativeClock(),
+        );
+
+        // Request 1: authenticated behind the firewall.
+        $first = Request::create('/admin/articles', 'POST');
+        $first->attributes->set('_firewall_context', 'security.firewall.map.context.main');
+        $requestStack->push($first);
+        $tokenStorage->setToken(new UsernamePasswordToken($alice, 'main', $alice->getRoles()));
+
+        $article = new TestArticle();
+        $listener->prePersist($article, new PrePersistEventArgs($article, $em));
+        $this->assertSame($alice, $article->getCreatedBy());
+        $requestStack->pop();
+
+        // Request 2: public webhook on the same worker; the token storage still holds Alice.
+        $requestStack->push(Request::create('/webhook', 'POST'));
+
+        $fromWebhook = new TestArticle();
+        $listener->prePersist($fromWebhook, new PrePersistEventArgs($fromWebhook, $em));
+        $this->assertNotNull($fromWebhook->getCreatedAt());
+        $this->assertNull($fromWebhook->getCreatedBy());
+        $this->assertNull($fromWebhook->getUpdatedBy());
     }
 
     private function createListener(
