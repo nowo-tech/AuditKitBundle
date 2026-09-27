@@ -20,7 +20,7 @@
     },
     "authors": [
         {
-            "name": "Héctor Franco Aceituno",
+            "name": "H\u00e9ctor Franco Aceituno",
             "email": "hectorfranco@nowo.tech",
             "homepage": "https://github.com/HecFranco",
             "role": "Developer"
@@ -46,6 +46,7 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.0",
+        "igor-php/igor-php": "^0.9.7",
         "nowo-tech/phpstan-frankenphp": "^1.0",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2.0",
@@ -76,7 +77,10 @@
     "minimum-stability": "stable",
     "prefer-stable": true,
     "archive": {
-        "exclude": ["/demo", "/.cursor"]
+        "exclude": [
+            "/demo",
+            "/.cursor"
+        ]
     },
     "scripts": {
         "test": "@php vendor/bin/phpunit --color=always",
@@ -86,6 +90,13 @@
         "rector": "@php vendor/bin/rector process",
         "rector-dry": "@php vendor/bin/rector process --dry-run --no-progress-bar",
         "phpstan": "@php vendor/bin/phpstan analyse --memory-limit=512M",
-        "qa": ["@cs-check", "@test"]
+        "qa": [
+            "@cs-check",
+            "@test"
+        ],
+        "igor": "igor-php --no-agent ."
+    },
+    "scripts-descriptions": {
+        "igor": "Run Igor FrankenPHP worker-state audit (REQ-CS-008)"
     }
 }

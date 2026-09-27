@@ -24,6 +24,7 @@ trait TimestampableTrait
 
     public function setCreatedAt(DateTimeInterface $createdAt): void
     {
+        // @igor-ignore - Domain model value object; instance-scoped, not a shared service.
         $this->createdAt = $createdAt instanceof DateTimeImmutable
             ? $createdAt
             : DateTimeImmutable::createFromInterface($createdAt);
@@ -36,6 +37,7 @@ trait TimestampableTrait
 
     public function setUpdatedAt(DateTimeInterface $updatedAt): void
     {
+        // @igor-ignore - Domain model value object; instance-scoped, not a shared service.
         $this->updatedAt = $updatedAt instanceof DateTimeImmutable
             ? $updatedAt
             : DateTimeImmutable::createFromInterface($updatedAt);

@@ -110,7 +110,7 @@ make test-coverage-100
 - [ ] Ran `make cs-fix`
 - [ ] All tests pass (`make test`)
 - [ ] Code coverage is 100% on `src/` (`make test-coverage-100`)
-- [ ] `make phpstan` passes (includes FrankenPHP rulesets)
+- [ ] `make phpstan`, `make igor` passes (includes FrankenPHP rulesets)
 - [ ] Added tests for new functionality
 - [ ] Documentation updated (if necessary)
 - [ ] CHANGELOG.md updated (if necessary)

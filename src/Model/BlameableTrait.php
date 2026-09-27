@@ -28,6 +28,7 @@ trait BlameableTrait
 
     public function setCreatedBy(?object $createdBy): void
     {
+        // @igor-ignore - Domain model value object; instance-scoped, not a shared service.
         $this->createdBy = $createdBy;
     }
 
@@ -38,6 +39,7 @@ trait BlameableTrait
 
     public function setUpdatedBy(?object $updatedBy): void
     {
+        // @igor-ignore - Domain model value object; instance-scoped, not a shared service.
         $this->updatedBy = $updatedBy;
     }
 }

@@ -69,6 +69,7 @@ final class AuditablePropertyResolver
      */
     public function setTimestamp(object $entity, string $configKey, DateTimeInterface $value, array $fields): void
     {
+        // @igor-ignore - Not shared worker service state.
         $this->propertyAccessor->setValue($entity, $fields[$configKey], $value);
     }
 
@@ -77,6 +78,7 @@ final class AuditablePropertyResolver
      */
     public function setBlame(object $entity, string $configKey, ?object $user, array $fields): void
     {
+        // @igor-ignore - Not shared worker service state.
         $this->propertyAccessor->setValue($entity, $fields[$configKey], $user);
     }
 

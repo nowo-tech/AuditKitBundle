@@ -42,13 +42,17 @@ final class AuditableEntityListener
         $now = $this->createTimestamp($profile);
 
         if ($profile->timestampable && $this->propertyResolver->hasTimestampFields($entity, $profile->fields)) {
+            // @igor-ignore - Not shared worker service state.
             $this->propertyResolver->setTimestamp($entity, 'created_at', $now, $profile->fields);
+            // @igor-ignore - Not shared worker service state.
             $this->propertyResolver->setTimestamp($entity, 'updated_at', $now, $profile->fields);
         }
 
         if ($profile->blameable && $this->propertyResolver->hasBlameFields($entity, $profile->fields)) {
             $user = $this->resolveBlameUser($profile, $event->getObjectManager());
+            // @igor-ignore - Not shared worker service state.
             $this->propertyResolver->setBlame($entity, 'created_by', $user, $profile->fields);
+            // @igor-ignore - Not shared worker service state.
             $this->propertyResolver->setBlame($entity, 'updated_by', $user, $profile->fields);
         }
     }
@@ -61,10 +65,12 @@ final class AuditableEntityListener
         }
 
         if ($profile->timestampable && $this->propertyResolver->hasTimestampFields($entity, $profile->fields)) {
+            // @igor-ignore - Not shared worker service state.
             $this->propertyResolver->setTimestamp($entity, 'updated_at', $this->createTimestamp($profile), $profile->fields);
         }
 
         if ($profile->blameable && $this->propertyResolver->hasBlameFields($entity, $profile->fields)) {
+            // @igor-ignore - Not shared worker service state.
             $this->propertyResolver->setBlame($entity, 'updated_by', $this->resolveBlameUser($profile, $event->getObjectManager()), $profile->fields);
         }
     }
