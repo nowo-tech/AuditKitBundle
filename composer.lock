@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d3c123c4316c1dc54a761551d5ad630e",
+    "content-hash": "30eab9e22b6850c875e1e9d740fa4f61",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -4554,16 +4554,16 @@
         },
         {
             "name": "igor-php/igor-php",
-            "version": "v0.9.7",
+            "version": "v0.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/igor-php/igor-php.git",
-                "reference": "48935c8cf42d0764a9d54f22e9c290816c5caa91"
+                "reference": "56ceca26663fcc881cb4e3a34a756e0b85f3e42b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/igor-php/igor-php/zipball/48935c8cf42d0764a9d54f22e9c290816c5caa91",
-                "reference": "48935c8cf42d0764a9d54f22e9c290816c5caa91",
+                "url": "https://api.github.com/repos/igor-php/igor-php/zipball/56ceca26663fcc881cb4e3a34a756e0b85f3e42b",
+                "reference": "56ceca26663fcc881cb4e3a34a756e0b85f3e42b",
                 "shasum": ""
             },
             "require": {
@@ -4598,9 +4598,9 @@
             ],
             "support": {
                 "issues": "https://github.com/igor-php/igor-php/issues",
-                "source": "https://github.com/igor-php/igor-php/tree/v0.9.7"
+                "source": "https://github.com/igor-php/igor-php/tree/v0.10.0"
             },
-            "time": "2026-09-22T20:33:54+00:00"
+            "time": "2026-10-01T21:16:14+00:00"
         },
         {
             "name": "myclabs/deep-copy",
