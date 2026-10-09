@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Changed](#changed)
 - [[1.1.18] - 2026-10-09](#1118-2026-10-09)
   - [Dependencies](#dependencies)
 - [[1.1.17] - 2026-09-27](#1117-2026-09-27)
@@ -62,6 +63,10 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+### Changed
+
+- Development: `composer.json` pins `config.platform.php` to 8.2.0 so the committed lock stays installable on the minimum PHP; CI overrides the platform per matrix cell.
 
 ## [1.1.18] - 2026-10-09
 
