@@ -3,6 +3,16 @@
 
 ## Unreleased
 
+## To 1.1.18
+
+From **1.1.17** — dependency refresh only.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+- No breaking changes. No application upgrade steps.
+
 ## To 1.1.17
 
 From **1.1.16** — REQ-CS-008 Igor FrankenPHP worker audit (igor-php require-dev, igor.json, make igor).

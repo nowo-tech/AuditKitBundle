@@ -5,6 +5,8 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.18] - 2026-10-09](#1118-2026-10-09)
+  - [Dependencies](#dependencies)
 - [[1.1.17] - 2026-09-27](#1117-2026-09-27)
 - [[1.1.16] - 2026-09-24](#1116-2026-09-24)
   - [Fixed](#fixed)
@@ -60,6 +62,16 @@ All notable changes to this project will be documented in this file.
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.1.18] - 2026-10-09
+
+### Dependencies
+
+- **Dev tooling:** `igor-php/igor-php` constraint raised to `^0.10.0` (Dependabot); `phpstan/phpstan` 2.3.1, `phpstan/phpstan-phpunit` 2.1.1, `phpstan/phpstan-symfony` 2.1.0, `rector/rector` 2.7.0, `nowo-tech/phpstan-frankenphp` 1.2.3.
+- **Demo:** Symfony 8.1.8, `doctrine/orm` 3.7.4, `doctrine/dbal` 4.5.0, `twig/twig` 3.30.0; regenerated `config/reference.php`.
+- PHP CS Fixer bot passes (no functional change).
+
+[1.1.18]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.1.18
 
 ## [1.1.17] - 2026-09-27
 
