@@ -31,3 +31,13 @@ nowo_audit_kit:
         #     timestamp_type: datetime_immutable
         #     blameable: true
         #     timestampable: true
+
+    # Opt-in action log (v1.5.0+). Uncomment and point entity_class to your AbstractActionLog subclass.
+    # action_log:
+    #     entity_class: App\Entity\UserAction
+    #     scope_context_key: ~        # e.g. project_uuid: copy context[project_uuid] into `scope`
+    #     capture_ip: true
+    #     purge:
+    #         older_than_days: 90
+    #         batch_size: 1000
+    #         actions: []             # e.g. [project.opened, issue.opened]: purged by default

@@ -1,0 +1,75 @@
+{#
+  Action log timeline (nowo-tech/audit-kit-bundle, optional).
+
+  Usage:
+    {% include '@NowoAuditKit/action_log/_timeline.html.twig' with {entries: entries} only %}
+
+  Required:
+    entries: iterable of Nowo\AuditKitBundle\ActionLog\AbstractActionLog
+
+  Optional (translation keys and domains are overridable):
+    translation_domain         chrome strings domain (default NowoAuditKitBundle)
+    empty_key                  default nowo_audit_kit.action_log.empty
+    by_key / by_system_key     default nowo_audit_kit.action_log.by / .by_system (%name% placeholder)
+    subject_key                default nowo_audit_kit.action_log.subject (%name% placeholder)
+    action_prefix              action label key prefix (default nowo_audit_kit.action_log.action.)
+    action_domain              domain of action / context labels (default messages)
+    context_prefix             context label key prefix (default nowo_audit_kit.action_log.context.)
+    show_ip                    default true
+    show_context               default true
+    date_format                default Y-m-d H:i
+    timeline_id, entry_testid  default action-log-timeline / action-log-entry
+
+  Classes: UiKit (nowo-tech/ui-kit-bundle) nowo-ui-list / nowo-ui-list-item / nowo-ui-muted / nowo-ui-empty when it
+  is installed, plus BEM hooks nowo-audit-timeline__* for host styling. Override the whole file in
+  templates/bundles/NowoAuditKitBundle/action_log/_timeline.html.twig.
+#}
+{% set translation_domain = translation_domain|default('NowoAuditKitBundle') %}
+{% set action_prefix = action_prefix|default('nowo_audit_kit.action_log.action.') %}
+{% set action_domain = action_domain|default('messages') %}
+{% set context_prefix = context_prefix|default('nowo_audit_kit.action_log.context.') %}
+{% set show_ip = show_ip ?? true %}
+{% set show_context = show_context ?? true %}
+{% set date_format = date_format|default('Y-m-d H:i') %}
+{% set timeline_id = timeline_id|default('action-log-timeline') %}
+{% set entry_testid = entry_testid|default('action-log-entry') %}
+
+{% if entries is empty %}
+    <p class="nowo-ui-empty nowo-ui-muted nowo-audit-timeline__empty">{{ (empty_key|default('nowo_audit_kit.action_log.empty'))|trans({}, translation_domain) }}</p>
+{% else %}
+    <ol id="{{ timeline_id }}" class="nowo-ui-list nowo-audit-timeline" data-nowo-audit-timeline>
+        {% for entry in entries %}
+            {% set actor_name = entry.actor ? (entry.actor.displayName ?? entry.actor.userIdentifier ?? entry.actor.id ?? '') : null %}
+            {% set subject_name = entry.subject ? (entry.subject.displayName ?? entry.subject.userIdentifier ?? entry.subject.id ?? '') : null %}
+            <li class="nowo-ui-list-item nowo-audit-timeline__entry" data-testid="{{ entry_testid }}" data-action="{{ entry.action }}">
+                <div class="nowo-audit-timeline__head">
+                    <span class="nowo-audit-timeline__action">{{ (action_prefix ~ entry.action)|trans({}, action_domain) }}</span>
+                    <time class="nowo-ui-muted nowo-audit-timeline__time" datetime="{{ entry.createdAt|date('c') }}">{{ entry.createdAt|date(date_format) }}</time>
+                </div>
+                <div class="nowo-ui-muted nowo-audit-timeline__meta">
+                    {% if actor_name is not null %}
+                        {{ (by_key|default('nowo_audit_kit.action_log.by'))|trans({'%name%': actor_name}, translation_domain) }}
+                    {% else %}
+                        {{ (by_system_key|default('nowo_audit_kit.action_log.by_system'))|trans({}, translation_domain) }}
+                    {% endif %}
+                    {% if subject_name is not null and subject_name != actor_name %}
+                        · {{ (subject_key|default('nowo_audit_kit.action_log.subject'))|trans({'%name%': subject_name}, translation_domain) }}
+                    {% endif %}
+                    {% if show_ip and entry.ipAddress %}
+                        · <span class="nowo-audit-timeline__ip">{{ entry.ipAddress }}</span>
+                    {% endif %}
+                </div>
+                {% if show_context and entry.context is not empty %}
+                    <dl class="nowo-ui-muted nowo-audit-timeline__context">
+                        {% for key, value in entry.context %}
+                            <div class="nowo-audit-timeline__context-item">
+                                <dt>{{ (context_prefix ~ key)|trans({}, action_domain) }}</dt>
+                                <dd>{{ value is iterable ? value|json_encode : value }}</dd>
+                            </div>
+                        {% endfor %}
+                    </dl>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+{% endif %}

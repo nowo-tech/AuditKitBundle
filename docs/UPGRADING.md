@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [To 1.3.0](#to-130)
 - [To 1.2.0](#to-120)
@@ -35,6 +36,24 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.5.0
+
+From **1.4.0** — new opt-in action log; nothing changes until `nowo_audit_kit.action_log.entity_class` is set.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+- **New dependency:** `symfony/console` (already present in most Symfony applications).
+- **Adopting the action log over an existing host table** (e.g. Beacon `UserAction`):
+  1. Make the entity extend `Nowo\AuditKitBundle\ActionLog\AbstractActionLog`; keep `#[ORM\Entity]`, `#[ORM\Table]` and the `#[ORM\Index]` list; delete the host properties and accessors the superclass provides.
+  2. Map renamed columns with `#[ORM\AttributeOverrides]` (e.g. `scope` → `project_uuid`, length 36) and `#[ORM\AssociationOverrides]` (e.g. `subject` → `subject_user_id`, repeat `nullable` / `onDelete: 'SET NULL'`).
+  3. Make the repository extend `ActionLogRepository` (constructor `parent::__construct($registry, UserAction::class)`); replace the host keyset purge with `purgeBefore()`; DQL on `subjectUser` becomes `subject`, `projectUuid` becomes `scope`.
+  4. Configure `action_log.entity_class`, `scope_context_key` (if the scope is copied from the context) and `purge.actions`; replace the host recorder with `ActionLogRecorder` (same argument order: action, actor, subject, context) and the host purge command / schedule entry with `nowo:audit-kit:action-log:purge`.
+  5. `getAction()` now returns the stored string: add a host accessor for the enum (`UserActionType::from($this->getAction())`) and use `entry.action` instead of `entry.action.value` in Twig.
+  6. Check: `php bin/console doctrine:schema:update --dump-sql` prints nothing.
+- **Several entity managers:** set `action_log.register_mapping: false` and map `src/ActionLog` of the bundle on the manager that owns the log table.
 
 ## To 1.4.0
 

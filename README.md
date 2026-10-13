@@ -22,6 +22,7 @@ This bundle is **FrankenPHP worker mode friendly**, including the strict case wh
 - Append-only `CreatedAtImmutableTrait` (non-null `createdAt`)
 - `SqlLike` helper: escape `LIKE` input with an `ESCAPE '\'` clause that behaves the same on MySQL and SQLite
 - Doctrine entity listener (`prePersist` / `preUpdate`)
+- **Action log** (opt-in): `AbstractActionLog` mapped superclass, `ActionLogRecorder`, filterable repository with keyset purge, `nowo:audit-kit:action-log:purge` and an optional Twig timeline — maps onto existing tables with no migration
 - **Named profiles** — separate field mapping and flags per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable property names and `user_class`
 - Per-entity opt-out via `#[Auditable(enabled: false)]`
@@ -98,6 +99,7 @@ make release-check
 - [Product spec](specs/001-baseline/spec.md)
 - [Code inventory](specs/001-baseline/code-inventory.md)
 - [Doctrine helpers spec](specs/002-doctrine-helpers/spec.md)
+- [Action log spec](specs/003-action-log/spec.md)
 
 ## Tests and coverage
 

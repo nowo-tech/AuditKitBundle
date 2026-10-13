@@ -934,7 +934,7 @@
             "dist": {
                 "type": "path",
                 "url": "/var/audit-kit-bundle",
-                "reference": "29fdeb2d7c280e65656cc4b7e827dfc2d3c35e10"
+                "reference": "57a2adda1a9b5aaf2380b67cbc4203c3e67ec81b"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
@@ -943,6 +943,7 @@
                 "psr/clock": "^1.0",
                 "psr/log": "^1 || ^2 || ^3",
                 "symfony/config": "^7.4 || ^8.0",
+                "symfony/console": "^7.4 || ^8.0",
                 "symfony/dependency-injection": "^7.4 || ^8.0",
                 "symfony/framework-bundle": "^7.4 || ^8.0",
                 "symfony/http-foundation": "^7.4 || ^8.0",
@@ -962,7 +963,12 @@
                 "phpunit/phpunit": "^11.0",
                 "rector/rector": "^2.0",
                 "symfony/clock": "^7.4 || ^8.0",
-                "symfony/yaml": "^7.4 || ^8.0"
+                "symfony/yaml": "^7.4 || ^8.0",
+                "twig/twig": "^3.12"
+            },
+            "suggest": {
+                "nowo-tech/ui-kit-bundle": "Styles the action log timeline partial (nowo-ui-* classes).",
+                "symfony/twig-bundle": "Render the optional @NowoAuditKit/action_log/_timeline.html.twig partial."
             },
             "type": "symfony-bundle",
             "autoload": {
@@ -1029,6 +1035,8 @@
             "description": "Symfony + Doctrine bundle for automatic created/updated timestamps and blame fields on opt-in entities.",
             "homepage": "https://github.com/nowo-tech/AuditKitBundle",
             "keywords": [
+                "action-log",
+                "activity-log",
                 "audit",
                 "blameable",
                 "created-at",

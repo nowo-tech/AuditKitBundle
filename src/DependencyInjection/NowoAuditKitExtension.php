@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
@@ -22,6 +23,9 @@ use function sprintf;
 /** Loads bundle parameters and services from processed configuration. */
 final class NowoAuditKitExtension extends Extension implements PrependExtensionInterface
 {
+    /** Doctrine mapping name registered for {@see AbstractActionLog}. */
+    public const ACTION_LOG_MAPPING = 'NowoAuditKitActionLog';
+
     /** Maps {@see AuditUserInterface} (BlameableTrait association target) to the default profile user class. */
     public function prepend(ContainerBuilder $container): void
     {
@@ -29,7 +33,9 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             return;
         }
 
-        $config    = $this->processConfiguration(new Configuration(), $container->getExtensionConfig(Configuration::ALIAS));
+        $config = $this->processConfiguration(new Configuration(), $container->getExtensionConfig(Configuration::ALIAS));
+        $this->prependActionLogMapping($config['action_log'], $container);
+
         $userClass = $config['profiles'][$this->resolveDefaultProfileName($config)]['user_class'] ?? null;
         if (!is_string($userClass) || $userClass === '') {
             $userClass = $this->findAuthKitUserClass($container);
@@ -77,6 +83,8 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
 
+        $this->loadActionLog($config['action_log'], $container);
+
         $registry = new ProfileRegistry($profiles, $defaultProfileName);
 
         if (!$registry->hasEnabledProfile()) {
@@ -101,6 +109,61 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $first = is_array($config['profiles'] ?? null) ? array_key_first($config['profiles']) : null;
 
         return $first === null ? 'default' : (string) $first;
+    }
+
+    /**
+     * Maps the {@see AbstractActionLog} mapped superclass (outside the host mapping paths) on the default entity
+     * manager when the action log is enabled; `action_log.register_mapping: false` leaves it to the host.
+     *
+     * @param array{entity_class: ?string, register_mapping: bool} $config
+     */
+    private function prependActionLogMapping(array $config, ContainerBuilder $container): void
+    {
+        if (!is_string($config['entity_class']) || $config['entity_class'] === '' || !$config['register_mapping']) {
+            return;
+        }
+
+        $container->prependExtensionConfig('doctrine', [
+            'orm' => [
+                'mappings' => [
+                    self::ACTION_LOG_MAPPING => [
+                        'type'      => 'attribute',
+                        'is_bundle' => false,
+                        'dir'       => __DIR__ . '/../ActionLog',
+                        'prefix'    => 'Nowo\\AuditKitBundle\\ActionLog',
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * Registers the action log recorder and purge command when `action_log.entity_class` is set.
+     *
+     * @param array{entity_class: ?string, register_mapping: bool, scope_context_key: ?string, capture_ip: bool, purge: array{older_than_days: int, batch_size: int, actions: list<string>}} $config
+     */
+    private function loadActionLog(array $config, ContainerBuilder $container): void
+    {
+        $entityClass = $config['entity_class'];
+        $enabled     = is_string($entityClass) && $entityClass !== '';
+        $container->setParameter('nowo_audit_kit.action_log.enabled', $enabled);
+        if (!$enabled) {
+            return;
+        }
+
+        if (!is_subclass_of($entityClass, AbstractActionLog::class)) {
+            throw new InvalidArgumentException(sprintf('The "nowo_audit_kit.action_log.entity_class" value "%s" must be an existing class extending "%s".', $entityClass, AbstractActionLog::class));
+        }
+
+        $container->setParameter('nowo_audit_kit.action_log.entity_class', $entityClass);
+        $container->setParameter('nowo_audit_kit.action_log.scope_context_key', $config['scope_context_key']);
+        $container->setParameter('nowo_audit_kit.action_log.capture_ip', $config['capture_ip']);
+        $container->setParameter('nowo_audit_kit.action_log.purge.older_than_days', $config['purge']['older_than_days']);
+        $container->setParameter('nowo_audit_kit.action_log.purge.batch_size', $config['purge']['batch_size']);
+        $container->setParameter('nowo_audit_kit.action_log.purge.actions', $config['purge']['actions']);
+
+        $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
+        $loader->load('action_log.yaml');
     }
 
     public function getAlias(): string

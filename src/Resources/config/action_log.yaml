@@ -1,0 +1,24 @@
+# Loaded only when nowo_audit_kit.action_log.entity_class is set.
+services:
+    _defaults:
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    Nowo\AuditKitBundle\ActionLog\ActionLogRecorder:
+        arguments:
+            $registry: '@doctrine'
+            $requestStack: '@request_stack'
+            $entityClass: '%nowo_audit_kit.action_log.entity_class%'
+            $scopeContextKey: '%nowo_audit_kit.action_log.scope_context_key%'
+            $captureIp: '%nowo_audit_kit.action_log.capture_ip%'
+
+    Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand:
+        arguments:
+            $registry: '@doctrine'
+            $entityClass: '%nowo_audit_kit.action_log.entity_class%'
+            $defaultActions: '%nowo_audit_kit.action_log.purge.actions%'
+            $defaultDays: '%nowo_audit_kit.action_log.purge.older_than_days%'
+            $batchSize: '%nowo_audit_kit.action_log.purge.batch_size%'
+        tags:
+            - { name: console.command, command: 'nowo:audit-kit:action-log:purge' }

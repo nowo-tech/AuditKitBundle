@@ -1263,6 +1263,17 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         blameable?: bool|Param, // When false, blame fields are not managed for this profile. // Default: true
  *         timestampable?: bool|Param, // When false, timestamp fields are not managed for this profile. // Default: true
  *     }>,
+ *     action_log?: array{ // Opt-in action log (who did what, to whom). Enabled when entity_class is set.
+ *         entity_class?: scalar|Param|null, // Host entity extending Nowo\AuditKitBundle\ActionLog\AbstractActionLog. Null disables the action log services. // Default: null
+ *         register_mapping?: bool|Param, // Prepend the Doctrine ORM mapping of AbstractActionLog on the default entity manager. Disable to map it yourself (several entity managers). // Default: true
+ *         scope_context_key?: scalar|Param|null, // Context key copied into `scope` by ActionLogRecorder when no scope is passed (e.g. project_uuid). // Default: null
+ *         capture_ip?: bool|Param, // Store the client IP of the current request. // Default: true
+ *         purge?: array{
+ *             older_than_days?: int|Param, // Default --older-than-days of nowo:audit-kit:action-log:purge. // Default: 90
+ *             batch_size?: int|Param, // Rows deleted per keyset batch. // Default: 1000
+ *             actions?: list<scalar|Param|null>,
+ *         },
+ *     },
  *     ...<string, mixed>
  * }
  * @psalm-type NowoHotReloadConfig = array{

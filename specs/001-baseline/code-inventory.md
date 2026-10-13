@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-10-13 (spec [`002-doctrine-helpers`](../002-doctrine-helpers/spec.md))  
+**Last audited**: 2026-10-13 (spec [`003-action-log`](../003-action-log/spec.md))  
 **Status**: Implemented
 
 ## Symfony config (`src/Resources/config/`)
@@ -11,6 +11,9 @@
 | --- | --- | --- | --- |
 | `Resources/config/services.yaml` | DI wiring | FR-ORM-001, FR-SEC-002, FR-SEC-003 | Mapped |
 | `Resources/config/packages/nowo_audit_kit.yaml` | Default config template | FR-CFG-002 | Mapped |
+| `Resources/config/action_log.yaml` | Action log services (opt-in) | 003 FR-AL-004, FR-AL-006 | Mapped |
+| `Resources/views/action_log/_timeline.html.twig` | Timeline partial | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.{en,es}.yaml` | Timeline strings | 003 FR-AL-008 | Mapped |
 
 ## PHP — bundle core
 
@@ -54,6 +57,16 @@
 | `Doctrine/SqlLike.php` | LIKE escaping | 002 FR-LIKE-001 | Mapped |
 | `Security/CurrentUserResolver.php` | Current user | FR-SEC-001, FR-SEC-002, FR-SEC-003 | Mapped |
 
+## PHP — action log
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `ActionLog/AbstractActionLog.php` | Mapped superclass | 003 FR-AL-001, FR-AL-002 | Mapped |
+| `ActionLog/ActionLogRecorder.php` | Recorder | 003 FR-AL-004 | Mapped |
+| `ActionLog/ActionLogRepository.php` | Filters, keyset purge | 003 FR-AL-005 | Mapped |
+| `ActionLog/ActionLogCriteria.php` | Filter value object | 003 FR-AL-005 | Mapped |
+| `ActionLog/Command/PurgeActionLogCommand.php` | Purge command | 003 FR-AL-006 | Mapped |
+
 ## PHP — attributes
 
 | Source file | Spec section | Requirement IDs | Status |
@@ -68,6 +81,7 @@
 | Contracts & traits | 10 | 10 |
 | Profiles | 3 | 3 |
 | Doctrine & security | 6 | 6 |
+| Action log | 5 | 5 |
 | Attributes | 1 | 1 |
-| Symfony config | 2 | 2 |
-| **Total production sources** | **25** | **25** |
+| Symfony config / views / translations | 6 | 6 |
+| **Total production sources** | **34** | **34** |

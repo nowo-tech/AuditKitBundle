@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.5.0] - 2026-10-13](#150---2026-10-13)
 - [[1.4.0] - 2026-10-13](#140---2026-10-13)
 - [[1.3.0] - 2026-10-13](#130---2026-10-13)
 - [[1.2.0] - 2026-10-13](#120---2026-10-13)
@@ -36,6 +37,25 @@ All notable changes to this project will be documented in this file.
 - [[1.0.0] - 2026-07-14](#100---2026-07-14)
 
 ## [Unreleased]
+
+## [1.5.0] - 2026-10-13
+
+### Added
+
+- **Action log (opt-in, `nowo_audit_kit.action_log.entity_class`):** append-only *who did what, to whom* log, independent of the entity-level audit fields.
+  - `ActionLog\AbstractActionLog` mapped superclass: `action` (string 48), `actor` / `subject` (`ManyToOne` to the default profile `user_class`, `ON DELETE SET NULL`), `context` (json), `scope` (string 64, nullable), `ip_address` (45), `created_at` (`CreatedAtImmutableTrait`). Explicit column names; hosts declare table, indexes and repository and may rename columns with attribute / association overrides (existing tables map with no migration).
+  - `ActionLog\ActionLogRecorder`: `record()` / `recordAndFlush()` with `string|BackedEnum` actions, client IP from `RequestStack`, optional `scope_context_key`.
+  - `ActionLog\ActionLogRepository` + `ActionLogCriteria`: filters by actor, subject, actor-or-subject, scope(s), action(s), date range, limit / offset; `countByCriteria()`, `findLatest()`, `findInvolving()`; keyset `purgeBefore()` in batches.
+  - `nowo:audit-kit:action-log:purge --older-than-days=N [--action=…] [--all-actions] [--batch-size=N]` with a configurable default action list (`purge.actions`).
+  - Optional Twig partial `@NowoAuditKit/action_log/_timeline.html.twig` (UiKit `nowo-ui-*` classes, overridable translation keys; `NowoAuditKitBundle` translations en / es).
+  - Configuration `action_log.{entity_class, register_mapping, scope_context_key, capture_ip, purge.{older_than_days, batch_size, actions}}`; the bundle prepends the Doctrine mapping of the superclass when enabled.
+- Spec [`003-action-log`](../specs/003-action-log/spec.md) (Beacon spec 138 FR-040), including a schema-diff test against a copy of Beacon's `user_action` mapping (SQLite and MySQL 8).
+
+### Dependencies
+
+- `symfony/console` `^7.4 || ^8.0` is now required (purge command). `twig/twig` added as a dev requirement; `symfony/twig-bundle` and `nowo-tech/ui-kit-bundle` are suggested.
+
+[1.5.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.5.0
 
 ## [1.4.0] - 2026-10-13
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Tests\Integration\Kernel;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
+use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
@@ -68,7 +69,16 @@ final class AuditKitTestKernel extends Kernel
         ]);
         $container->loadFromExtension('nowo_audit_kit', [
             'user_class' => Entity\KernelUser::class,
+            'action_log' => [
+                'entity_class'      => Entity\KernelActionLog::class,
+                'scope_context_key' => 'project_uuid',
+                'purge'             => ['older_than_days' => 30, 'batch_size' => 2, 'actions' => ['item.viewed']],
+            ],
         ]);
+        $container->register(Repository\KernelActionLogRepository::class)
+            ->setAutowired(true)
+            ->addTag('doctrine.repository_service');
+        $container->setAlias('test.action_log_recorder', ActionLogRecorder::class)->setPublic(true);
 
         // No SecurityBundle in this kernel: provide the token storage CurrentUserResolver depends on.
         $container->register('security.token_storage', TokenStorage::class)->setPublic(true);

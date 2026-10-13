@@ -11,6 +11,13 @@
 - [Public UUID](#public-uuid)
 - [Append-only created-at](#append-only-created-at)
 - [Escaping LIKE searches](#escaping-like-searches)
+- [Action log](#action-log)
+  - [Entity](#entity)
+  - [Existing table (no migration)](#existing-table-no-migration)
+  - [Recording](#recording)
+  - [Querying](#querying)
+  - [Purging](#purging)
+  - [Timeline partial](#timeline-partial)
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
 - [Related bundles](#related-bundles)
@@ -144,6 +151,160 @@ use Nowo\AuditKitBundle\Doctrine\SqlLike;
 $qb->andWhere('p.name LIKE :q ' . SqlLike::ESCAPE_CLAUSE)
     ->setParameter('q', SqlLike::contains($term)); // '%' . SqlLike::escape($term) . '%'
 ```
+
+## Action log
+
+Since **1.5.0**. An opt-in, append-only log of *who did what, to whom*: admin actions, membership changes, page views. It is independent of the entity-level audit fields above. Specification: [`specs/003-action-log`](../specs/003-action-log/spec.md).
+
+### Entity
+
+Extend the mapped superclass and declare the table, indexes and repository in the host:
+
+```php
+use Doctrine\ORM\Mapping as ORM;
+use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
+
+#[ORM\Entity(repositoryClass: UserActionRepository::class)]
+#[ORM\Table(name: 'user_action')]
+#[ORM\Index(name: 'idx_user_action_subject_created', columns: ['subject_id', 'created_at'])]
+#[ORM\Index(name: 'idx_user_action_actor_created', columns: ['actor_id', 'created_at'])]
+#[ORM\Index(name: 'idx_user_action_created', columns: ['created_at'])]
+#[ORM\Index(name: 'idx_user_action_scope_created', columns: ['scope', 'created_at'])]
+class UserAction extends AbstractActionLog
+{
+}
+```
+
+| Field | Column | Mapping |
+| --- | --- | --- |
+| `id` | `id` | int, generated |
+| `action` | `action` | string 48, not null (enum backing value or string key) |
+| `actor` | `actor_id` | `ManyToOne` to the default profile `user_class`, nullable, `ON DELETE SET NULL` |
+| `subject` | `subject_id` | same as `actor` |
+| `context` | `context` | json, not null (`[]` by default) |
+| `scope` | `scope` | string 64, nullable (project / tenant / group key, indexed by the host) |
+| `ipAddress` | `ip_address` | string 45, nullable |
+| `createdAt` | `created_at` | `datetime_immutable`, not null, set in the constructor (`CreatedAtImmutableTrait`) |
+
+Column names are explicit, so they do not depend on the Doctrine naming strategy. The bundle registers the Doctrine mapping of `AbstractActionLog` on the default entity manager (see [`action_log.register_mapping`](CONFIGURATION.md#action-log)). `actor` and `subject` target `AuditUserInterface`, which the bundle already resolves to the default profile `user_class`.
+
+Then enable it:
+
+```yaml
+nowo_audit_kit:
+    action_log:
+        entity_class: App\Entity\UserAction
+```
+
+### Existing table (no migration)
+
+Rename columns with Doctrine overrides when the table already exists. Example for Beacon's `user_action` table (`subject_user_id`, `project_uuid` VARCHAR(36), four named indexes):
+
+```php
+#[ORM\Entity(repositoryClass: UserActionRepository::class)]
+#[ORM\Table(name: 'user_action')]
+#[ORM\Index(name: 'idx_user_action_subject_created', columns: ['subject_user_id', 'created_at'])]
+#[ORM\Index(name: 'idx_user_action_actor_created', columns: ['actor_id', 'created_at'])]
+#[ORM\Index(name: 'idx_user_action_created', columns: ['created_at'])]
+#[ORM\Index(name: 'idx_user_action_project_created', columns: ['project_uuid', 'created_at'])]
+#[ORM\AttributeOverrides([
+    new ORM\AttributeOverride(name: 'scope', column: new ORM\Column(name: 'project_uuid', length: 36, nullable: true)),
+])]
+#[ORM\AssociationOverrides([
+    new ORM\AssociationOverride(name: 'subject', joinColumns: [
+        new ORM\JoinColumn(name: 'subject_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL'),
+    ]),
+])]
+class UserAction extends AbstractActionLog
+{
+    public function getActionType(): UserActionType
+    {
+        return UserActionType::from($this->getAction());
+    }
+}
+```
+
+An override replaces the whole column / join column definition: repeat `length`, `nullable` and `onDelete`. Check with `php bin/console doctrine:schema:update --dump-sql` (expected: nothing). The bundle test suite runs this exact comparison against a copy of the Beacon entity on SQLite and MySQL 8.
+
+### Recording
+
+```php
+use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
+
+public function __construct(private ActionLogRecorder $actions) {}
+
+// Persisted, flushed with your own writes:
+$this->actions->record(UserActionType::GroupCreated, $actor, $subject, ['group_uuid' => $group->getUuid()]);
+
+// Navigation / view events with no other write:
+$this->actions->recordAndFlush('project.opened', $actor, context: ['project_uuid' => $uuid], scope: $uuid);
+```
+
+- `action`: a `BackedEnum` (its backing value is stored) or a string.
+- The client IP comes from the current request (`RequestStack`); `null` in CLI or with `capture_ip: false`.
+- With `scope_context_key: project_uuid`, `context.project_uuid` is copied into `scope` when no `$scope` is passed (non-empty string that fits the column; otherwise `null`).
+- The row is a plain entity: `getAction()`, `isAction()`, `getActor()`, `getSubject()`, `getContext()`, `getScope()`, `getIpAddress()`, `getCreatedAt()`. Hosts may narrow getters covariantly (`getActor(): ?User`).
+
+### Querying
+
+Extend the base repository:
+
+```php
+use Doctrine\Persistence\ManagerRegistry;
+use Nowo\AuditKitBundle\ActionLog\ActionLogRepository;
+
+/** @extends ActionLogRepository<UserAction> */
+class UserActionRepository extends ActionLogRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, UserAction::class);
+    }
+}
+```
+
+```php
+use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
+
+$rows = $repository->findByCriteria(new ActionLogCriteria(
+    involving: $user,              // actor OR subject (also: actor:, subject:)
+    scope: [$uuidA, $uuidB],       // one string or a list
+    actions: $allowedActions,      // one action or a list of enums / strings
+    from: new DateTimeImmutable('-30 days'),
+    to: null,
+    limit: 50,
+    offset: 0,
+));
+$total  = $repository->countByCriteria($criteria);
+$latest = $repository->findLatest(50);
+$mine   = $repository->findInvolving($user, $allowedActions);
+```
+
+Results are ordered `createdAt DESC, id DESC` with actor and subject fetch-joined. `null` means "no filter"; an empty list (`actions: []`, `scope: []`) matches nothing, so a computed allow-list never widens the query. `createCriteriaQueryBuilder()` is protected for host-specific queries.
+
+### Purging
+
+```bash
+php bin/console nowo:audit-kit:action-log:purge                        # configured purge.actions, purge.older_than_days
+php bin/console nowo:audit-kit:action-log:purge --older-than-days=30 --action=project.opened --action=issue.opened
+php bin/console nowo:audit-kit:action-log:purge --all-actions --older-than-days=365
+```
+
+Rows are deleted by id in keyset batches (`--batch-size`, default `purge.batch_size`): each batch starts after the last id seen, so retained rows are scanned once. Without `--action` and with an empty `purge.actions`, the command refuses unless `--all-actions` is given. From code: `$repository->purgeBefore($before, $actions, $batchSize)` (`null` = every action, `[]` = nothing).
+
+### Timeline partial
+
+With Twig installed, render a list of rows:
+
+```twig
+{% include '@NowoAuditKit/action_log/_timeline.html.twig' with {
+    entries: entries,
+    action_prefix: 'users.activity.action.',   {# action label keys, domain action_domain (messages) #}
+    context_prefix: 'users.activity.context.',
+} only %}
+```
+
+Classes: `nowo-ui-list`, `nowo-ui-list-item`, `nowo-ui-muted`, `nowo-ui-empty` (styled when [`nowo-tech/ui-kit-bundle`](https://github.com/nowo-tech/UiKitBundle) is installed) and `nowo-audit-timeline__*` hooks. Overridable variables: `translation_domain` (default `NowoAuditKitBundle`), `empty_key`, `by_key`, `by_system_key`, `subject_key`, `action_prefix`, `action_domain`, `context_prefix`, `show_ip`, `show_context`, `date_format`, `timeline_id`, `entry_testid`. User labels use `displayName`, then `userIdentifier`, then `id`. Override the whole file in `templates/bundles/NowoAuditKitBundle/action_log/_timeline.html.twig`.
 
 ## Doctrine migrations
 

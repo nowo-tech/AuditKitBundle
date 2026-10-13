@@ -102,3 +102,32 @@ nowo_audit_kit:
 ```
 
 Or use only `TimestampableTrait` / `BlameableTrait` on entities instead of `AuditableTrait`.
+
+## Action log
+
+Since **1.5.0**, opt-in: nothing is registered (services, Doctrine mapping, command) until `entity_class` is set. See [Usage — Action log](USAGE.md#action-log).
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `action_log.entity_class` | string\|null | `null` | Host entity extending `Nowo\AuditKitBundle\ActionLog\AbstractActionLog`. Enables `ActionLogRecorder` and `nowo:audit-kit:action-log:purge`. Must extend the superclass (checked at container build). |
+| `action_log.register_mapping` | bool | `true` | Prepend the Doctrine ORM mapping `NowoAuditKitActionLog` (`AbstractActionLog`) on the default entity manager. Set `false` with several entity managers and map `vendor/nowo-tech/audit-kit-bundle/src/ActionLog` (prefix `Nowo\AuditKitBundle\ActionLog`, attribute) yourself. |
+| `action_log.scope_context_key` | string\|null | `null` | Context key copied into `scope` by the recorder when no scope is passed (e.g. `project_uuid`). |
+| `action_log.capture_ip` | bool | `true` | Store the client IP of the current request. |
+| `action_log.purge.older_than_days` | int ≥ 1 | `90` | Default `--older-than-days`. |
+| `action_log.purge.batch_size` | int ≥ 1 | `1000` | Default `--batch-size` (rows per keyset batch). |
+| `action_log.purge.actions` | list of strings | `[]` | Actions purged when the command gets no `--action` (e.g. page views). Empty: `--action` or `--all-actions` is required. |
+
+```yaml
+nowo_audit_kit:
+    profiles:
+        default:
+            user_class: App\Entity\User   # target of actor / subject
+    action_log:
+        entity_class: App\Entity\UserAction
+        scope_context_key: project_uuid
+        purge:
+            older_than_days: 90
+            actions: [project.opened, issue.opened]
+```
+
+Container parameters: `nowo_audit_kit.action_log.enabled`, and when enabled `nowo_audit_kit.action_log.entity_class`, `.scope_context_key`, `.capture_ip`, `.purge.older_than_days`, `.purge.batch_size`, `.purge.actions`.
