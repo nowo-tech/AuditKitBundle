@@ -1,7 +1,16 @@
 # Upgrading
 
-
 ## Unreleased
+
+## To 1.1.19
+
+From **1.1.18** — dependency refresh and repository maintenance.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+- No breaking changes. No application upgrade steps.
 
 ## To 1.1.18
 

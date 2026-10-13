@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 - [[Unreleased]](#unreleased)
   - [Changed](#changed)
+- [[1.1.19] - 2026-10-13](#1119-2026-10-13)
 - [[1.1.18] - 2026-10-09](#1118-2026-10-09)
   - [Dependencies](#dependencies)
 - [[1.1.17] - 2026-09-27](#1117-2026-09-27)
@@ -64,9 +65,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.19] - 2026-10-13
+
 ### Changed
 
 - Development: `composer.json` pins `config.platform.php` to 8.2.0 so the committed lock stays installable on the minimum PHP; CI overrides the platform per matrix cell.
+
+### Dependencies
+
+- `doctrine/orm` 3.7.4 → 3.7.5 (development lock; #23).
+
+[1.1.19]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.1.19
 
 ## [1.1.18] - 2026-10-09
 
