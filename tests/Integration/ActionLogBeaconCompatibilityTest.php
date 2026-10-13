@@ -27,6 +27,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 use const CASE_LOWER;
+use const PHP_VERSION_ID;
 
 /**
  * FR-040: Beacon's `user_action` table (migrations Version20260721140000 + Version20261012120000) must map onto
@@ -93,6 +94,8 @@ final class ActionLogBeaconCompatibilityTest extends TestCase
         $config->setNamingStrategy(new UnderscoreNamingStrategy(CASE_LOWER));
         $config->setProxyDir(sys_get_temp_dir() . '/nowo-audit-kit-beacon-proxies');
         $config->setProxyNamespace('NowoAuditKitBeaconProxies');
+        // ORM 3.4+ on PHP 8.4+: proxies need native lazy objects when symfony/var-exporter LazyGhost is unavailable.
+        $config->enableNativeLazyObjects(PHP_VERSION_ID >= 80400);
 
         $eventManager = new EventManager();
         if ($resolveUser) {
