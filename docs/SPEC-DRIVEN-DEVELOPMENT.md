@@ -33,7 +33,7 @@ PHPUnit and PHPStan enforce contracts in CI. There is no separate executable spe
 | `Nowo\AuditKitBundle\Model\*Interface` | Marker contracts for traits |
 | `Nowo\AuditKitBundle\Attribute\Auditable` | Per-entity opt-out (`enabled: false`) |
 | Extension `nowo_audit_kit` | DI configuration (`user_class`, `fields`, flags) |
-| `AuditableEntityListener` | Doctrine `prePersist` / `preUpdate` wiring (internal service) |
+| `AuditableDoctrineListener` / `AuditableEntityListener` | Global Doctrine `prePersist` / `preUpdate` listener and the audit logic it delegates to (internal services) |
 
 **Out of package API:** `demo/symfony8`, FrankenPHP demos — illustrative only.
 

@@ -39,7 +39,8 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 
 | Service | Shared | Mutable state | Scenario A | Scenario B |
 |---------|--------|---------------|------------|------------|
-| `Nowo\AuditKitBundle\Doctrine\AuditableEntityListener` (`doctrine.orm.entity_listener`, lazy, `prePersist` / `preUpdate`) | yes (removed when no profile is enabled) | none (`readonly` deps) | ✅ | ✅ |
+| `Nowo\AuditKitBundle\Doctrine\AuditableEntityListener` (lazy, called by `AuditableDoctrineListener` or an explicit `#[ORM\EntityListeners]` mapping) | yes (removed when no profile is enabled) | none (`readonly` deps) | ✅ | ✅ |
+| `Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener` (`doctrine.event_listener`, lazy, `prePersist` / `preUpdate`) | yes (removed when no profile is enabled) | none (`readonly` deps) | ✅ | ✅ |
 | `Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver` | yes | none (`readonly` property accessor; `ReflectionClass` created per call) | ✅ | ✅ |
 | `Nowo\AuditKitBundle\Security\CurrentUserResolver` | yes | none (reads `TokenStorage`, `RequestStack` and the firewall map per call) | ✅ | ✅ |
 | `Nowo\AuditKitBundle\Profile\ProfileRegistry` | yes | `$resolveCache` (class-string → profile), bounded | ✅ | ✅ |

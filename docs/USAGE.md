@@ -51,7 +51,9 @@ Generate and run a Doctrine migration for the new columns. On persist/update, th
 | `BlameableTrait` | `createdBy`, `updatedBy` | `BlameableInterface` |
 | `AuditableTrait` | all four | `AuditableInterface` |
 
-`BlameableTrait` ships a default `ManyToOne` mapping. Override `targetEntity` on your entity when the user FQCN differs from the default mapping.
+`BlameableTrait` maps `createdBy` / `updatedBy` as `ManyToOne` to `Nowo\AuditKitBundle\Model\AuditUserInterface`. The bundle resolves that interface to the **default profile** `user_class` through `doctrine.orm.resolve_target_entities` (implementing the interface on your user entity is optional). If another profile's user class must be the target, declare the blame properties yourself (see [Blame fields without the trait](#blame-fields-without-the-trait)), or override the mapping with your own `resolve_target_entities` entry.
+
+No `#[ORM\EntityListeners]` attribute is needed: the bundle registers a global Doctrine `prePersist` / `preUpdate` listener and only touches auditable entities.
 
 ## Custom property names
 

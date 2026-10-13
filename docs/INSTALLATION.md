@@ -53,7 +53,7 @@ The legacy flat layout (`user_class` at root) remains supported. See [Configurat
 
 ```bash
 php bin/console debug:config nowo_audit_kit
-php bin/console debug:container AuditableEntityListener
+php bin/console debug:container AuditableDoctrineListener
 ```
 
 ## Demo

@@ -6,10 +6,14 @@ namespace Nowo\AuditKitBundle\Tests\Unit\DependencyInjection;
 
 use InvalidArgumentException;
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
+use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
+use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
 
 final class NowoAuditKitExtensionTest extends TestCase
 {
@@ -121,5 +125,101 @@ final class NowoAuditKitExtensionTest extends TestCase
         ]], $container);
 
         $this->assertFalse($container->hasDefinition(AuditableEntityListener::class));
+        $this->assertFalse($container->hasDefinition(AuditableDoctrineListener::class));
+    }
+
+    public function testRegistersGlobalDoctrineListenerInsteadOfUnattachedEntityListenerTags(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([['user_class' => 'App\\Entity\\User']], $container);
+
+        $events = array_column($container->getDefinition(AuditableDoctrineListener::class)->getTag('doctrine.event_listener'), 'event');
+        $this->assertSame(['prePersist', 'preUpdate'], $events);
+
+        foreach ($container->getDefinition(AuditableEntityListener::class)->getTag('doctrine.orm.entity_listener') as $attributes) {
+            $this->assertArrayNotHasKey('event', $attributes);
+        }
+    }
+
+    public function testPrependSkipsWithoutDoctrineExtension(): void
+    {
+        $container = new ContainerBuilder();
+        $container->prependExtensionConfig('nowo_audit_kit', ['user_class' => 'App\\Entity\\User']);
+
+        (new NowoAuditKitExtension())->prepend($container);
+
+        $this->assertSame([], $container->getExtensionConfig('doctrine'));
+    }
+
+    public function testPrependResolvesAuditUserInterfaceToDefaultProfileUserClass(): void
+    {
+        $container = $this->createContainerWithDoctrineExtension();
+        $container->prependExtensionConfig('nowo_audit_kit', [
+            'default_profile' => 'admin',
+            'profiles'        => [
+                'app_user' => ['user_class' => 'App\\Entity\\User'],
+                'admin'    => ['user_class' => 'App\\Entity\\Admin'],
+            ],
+        ]);
+
+        (new NowoAuditKitExtension())->prepend($container);
+
+        $this->assertSame(
+            [['orm' => ['resolve_target_entities' => [AuditUserInterface::class => 'App\\Entity\\Admin']]]],
+            $container->getExtensionConfig('doctrine'),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $authKitConfig
+     */
+    #[DataProvider('authKitConfigProvider')]
+    public function testPrependFallsBackToAuthKitUserClass(array $authKitConfig): void
+    {
+        $container = $this->createContainerWithDoctrineExtension();
+        $container->prependExtensionConfig('nowo_auth_kit', $authKitConfig);
+
+        (new NowoAuditKitExtension())->prepend($container);
+
+        $this->assertSame(
+            [['orm' => ['resolve_target_entities' => [AuditUserInterface::class => 'App\\Entity\\AuthUser']]]],
+            $container->getExtensionConfig('doctrine'),
+        );
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function authKitConfigProvider(): iterable
+    {
+        yield 'flat' => [['user_class' => 'App\\Entity\\AuthUser']];
+        yield 'first profile' => [['profiles' => ['main' => ['user_class' => 'App\\Entity\\AuthUser']]]];
+        yield 'default profile' => [[
+            'default_profile' => 'admin',
+            'profiles'        => [
+                'main'  => ['user_class' => 'App\\Entity\\Other'],
+                'admin' => ['user_class' => 'App\\Entity\\AuthUser'],
+            ],
+        ]];
+    }
+
+    public function testPrependSkipsWhenNoUserClassIsKnown(): void
+    {
+        $container = $this->createContainerWithDoctrineExtension();
+        $container->prependExtensionConfig('nowo_auth_kit', ['profiles' => ['main' => []]]);
+
+        (new NowoAuditKitExtension())->prepend($container);
+
+        $this->assertSame([], $container->getExtensionConfig('doctrine'));
+    }
+
+    private function createContainerWithDoctrineExtension(): ContainerBuilder
+    {
+        $container = new ContainerBuilder();
+        $doctrine  = $this->createStub(ExtensionInterface::class);
+        $doctrine->method('getAlias')->willReturn('doctrine');
+        $container->registerExtension($doctrine);
+
+        return $container;
     }
 }
