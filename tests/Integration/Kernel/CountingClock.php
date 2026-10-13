@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Nowo\AuditKitBundle\Tests\Integration\Kernel;
 
-use DateTimeImmutable;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\Clock\DatePoint;
 use Symfony\Component\Clock\MockClock;
 
 /** Mock clock that counts {@see now()} calls (one call per audited persist/update). */
@@ -20,7 +20,7 @@ final class CountingClock implements ClockInterface
         $this->clock = new MockClock($now);
     }
 
-    public function now(): DateTimeImmutable
+    public function now(): DatePoint
     {
         ++$this->calls;
 

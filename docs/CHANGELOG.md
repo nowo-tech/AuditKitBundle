@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.4.0] - 2026-10-13](#140---2026-10-13)
 - [[1.3.0] - 2026-10-13](#130---2026-10-13)
 - [[1.2.0] - 2026-10-13](#120---2026-10-13)
 - [[1.1.19] - 2026-10-13](#1119---2026-10-13)
@@ -35,6 +36,21 @@ All notable changes to this project will be documented in this file.
 - [[1.0.0] - 2026-07-14](#100---2026-07-14)
 
 ## [Unreleased]
+
+## [1.4.0] - 2026-10-13
+
+### Added
+
+- **Public UUID:** `Model\PublicUuidInterface` + `Model\PublicUuidTrait` (`uuid` string column, length 36, not null; `getUuid()`, `assignUuid()` — trims, empty is a no-op, non-RFC value throws `InvalidArgumentException('invalid_uuid:<value>')` — and `ensureUuid()`, UUID v7 when empty). `Doctrine\PublicUuidListener` (global `prePersist`, registered by the bundle) fills it for entities implementing the interface only.
+- **`Model\CreatedAtImmutableTrait`:** non-null, append-only `createdAt` (`datetime_immutable`) set by `initializeCreatedAt()`; the alternative to `TimestampableTrait` for rows that are never updated.
+- **`Doctrine\SqlLike`:** `escape()`, `contains()` and `ESCAPE_CLAUSE` (`ESCAPE '\'`) so `LIKE` searches match `%`, `_` and `\` literally on MySQL and SQLite.
+- Spec [`002-doctrine-helpers`](../specs/002-doctrine-helpers/spec.md).
+
+### Dependencies
+
+- `symfony/uid` `^7.4 || ^8.0` is now required.
+
+[1.4.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.4.0
 
 ## [1.3.0] - 2026-10-13
 

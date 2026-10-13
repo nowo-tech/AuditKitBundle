@@ -30,7 +30,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         }
 
         $config    = $this->processConfiguration(new Configuration(), $container->getExtensionConfig(Configuration::ALIAS));
-        $userClass = $config['profiles'][self::resolveDefaultProfileName($config)]['user_class'] ?? null;
+        $userClass = $config['profiles'][$this->resolveDefaultProfileName($config)]['user_class'] ?? null;
         if (!is_string($userClass) || $userClass === '') {
             $userClass = $this->findAuthKitUserClass($container);
         }
@@ -54,7 +54,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $configuration = new Configuration();
         $config        = $this->processConfiguration($configuration, $configs);
 
-        $defaultProfileName = self::resolveDefaultProfileName($config);
+        $defaultProfileName = $this->resolveDefaultProfileName($config);
         if (!isset($config['profiles'][$defaultProfileName])) {
             throw new InvalidArgumentException(sprintf('The "nowo_audit_kit.default_profile" value "%s" does not match any configured profile.', $defaultProfileName));
         }
@@ -91,7 +91,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
      *
      * @param array<string, mixed> $config
      */
-    private static function resolveDefaultProfileName(array $config): string
+    private function resolveDefaultProfileName(array $config): string
     {
         $name = $config['default_profile'] ?? null;
         if (is_string($name) && $name !== '') {

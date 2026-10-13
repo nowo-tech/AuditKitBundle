@@ -1,5 +1,7 @@
 # Release process
 
+Current stable: **v1.4.0** (2026-10-13).
+
 1. Update [CHANGELOG.md](CHANGELOG.md): move entries from `[Unreleased]` to a new `[X.Y.Z] - YYYY-MM-DD` section. (This project does not store version in `composer.json`; Packagist uses the git tag.)
 2. Update [UPGRADING.md](UPGRADING.md) if the release has upgrade notes.
 3. Run pre-release checks: `make release-check` (includes `check-no-cursor-coauthor`, `check-open-prs`, cs-fix, cs-check, rector-dry, phpstan, test-coverage, and optionally demo healthchecks).

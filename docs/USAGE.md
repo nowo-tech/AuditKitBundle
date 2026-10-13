@@ -8,6 +8,9 @@
 - [Custom property names](#custom-property-names)
 - [Opt-out per entity](#opt-out-per-entity)
 - [Blame fields without the trait](#blame-fields-without-the-trait)
+- [Public UUID](#public-uuid)
+- [Append-only created-at](#append-only-created-at)
+- [Escaping LIKE searches](#escaping-like-searches)
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
 - [Related bundles](#related-bundles)
@@ -83,6 +86,64 @@ class LegacyRecord
 ## Blame fields without the trait
 
 When you need a custom `ManyToOne` mapping (e.g. typed to your `User` entity), implement the interface and declare columns manually — see `demo/symfony8/src/Entity/Article.php`.
+
+## Public UUID
+
+Since **1.4.0**. Expose an opaque identifier in URLs while integer primary keys stay internal:
+
+```php
+use Doctrine\ORM\Mapping as ORM;
+use Nowo\AuditKitBundle\Model\PublicUuidInterface;
+use Nowo\AuditKitBundle\Model\PublicUuidTrait;
+
+#[ORM\Entity]
+class Project implements PublicUuidInterface
+{
+    use PublicUuidTrait; // uuid: string(36), not null
+}
+```
+
+- `PublicUuidListener` (registered by the bundle, `prePersist`) calls `ensureUuid()` on every entity implementing `PublicUuidInterface`; other entities are ignored. It runs whatever the audit profile configuration is.
+- `ensureUuid()` assigns a UUID v7 (RFC 4122) only when the value is empty; call it from the constructor if the UUID is needed before flush.
+- `assignUuid($uuid)` forces a stable value (fixtures, preloaded configuration): the value is trimmed, an empty value is ignored and a non-RFC value throws `InvalidArgumentException` with message `invalid_uuid:<value>`.
+
+## Append-only created-at
+
+Since **1.4.0**. For rows that are written once (logs, events, history), `CreatedAtImmutableTrait` maps a **non-null** `createdAt` (`datetime_immutable`) set by the entity itself:
+
+```php
+use Nowo\AuditKitBundle\Model\CreatedAtImmutableTrait;
+
+#[ORM\Entity]
+class LoginEvent
+{
+    use CreatedAtImmutableTrait;
+
+    public function __construct()
+    {
+        $this->initializeCreatedAt();
+    }
+}
+```
+
+| | `TimestampableTrait` | `CreatedAtImmutableTrait` |
+| --- | --- | --- |
+| Columns | `createdAt`, `updatedAt` (nullable) | `createdAt` (not null) |
+| Written by | the audit listener (`prePersist` / `preUpdate`) | the entity constructor (`initializeCreatedAt()`) |
+| Use for | editable entities | append-only rows |
+
+Use one or the other on a given entity, not both (same `createdAt` property).
+
+## Escaping LIKE searches
+
+Since **1.4.0**. `Nowo\AuditKitBundle\Doctrine\SqlLike` escapes `\`, `%` and `_` in user input. Always append `SqlLike::ESCAPE_CLAUSE` (`ESCAPE '\'`): MySQL uses `\` as default escape character but SQLite has none, so the explicit clause gives the same result on both.
+
+```php
+use Nowo\AuditKitBundle\Doctrine\SqlLike;
+
+$qb->andWhere('p.name LIKE :q ' . SqlLike::ESCAPE_CLAUSE)
+    ->setParameter('q', SqlLike::contains($term)); // '%' . SqlLike::escape($term) . '%'
+```
 
 ## Doctrine migrations
 

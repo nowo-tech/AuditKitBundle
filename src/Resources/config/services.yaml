@@ -10,6 +10,7 @@ services:
             - '../../DependencyInjection/'
             - '../../Model/'
             - '../../Attribute/'
+            - '../../Doctrine/SqlLike.php'
             - '../../NowoAuditKitBundle.php'
 
     Nowo\AuditKitBundle\Profile\ProfileRegistry:
@@ -33,3 +34,8 @@ services:
         tags:
             - { name: doctrine.event_listener, event: prePersist, lazy: true }
             - { name: doctrine.event_listener, event: preUpdate, lazy: true }
+
+    # Public UUID helper: independent of profiles (only touches PublicUuidInterface entities).
+    Nowo\AuditKitBundle\Doctrine\PublicUuidListener:
+        tags:
+            - { name: doctrine.event_listener, event: prePersist, lazy: true }

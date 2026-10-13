@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.4.0](#to-140)
 - [To 1.3.0](#to-130)
 - [To 1.2.0](#to-120)
 - [To 1.1.19](#to-1119)
@@ -34,6 +35,19 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.4.0
+
+From **1.3.0** — new opt-in Doctrine helpers; no configuration or schema change for existing entities.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+- **New dependency:** `symfony/uid` (installed automatically).
+- **Public UUID:** implement `Nowo\AuditKitBundle\Model\PublicUuidInterface` and use `PublicUuidTrait`. The bundle registers `PublicUuidListener` (`prePersist`), so delete any host listener that called `ensureUuid()`. The column mapping (`uuid`, string 36, not null) matches the usual host copy, so switching needs no migration (check with `doctrine:schema:validate`). The listener only acts on entities implementing the interface: add `implements PublicUuidInterface` where a host listener relied on `method_exists()`.
+- **`CreatedAtImmutableTrait`:** drop-in for a host trait with `#[ORM\Column] private DateTimeImmutable $createdAt` + `initializeCreatedAt()`. Do not combine it with `TimestampableTrait` on the same entity.
+- **`SqlLike`:** replace hand-written LIKE escaping with `SqlLike::contains($term)` and append `SqlLike::ESCAPE_CLAUSE` to the DQL (`x LIKE :q ` . `SqlLike::ESCAPE_CLAUSE`).
 
 ## To 1.3.0
 

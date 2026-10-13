@@ -18,6 +18,9 @@ This bundle is **FrankenPHP worker mode friendly**, including the strict case wh
 ## Features
 
 - Optional traits: `TimestampableTrait`, `BlameableTrait`, `AuditableTrait`
+- Public opaque UUID: `PublicUuidInterface` + `PublicUuidTrait`, filled on `prePersist` by `PublicUuidListener` (UUID v7)
+- Append-only `CreatedAtImmutableTrait` (non-null `createdAt`)
+- `SqlLike` helper: escape `LIKE` input with an `ESCAPE '\'` clause that behaves the same on MySQL and SQLite
 - Doctrine entity listener (`prePersist` / `preUpdate`)
 - **Named profiles** — separate field mapping and flags per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable property names and `user_class`
@@ -94,6 +97,7 @@ make release-check
 - [Demo with FrankenPHP](docs/DEMO-FRANKENPHP.md)
 - [Product spec](specs/001-baseline/spec.md)
 - [Code inventory](specs/001-baseline/code-inventory.md)
+- [Doctrine helpers spec](specs/002-doctrine-helpers/spec.md)
 
 ## Tests and coverage
 

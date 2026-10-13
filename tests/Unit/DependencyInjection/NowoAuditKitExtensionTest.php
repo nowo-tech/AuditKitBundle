@@ -8,6 +8,8 @@ use InvalidArgumentException;
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
+use Nowo\AuditKitBundle\Doctrine\PublicUuidListener;
+use Nowo\AuditKitBundle\Doctrine\SqlLike;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -159,6 +161,19 @@ final class NowoAuditKitExtensionTest extends TestCase
 
         $this->assertFalse($container->hasDefinition(AuditableEntityListener::class));
         $this->assertFalse($container->hasDefinition(AuditableDoctrineListener::class));
+        // Public UUID listener does not depend on audit profiles.
+        $this->assertTrue($container->hasDefinition(PublicUuidListener::class));
+    }
+
+    public function testRegistersPublicUuidListenerOnPrePersistOnly(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([['user_class' => 'App\\Entity\\User']], $container);
+
+        $tags = $container->getDefinition(PublicUuidListener::class)->getTag('doctrine.event_listener');
+        $this->assertSame(['prePersist'], array_column($tags, 'event'));
+        // Static helper: excluded from service registration.
+        $this->assertTrue(!$container->hasDefinition(SqlLike::class) || $container->getDefinition(SqlLike::class)->hasTag('container.excluded'));
     }
 
     public function testRegistersGlobalDoctrineListenerInsteadOfUnattachedEntityListenerTags(): void

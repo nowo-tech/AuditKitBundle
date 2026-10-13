@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-09-24  
+**Last audited**: 2026-10-13 (spec [`002-doctrine-helpers`](../002-doctrine-helpers/spec.md))  
 **Status**: Implemented
 
 ## Symfony config (`src/Resources/config/`)
@@ -30,6 +30,10 @@
 | `Model/TimestampableTrait.php` | Doctrine trait | FR-TRAIT-001 | Mapped |
 | `Model/BlameableTrait.php` | Doctrine trait | FR-TRAIT-002 | Mapped |
 | `Model/AuditableTrait.php` | Combined trait | FR-TRAIT-003 | Mapped |
+| `Model/AuditUserInterface.php` | Blame association target | FR-TRAIT-002 | Mapped |
+| `Model/PublicUuidInterface.php` | Public UUID contract | 002 FR-UUID-001 | Mapped |
+| `Model/PublicUuidTrait.php` | Public UUID column | 002 FR-UUID-002 | Mapped |
+| `Model/CreatedAtImmutableTrait.php` | Append-only created-at | 002 FR-CREATED-001 | Mapped |
 
 ## PHP — profiles
 
@@ -45,6 +49,9 @@
 | --- | --- | --- | --- |
 | `Doctrine/AuditableEntityListener.php` | prePersist/preUpdate | FR-ORM-001, FR-ORM-004, FR-ORM-006, FR-OBS-001 | Mapped |
 | `Doctrine/AuditablePropertyResolver.php` | Field name resolution | FR-ORM-003 | Mapped |
+| `Doctrine/AuditableDoctrineListener.php` | Global prePersist/preUpdate | FR-ORM-001 | Mapped |
+| `Doctrine/PublicUuidListener.php` | Public UUID prePersist | 002 FR-UUID-003 | Mapped |
+| `Doctrine/SqlLike.php` | LIKE escaping | 002 FR-LIKE-001 | Mapped |
 | `Security/CurrentUserResolver.php` | Current user | FR-SEC-001, FR-SEC-002, FR-SEC-003 | Mapped |
 
 ## PHP — attributes
@@ -58,9 +65,9 @@
 | Category | Files | Mapped |
 | --- | ---: | ---: |
 | Bundle + DI | 3 | 3 |
-| Contracts & traits | 6 | 6 |
+| Contracts & traits | 10 | 10 |
 | Profiles | 3 | 3 |
-| Doctrine & security | 3 | 3 |
+| Doctrine & security | 6 | 6 |
 | Attributes | 1 | 1 |
 | Symfony config | 2 | 2 |
-| **Total production sources** | **18** | **18** |
+| **Total production sources** | **25** | **25** |
