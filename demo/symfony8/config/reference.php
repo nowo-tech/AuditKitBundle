@@ -1249,7 +1249,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *     },
  * }
  * @psalm-type NowoAuditKitConfig = array{
- *     default_profile?: scalar|Param|null, // Profile name used when no profile is resolved from the authenticated user. // Default: "default"
+ *     default_profile?: scalar|Param|null, // Profile name used when no profile is resolved from the authenticated user. Defaults to the first configured profile (resolved after all configuration files are merged). // Default: null
  *     profiles?: array<string, array{ // Default: []
  *         enabled?: bool|Param, // Enable auditing for this profile. // Default: true
  *         user_class?: scalar|Param|null, // FQCN used for createdBy / updatedBy references. // Default: null

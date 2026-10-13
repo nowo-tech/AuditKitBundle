@@ -1,8 +1,17 @@
 security:
+    providers:
+        app_users:
+            entity:
+                class: App\Entity\User
+                property: email
+
     firewalls:
         dev:
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
+        # Security must be enabled on the firewall: AuditKit only trusts the token
+        # (and fills createdBy/updatedBy) on requests behind a secured firewall.
         main:
             lazy: true
-            security: false
+            stateless: true
+            provider: app_users
