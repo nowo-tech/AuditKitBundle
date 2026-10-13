@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 - [[Unreleased]](#unreleased)
   - [Fixed](#fixed)
+- [[1.2.0] - 2026-10-13](#120-2026-10-13)
 - [[1.1.19] - 2026-10-13](#1119-2026-10-13)
 - [[1.1.18] - 2026-10-09](#1118-2026-10-09)
   - [Dependencies](#dependencies)
@@ -65,10 +66,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-13
+
 ### Fixed
 
 - **Audit fields were never written in real applications**: the listener was tagged `doctrine.orm.entity_listener` without `entity`, which DoctrineBundle never attaches, so it only ran on entities mapping `#[ORM\EntityListeners]`. A global Doctrine listener (`AuditableDoctrineListener`, `prePersist` / `preUpdate`) now audits every auditable entity; entities that still map `AuditableEntityListener` explicitly are audited once, as before.
 - **`BlameableTrait` was unmappable** (`#[ORM\ManyToOne]` without `targetEntity` on an `?object` property). It now targets the new `Model\AuditUserInterface`, which the bundle maps to the default profile `user_class` (or the AuthKit `user_class` fallback) via `doctrine.orm.resolve_target_entities`.
+
+[1.2.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.2.0
 
 ## [1.1.19] - 2026-10-13
 
