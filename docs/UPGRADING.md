@@ -10,7 +10,7 @@ From **1.1.19** — audit fields are now written (global Doctrine listener) and 
 composer update nowo-tech/audit-kit-bundle
 ```
 
-- Audit fields (createdAt/updatedAt/createdBy/updatedBy) are now written for every auditable entity, without needing `#[ORM\\EntityListeners]` (entities that keep that mapping are audited once).
+- Audit fields (createdAt/updatedAt/createdBy/updatedBy) are now written for every auditable entity, without needing `#[ORM\EntityListeners]` (entities that keep that mapping are audited once).
 - Blame associations now target `AuditUserInterface`, resolved to the default profile's `user_class` via `resolve_target_entities`: run `make:migration` / review the schema diff.
 
 ## To 1.1.19
