@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Requirements:** Symfony **^7.4 || ^8.0** (was `^7.0 || ^8.0`). Symfony 7.0–7.3 are no longer supported; upgrade to 7.4 LTS first.
+- **`default_profile`:** when it is not set explicitly, it is now the first profile of the *merged* configuration. If you relied on a later config file (e.g. `when@prod`) implicitly switching the default to its first profile, set `default_profile` explicitly in that file.
+
 ## To 1.2.0
 
 From **1.1.19** — audit fields are now written (global Doctrine listener) and BlameableTrait is mappable.

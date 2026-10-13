@@ -30,7 +30,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         }
 
         $config    = $this->processConfiguration(new Configuration(), $container->getExtensionConfig(Configuration::ALIAS));
-        $userClass = $config['profiles'][$config['default_profile']]['user_class'] ?? null;
+        $userClass = $config['profiles'][self::resolveDefaultProfileName($config)]['user_class'] ?? null;
         if (!is_string($userClass) || $userClass === '') {
             $userClass = $this->findAuthKitUserClass($container);
         }
@@ -54,7 +54,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $configuration = new Configuration();
         $config        = $this->processConfiguration($configuration, $configs);
 
-        $defaultProfileName = $config['default_profile'];
+        $defaultProfileName = self::resolveDefaultProfileName($config);
         if (!isset($config['profiles'][$defaultProfileName])) {
             throw new InvalidArgumentException(sprintf('The "nowo_audit_kit.default_profile" value "%s" does not match any configured profile.', $defaultProfileName));
         }
@@ -83,6 +83,24 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             $container->removeDefinition(AuditableEntityListener::class);
             $container->removeDefinition(AuditableDoctrineListener::class);
         }
+    }
+
+    /**
+     * Resolves the default profile after every configuration file has been merged, so a later file
+     * (e.g. `when@prod`) that only adds profiles does not override an explicit `default_profile`.
+     *
+     * @param array<string, mixed> $config
+     */
+    private static function resolveDefaultProfileName(array $config): string
+    {
+        $name = $config['default_profile'] ?? null;
+        if (is_string($name) && $name !== '') {
+            return $name;
+        }
+
+        $first = is_array($config['profiles'] ?? null) ? array_key_first($config['profiles']) : null;
+
+        return $first === null ? 'default' : (string) $first;
     }
 
     public function getAlias(): string

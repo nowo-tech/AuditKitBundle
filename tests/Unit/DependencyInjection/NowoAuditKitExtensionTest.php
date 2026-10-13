@@ -37,6 +37,39 @@ final class NowoAuditKitExtensionTest extends TestCase
         $this->assertTrue($container->hasDefinition(ProfileRegistry::class));
     }
 
+    public function testExplicitDefaultProfileSurvivesLaterFileWithoutIt(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([
+            [
+                'default_profile' => 'admin',
+                'profiles'        => [
+                    'app_user' => ['user_class' => 'App\\Entity\\User'],
+                    'admin'    => ['user_class' => 'App\\Entity\\Admin'],
+                ],
+            ],
+            [
+                'profiles' => [
+                    'app_user' => ['timestampable' => false],
+                ],
+            ],
+        ], $container);
+
+        $this->assertSame('admin', $container->getParameter('nowo_audit_kit.default_profile'));
+        $this->assertSame('App\\Entity\\Admin', $container->getParameter('nowo_audit_kit.user_class'));
+    }
+
+    public function testDefaultProfileFallsBackToFirstMergedProfile(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([
+            ['profiles' => ['app_user' => ['user_class' => 'App\\Entity\\User']]],
+            ['profiles' => ['admin' => ['user_class' => 'App\\Entity\\Admin']]],
+        ], $container);
+
+        $this->assertSame('app_user', $container->getParameter('nowo_audit_kit.default_profile'));
+    }
+
     public function testAlias(): void
     {
         $this->assertSame('nowo_audit_kit', (new NowoAuditKitExtension())->getAlias());
@@ -154,6 +187,29 @@ final class NowoAuditKitExtensionTest extends TestCase
     public function testPrependResolvesAuditUserInterfaceToDefaultProfileUserClass(): void
     {
         $container = $this->createContainerWithDoctrineExtension();
+        $container->prependExtensionConfig('nowo_audit_kit', [
+            'default_profile' => 'admin',
+            'profiles'        => [
+                'app_user' => ['user_class' => 'App\\Entity\\User'],
+                'admin'    => ['user_class' => 'App\\Entity\\Admin'],
+            ],
+        ]);
+
+        (new NowoAuditKitExtension())->prepend($container);
+
+        $this->assertSame(
+            [['orm' => ['resolve_target_entities' => [AuditUserInterface::class => 'App\\Entity\\Admin']]]],
+            $container->getExtensionConfig('doctrine'),
+        );
+    }
+
+    public function testPrependKeepsExplicitDefaultProfileAcrossFiles(): void
+    {
+        $container = $this->createContainerWithDoctrineExtension();
+        // prependExtensionConfig() inserts at the front: the second file is added first.
+        $container->prependExtensionConfig('nowo_audit_kit', [
+            'profiles' => ['app_user' => ['timestampable' => false]],
+        ]);
         $container->prependExtensionConfig('nowo_audit_kit', [
             'default_profile' => 'admin',
             'profiles'        => [

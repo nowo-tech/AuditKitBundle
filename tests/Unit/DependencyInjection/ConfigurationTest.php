@@ -14,7 +14,7 @@ final class ConfigurationTest extends TestCase
     {
         $config = (new Processor())->processConfiguration(new Configuration(), [[]]);
 
-        $this->assertSame('default', $config['default_profile']);
+        $this->assertNull($config['default_profile'], 'Resolved by the extension after all files are merged.');
         $this->assertNull($config['profiles']['default']['user_class']);
         $this->assertTrue($config['profiles']['default']['enabled']);
         $this->assertSame('createdAt', $config['profiles']['default']['fields']['created_at']);
@@ -50,5 +50,27 @@ final class ConfigurationTest extends TestCase
         $this->assertSame('admin', $config['default_profile']);
         $this->assertSame('App\\Entity\\Admin', $config['profiles']['admin']['user_class']);
         $this->assertFalse($config['profiles']['admin']['timestampable']);
+    }
+
+    public function testLaterFileWithoutDefaultProfileKeepsExplicitChoice(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [
+            [
+                'default_profile' => 'admin',
+                'profiles'        => [
+                    'app_user' => ['user_class' => 'App\\Entity\\User'],
+                    'admin'    => ['user_class' => 'App\\Entity\\Admin'],
+                ],
+            ],
+            // e.g. a when@prod block that only tweaks a profile
+            [
+                'profiles' => [
+                    'app_user' => ['timestampable' => false],
+                ],
+            ],
+        ]);
+
+        $this->assertSame('admin', $config['default_profile']);
+        $this->assertFalse($config['profiles']['app_user']['timestampable']);
     }
 }

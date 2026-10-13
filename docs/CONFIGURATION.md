@@ -10,7 +10,7 @@ Each **profile** maps a `user_class` to its own audit field mapping and feature 
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `default_profile` | string | first profile key | Profile used for timestamps when no authenticated user is resolved (CLI, guest) or when the user class does not match any profile. |
+| `default_profile` | string | first profile key (after all config files are merged) | Profile used for timestamps when no authenticated user is resolved (CLI, guest) or when the user class does not match any profile. |
 | `profiles` | map | `default` | Named profile definitions (at least one required). |
 
 Each profile supports:

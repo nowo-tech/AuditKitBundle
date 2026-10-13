@@ -66,6 +66,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **`default_profile` across configuration files:** the default profile is now resolved after all configuration files are merged. Previously each file filled `default_profile` with its own first profile, so a later file (e.g. `when@prod`) that only declared or tweaked `profiles` silently overrode an explicit `default_profile` from another file.
+
+### Changed
+
+- **Requirements:** Symfony floor raised from `^7.0` to `^7.4` (still `|| ^8.0`), matching what CI actually installs; the `7.0` CI matrix cell was removed.
+
 ## [1.2.0] - 2026-10-13
 
 ### Fixed

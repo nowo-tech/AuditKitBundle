@@ -45,19 +45,14 @@ final class Configuration implements ConfigurationInterface
                         );
                     }
 
-                    if (!isset($config['default_profile'])) {
-                        $profileNames              = array_keys($config['profiles']);
-                        $config['default_profile'] = $profileNames[0] ?? 'default';
-                    }
-
                     return $config;
                 })
             ->end()
             ->addDefaultsIfNotSet()
             ->children()
                 ->scalarNode('default_profile')
-                    ->info('Profile name used when no profile is resolved from the authenticated user.')
-                    ->defaultValue('default')
+                    ->info('Profile name used when no profile is resolved from the authenticated user. Defaults to the first configured profile (resolved after all configuration files are merged).')
+                    ->defaultNull()
                 ->end()
                 ->arrayNode('profiles')
                     ->requiresAtLeastOneElement()
