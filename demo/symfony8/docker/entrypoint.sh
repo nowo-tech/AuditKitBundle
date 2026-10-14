@@ -30,5 +30,4 @@ git config --global --add safe.directory /var/audit-kit-bundle 2>/dev/null || tr
 mkdir -p /app/var/cache /app/var/log /app/var/data
 chmod -R 777 /app/var 2>/dev/null || true
 
-if [ ! -f /app/vendor/autoload_runtime.php ]; then composer install --no-interaction; fi
 exec frankenphp run --config /etc/frankenphp/Caddyfile --adapter caddyfile
