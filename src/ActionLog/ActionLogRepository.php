@@ -8,12 +8,10 @@ use BackedEnum;
 use DateTimeImmutable;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\DBAL\ArrayParameterType;
-use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
-
-use function count;
+use Nowo\AuditKitBundle\Doctrine\KeysetDelete;
 
 /**
  * Queries and keyset purge for an {@see AbstractActionLog} entity.
@@ -28,7 +26,7 @@ use function count;
  */
 class ActionLogRepository extends ServiceEntityRepository
 {
-    public const DEFAULT_BATCH_SIZE = 1000;
+    public const DEFAULT_BATCH_SIZE = KeysetDelete::DEFAULT_BATCH_SIZE;
 
     /**
      * @param class-string<T> $entityClass
@@ -104,8 +102,9 @@ class ActionLogRepository extends ServiceEntityRepository
     }
 
     /**
-     * Deletes rows older than `$before` in id batches (keyset over the primary key: each batch starts after the last
-     * id seen, so retained rows are scanned once, not once per batch). Runs on DBAL, outside the unit of work.
+     * Deletes rows older than `$before` in id batches with {@see KeysetDelete} (keyset over the primary key: each batch
+     * starts after the last id seen, so retained rows are scanned once, not once per batch). Runs on DBAL, outside the
+     * unit of work.
      *
      * @param array<BackedEnum|string>|null $actions only these actions (`null` = every action, `[]` = nothing)
      *
@@ -123,36 +122,17 @@ class ActionLogRepository extends ServiceEntityRepository
         $quotes     = $this->getEntityManager()->getConfiguration()->getQuoteStrategy();
         $table      = $quotes->getTableName($metadata, $platform);
         $idColumn   = $quotes->getColumnName($metadata->getSingleIdentifierFieldName(), $metadata, $platform);
-        $batchSize  = max(1, $batchSize);
 
-        $where  = [$idColumn . ' > :afterId', $quotes->getColumnName('createdAt', $metadata, $platform) . ' < :before'];
+        $where  = [$quotes->getColumnName('createdAt', $metadata, $platform) . ' < :before'];
         $params = ['before' => $before];
-        $types  = ['afterId' => ParameterType::INTEGER, 'before' => Types::DATETIME_IMMUTABLE];
+        $types  = ['before' => Types::DATETIME_IMMUTABLE];
         if ($actions !== null) {
             $where[]           = $quotes->getColumnName('action', $metadata, $platform) . ' IN (:actions)';
             $params['actions'] = array_values(array_map(AbstractActionLog::actionValue(...), $actions));
             $types['actions']  = ArrayParameterType::STRING;
         }
 
-        $select = $platform->modifyLimitQuery(
-            'SELECT ' . $idColumn . ' FROM ' . $table . ' WHERE ' . implode(' AND ', $where) . ' ORDER BY ' . $idColumn,
-            $batchSize,
-        );
-        $afterId = 0;
-        $deleted = 0;
-        do {
-            $ids = array_map(intval(...), $connection->fetchFirstColumn($select, ['afterId' => $afterId] + $params, $types));
-            if ($ids !== []) {
-                $afterId = max($ids);
-                $deleted += (int) $connection->executeStatement(
-                    'DELETE FROM ' . $table . ' WHERE ' . $idColumn . ' IN (:ids)',
-                    ['ids' => $ids],
-                    ['ids' => ArrayParameterType::INTEGER],
-                );
-            }
-        } while (count($ids) === $batchSize);
-
-        return $deleted;
+        return KeysetDelete::run($connection, $table, implode(' AND ', $where), $params, $types, $batchSize, $idColumn);
     }
 
     /** Query builder (alias `a`) with every criteria filter applied, without ordering or pagination. */

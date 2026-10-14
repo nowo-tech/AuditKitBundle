@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.6.0] - 2026-10-14](#160---2026-10-14)
 - [[1.5.0] - 2026-10-13](#150---2026-10-13)
 - [[1.4.0] - 2026-10-13](#140---2026-10-13)
 - [[1.3.0] - 2026-10-13](#130---2026-10-13)
@@ -37,6 +38,19 @@ All notable changes to this project will be documented in this file.
 - [[1.0.0] - 2026-07-14](#100---2026-07-14)
 
 ## [Unreleased]
+
+## [1.6.0] - 2026-10-14
+
+### Added
+
+- **`Doctrine\KeysetDelete::run(Connection $connection, string $table, string $where, array $params = [], array $types = [], int $batchSize = 1000, string $idColumn = 'id'): int`** — deletes the rows matching a `WHERE` clause in short primary-key batches on DBAL: `SELECT id … ORDER BY id` with the platform limit and a keyset bound (`id > last id`), then `DELETE … WHERE id IN (…)`, until a short batch. Positional or named placeholders, array parameters, empty clause (every row), integer or string primary keys. Reserved named parameter `keysetDeleteAfterId`.
+- Spec [`004-keyset-delete`](../specs/004-keyset-delete/spec.md) (Beacon `KIT-EXTRACTION.md` row #21).
+
+### Changed
+
+- `ActionLogRepository::purgeBefore()` delegates to `KeysetDelete` (same results; the first batch no longer carries `id > 0`). `ActionLogRepository::DEFAULT_BATCH_SIZE` is still 1000.
+
+[1.6.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.6.0
 
 ## [1.5.0] - 2026-10-13
 

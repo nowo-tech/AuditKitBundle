@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [To 1.3.0](#to-130)
@@ -36,6 +37,17 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.6.0
+
+From **1.5.0** — new `KeysetDelete` helper; no configuration, dependency or schema change.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+- **Hand-written batched deletes** (`SELECT id … LIMIT n` + `DELETE … WHERE id IN (…)` loops) can be replaced with `KeysetDelete::run($connection, $table, $where, $params, $types, $batchSize)`. Drop the `id > ?` condition from the host clause (the helper adds the keyset bound) and express joins as `col IN (SELECT …)`. See [Usage — Batched deletes](USAGE.md#batched-deletes).
+- `ActionLogRepository::purgeBefore()` keeps its signature and results. Subclasses that override it are unaffected.
 
 ## To 1.5.0
 

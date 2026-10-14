@@ -55,6 +55,7 @@
 | `Doctrine/AuditableDoctrineListener.php` | Global prePersist/preUpdate | FR-ORM-001 | Mapped |
 | `Doctrine/PublicUuidListener.php` | Public UUID prePersist | 002 FR-UUID-003 | Mapped |
 | `Doctrine/SqlLike.php` | LIKE escaping | 002 FR-LIKE-001 | Mapped |
+| `Doctrine/KeysetDelete.php` | Keyset batch delete (DBAL) | 004 FR-KD-001 | Mapped |
 | `Security/CurrentUserResolver.php` | Current user | FR-SEC-001, FR-SEC-002, FR-SEC-003 | Mapped |
 
 ## PHP — action log
@@ -63,7 +64,7 @@
 | --- | --- | --- | --- |
 | `ActionLog/AbstractActionLog.php` | Mapped superclass | 003 FR-AL-001, FR-AL-002 | Mapped |
 | `ActionLog/ActionLogRecorder.php` | Recorder | 003 FR-AL-004 | Mapped |
-| `ActionLog/ActionLogRepository.php` | Filters, keyset purge | 003 FR-AL-005 | Mapped |
+| `ActionLog/ActionLogRepository.php` | Filters, keyset purge | 003 FR-AL-005, 004 FR-KD-006 | Mapped |
 | `ActionLog/ActionLogCriteria.php` | Filter value object | 003 FR-AL-005 | Mapped |
 | `ActionLog/Command/PurgeActionLogCommand.php` | Purge command | 003 FR-AL-006 | Mapped |
 

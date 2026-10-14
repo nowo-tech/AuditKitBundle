@@ -1,6 +1,6 @@
 # Release process
 
-Current stable: **v1.5.0** (2026-10-13).
+Current stable: **v1.6.0** (2026-10-14).
 
 1. Update [CHANGELOG.md](CHANGELOG.md): move entries from `[Unreleased]` to a new `[X.Y.Z] - YYYY-MM-DD` section. (This project does not store version in `composer.json`; Packagist uses the git tag.)
 2. Update [UPGRADING.md](UPGRADING.md) if the release has upgrade notes.

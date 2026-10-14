@@ -11,6 +11,7 @@
 - [Public UUID](#public-uuid)
 - [Append-only created-at](#append-only-created-at)
 - [Escaping LIKE searches](#escaping-like-searches)
+- [Batched deletes](#batched-deletes)
 - [Action log](#action-log)
   - [Entity](#entity)
   - [Existing table (no migration)](#existing-table-no-migration)
@@ -152,6 +153,41 @@ $qb->andWhere('p.name LIKE :q ' . SqlLike::ESCAPE_CLAUSE)
     ->setParameter('q', SqlLike::contains($term)); // '%' . SqlLike::escape($term) . '%'
 ```
 
+## Batched deletes
+
+Since **1.6.0**. `Nowo\AuditKitBundle\Doctrine\KeysetDelete::run()` deletes the rows that match a `WHERE` clause in short primary-key batches, on DBAL (outside the unit of work). Each batch is `SELECT id … WHERE (<where>) AND id > <last id> ORDER BY id` with the platform limit, then `DELETE … WHERE id IN (…)`, each in autocommit, until a short batch. Use it for purges and mass clears where one `DELETE … WHERE …` would hold locks and undo for millions of rows. Specification: [`specs/004-keyset-delete`](../specs/004-keyset-delete/spec.md).
+
+```php
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
+use Doctrine\DBAL\Types\Types;
+use Nowo\AuditKitBundle\Doctrine\KeysetDelete;
+
+// Positional placeholders
+$deleted = KeysetDelete::run(
+    $connection,
+    'messenger_processed_messages',
+    'finished_at <= ? AND failure_type IS NULL',
+    [$cutoff],
+    [Types::DATETIME_IMMUTABLE],
+    batchSize: 2000,
+);
+
+// Named placeholders and array parameters; joins go in the clause as IN (SELECT …)
+$deleted = KeysetDelete::run(
+    $connection,
+    'issue_history',
+    'issue_id IN (SELECT id FROM issue WHERE project_id = :project) AND kind IN (:kinds)',
+    ['project' => $projectId, 'kinds' => ['a', 'b']],
+    ['project' => ParameterType::INTEGER, 'kinds' => ArrayParameterType::STRING],
+);
+```
+
+- `$where` may be empty (every row). `$table`, `$where` and `$idColumn` (default `id`) are inserted as is: quote reserved identifiers yourself and keep user input in `$params`.
+- The name `:keysetDeleteAfterId` (`KeysetDelete::AFTER_ID_PARAMETER`) is reserved for named parameters.
+- Integer ids are bound as integers; string primary keys (UUID, …) work too, following the database order.
+- Returns the number of deleted rows. `ActionLogRepository::purgeBefore()` uses it.
+
 ## Action log
 
 Since **1.5.0**. An opt-in, append-only log of *who did what, to whom*: admin actions, membership changes, page views. It is independent of the entity-level audit fields above. Specification: [`specs/003-action-log`](../specs/003-action-log/spec.md).
@@ -290,7 +326,7 @@ php bin/console nowo:audit-kit:action-log:purge --older-than-days=30 --action=pr
 php bin/console nowo:audit-kit:action-log:purge --all-actions --older-than-days=365
 ```
 
-Rows are deleted by id in keyset batches (`--batch-size`, default `purge.batch_size`): each batch starts after the last id seen, so retained rows are scanned once. Without `--action` and with an empty `purge.actions`, the command refuses unless `--all-actions` is given. From code: `$repository->purgeBefore($before, $actions, $batchSize)` (`null` = every action, `[]` = nothing).
+Rows are deleted by id in keyset batches with [`KeysetDelete`](#batched-deletes) (`--batch-size`, default `purge.batch_size`): each batch starts after the last id seen, so retained rows are scanned once. Without `--action` and with an empty `purge.actions`, the command refuses unless `--all-actions` is given. From code: `$repository->purgeBefore($before, $actions, $batchSize)` (`null` = every action, `[]` = nothing).
 
 ### Timeline partial
 
