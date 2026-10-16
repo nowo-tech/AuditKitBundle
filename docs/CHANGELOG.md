@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.7.0] - 2026-10-16](#170---2026-10-16)
 - [[1.6.0] - 2026-10-14](#160---2026-10-14)
 - [[1.5.0] - 2026-10-13](#150---2026-10-13)
 - [[1.4.0] - 2026-10-13](#140---2026-10-13)
@@ -38,6 +39,15 @@ All notable changes to this project will be documented in this file.
 - [[1.0.0] - 2026-07-14](#100---2026-07-14)
 
 ## [Unreleased]
+
+## [1.7.0] - 2026-10-16
+
+### Added
+
+- **`Doctrine\SqlFulltext`** (final, static) — DQL text search: `clause(array $fields, string $query, string $param, bool|Connection|AbstractPlatform $mysql, int $minTokenLength = 3, ?array $stopwords = null): array{string, array<string, string>}` returns `MATCH(f1, f2) AGAINST(:param BOOLEAN) > 0` with a boolean prefix query on MySQL / MariaDB, or `(f1 LIKE :param ESCAPE '\' OR …)` with `SqlLike::contains()` on other platforms and when no usable word remains. `booleanQuery()` splits like the InnoDB FULLTEXT parser, drops short words (`DEFAULT_MIN_TOKEN_LENGTH = 3`) and stopwords (`INNODB_STOPWORDS`), dedupes and returns `+word*` terms; `snippet(string $text, string $query, int $width = 90)` returns the text around the first matching word with `…` cuts; `isMysql()` detects the platform from a `Connection` / `AbstractPlatform`. The `MATCH` DQL function (e.g. `beberlei/doctrineextensions` `MatchAgainst`) is registered by the host; the bundle does not depend on it.
+- Spec [`005-sql-fulltext`](../specs/005-sql-fulltext/spec.md) (extracted from Symfony Beacon spec 151 `PaletteTextMatch`).
+
+[1.7.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.7.0
 
 ## [1.6.0] - 2026-10-14
 

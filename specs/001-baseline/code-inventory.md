@@ -55,6 +55,7 @@
 | `Doctrine/AuditableDoctrineListener.php` | Global prePersist/preUpdate | FR-ORM-001 | Mapped |
 | `Doctrine/PublicUuidListener.php` | Public UUID prePersist | 002 FR-UUID-003 | Mapped |
 | `Doctrine/SqlLike.php` | LIKE escaping | 002 FR-LIKE-001 | Mapped |
+| `Doctrine/SqlFulltext.php` | FULLTEXT / LIKE search condition, snippets | 005 FR-FT-001 | Mapped |
 | `Doctrine/KeysetDelete.php` | Keyset batch delete (DBAL) | 004 FR-KD-001 | Mapped |
 | `Security/CurrentUserResolver.php` | Current user | FR-SEC-001, FR-SEC-002, FR-SEC-003 | Mapped |
 

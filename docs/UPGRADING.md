@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.7.0](#to-170)
 - [To 1.6.0](#to-160)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
@@ -37,6 +38,17 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.7.0
+
+From **1.6.0** — new `SqlFulltext` helper; no configuration, dependency or schema change.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+- **Application copies of a FULLTEXT / LIKE search helper** (e.g. Symfony Beacon `App\Issues\Repository\Query\PaletteTextMatch`) can be replaced with `SqlFulltext::clause()`, `::booleanQuery()` and `::snippet()` — same signatures and results with the defaults; the 4th argument of `clause()` also accepts the DBAL `Connection` or platform.
+- The FULLTEXT form still needs a `MATCH` DQL function registered in the host (e.g. `beberlei/doctrineextensions` `MatchAgainst`). See [Usage — Full-text search](USAGE.md#full-text-search).
 
 ## To 1.6.0
 

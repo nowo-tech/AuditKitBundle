@@ -11,6 +11,7 @@
 - [Public UUID](#public-uuid)
 - [Append-only created-at](#append-only-created-at)
 - [Escaping LIKE searches](#escaping-like-searches)
+- [Full-text search](#full-text-search)
 - [Batched deletes](#batched-deletes)
 - [Action log](#action-log)
   - [Entity](#entity)
@@ -152,6 +153,41 @@ use Nowo\AuditKitBundle\Doctrine\SqlLike;
 $qb->andWhere('p.name LIKE :q ' . SqlLike::ESCAPE_CLAUSE)
     ->setParameter('q', SqlLike::contains($term)); // '%' . SqlLike::escape($term) . '%'
 ```
+
+## Full-text search
+
+Since **1.7.0**. `Nowo\AuditKitBundle\Doctrine\SqlFulltext` builds a DQL text condition: on MySQL / MariaDB it uses the `FULLTEXT` index (`MATCH … AGAINST` in boolean mode, every word required as a prefix); on other platforms (SQLite, PostgreSQL, …), and when the query has no usable word, it falls back to an escaped `LIKE` with [`SqlLike`](#escaping-like-searches). Specification: [`specs/005-sql-fulltext`](../specs/005-sql-fulltext/spec.md).
+
+**Requirement (MySQL / MariaDB):** register a `MATCH` DQL function that accepts `AGAINST(:q BOOLEAN)`, for example `MatchAgainst` from [`beberlei/doctrineextensions`](https://github.com/beberlei/DoctrineExtensions). The bundle does not require it.
+
+```yaml
+# config/packages/doctrine.yaml
+doctrine:
+    orm:
+        dql:
+            string_functions:
+                MATCH: DoctrineExtensions\Query\Mysql\MatchAgainst
+```
+
+The fields must be the columns of one `FULLTEXT` index, in index order (e.g. `#[ORM\Index(columns: ['title', 'culprit'], flags: ['fulltext'])]`).
+
+```php
+use Nowo\AuditKitBundle\Doctrine\SqlFulltext;
+
+// 4th argument: bool, or a Doctrine DBAL Connection / platform (MySQL and MariaDB use FULLTEXT)
+[$condition, $parameters] = SqlFulltext::clause(['i.title', 'i.culprit'], $term, 'q', $this->getEntityManager()->getConnection());
+$qb->andWhere($condition);
+foreach ($parameters as $name => $value) {
+    $qb->setParameter($name, $value);
+}
+// MySQL:  MATCH(i.title, i.culprit) AGAINST(:q BOOLEAN) > 0               q = '+fatal* +e2e* +xss*'  ("Fatal e2e-xss")
+// Others: (i.title LIKE :q ESCAPE '\' OR i.culprit LIKE :q ESCAPE '\')    q = '%Fatal e2e-xss%'
+```
+
+- `SqlFulltext::booleanQuery($term)` — lower-cases and splits like the InnoDB parser (on anything but letters, digits and `_`), drops words shorter than the minimum token length (default `3`, InnoDB `innodb_ft_min_token_size`) and stopwords (default `SqlFulltext::INNODB_STOPWORDS`), removes duplicates and returns `+word*` terms, or `""` (then `clause()` uses `LIKE`). Pass `$minTokenLength` / `$stopwords` to `clause()` or `booleanQuery()` when the server uses other settings (e.g. `innodb_ft_min_token_size`, a custom `innodb_ft_server_stopword_table`, or MyISAM's `ft_min_word_len = 4`).
+- `SqlFulltext::snippet($text, $term, $width = 90)` — about `$width` characters around the first literal, case-insensitive match of a query word, with `…` at the cuts (the start of the text when no word matches literally, e.g. a FULLTEXT prefix match). Escape it in the template as usual.
+- `SqlFulltext::isMysql($connectionOrPlatform)` — the platform check used by `clause()` (`AbstractMySQLPlatform`).
+- Ranking is not applied: order the results yourself (e.g. by date). Boolean mode does not sort by relevance.
 
 ## Batched deletes
 

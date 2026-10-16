@@ -21,6 +21,7 @@ This bundle is **FrankenPHP worker mode friendly**, including the strict case wh
 - Public opaque UUID: `PublicUuidInterface` + `PublicUuidTrait`, filled on `prePersist` by `PublicUuidListener` (UUID v7)
 - Append-only `CreatedAtImmutableTrait` (non-null `createdAt`)
 - `SqlLike` helper: escape `LIKE` input with an `ESCAPE '\'` clause that behaves the same on MySQL and SQLite
+- `SqlFulltext` helper: DQL text search with MySQL / MariaDB `FULLTEXT` (`MATCH … AGAINST` boolean prefix query, InnoDB token rules) and an escaped `LIKE` fallback elsewhere, plus result snippets
 - `KeysetDelete` helper: delete matching rows in short primary-key batches (portable DBAL, keyset over the id)
 - Doctrine entity listener (`prePersist` / `preUpdate`)
 - **Action log** (opt-in): `AbstractActionLog` mapped superclass, `ActionLogRecorder`, filterable repository with keyset purge, `nowo:audit-kit:action-log:purge` and an optional Twig timeline — maps onto existing tables with no migration
@@ -102,6 +103,7 @@ make release-check
 - [Doctrine helpers spec](specs/002-doctrine-helpers/spec.md)
 - [Action log spec](specs/003-action-log/spec.md)
 - [Keyset delete spec](specs/004-keyset-delete/spec.md)
+- [Full-text search spec](specs/005-sql-fulltext/spec.md)
 
 ## Tests and coverage
 
