@@ -16,13 +16,13 @@ use function is_string;
  * `null` means "no filter"; an empty list for `actions` / `scope` means "match nothing" (an allow-list that
  * allows nothing), so callers passing a computed allow-list never widen the query by accident.
  */
-final class ActionLogCriteria
+final readonly class ActionLogCriteria
 {
     /** @var list<string>|null */
-    public readonly ?array $actions;
+    public ?array $actions;
 
     /** @var list<string>|null */
-    public readonly ?array $scopes;
+    public ?array $scopes;
 
     /**
      * @param int|object|string|null $actor rows performed by this user (entity or id)
@@ -34,15 +34,15 @@ final class ActionLogCriteria
      * @param DateTimeImmutable|null $to inclusive upper bound on `createdAt`
      */
     public function __construct(
-        public readonly object|int|string|null $actor = null,
-        public readonly object|int|string|null $subject = null,
-        public readonly object|int|string|null $involving = null,
+        public object|int|string|null $actor = null,
+        public object|int|string|null $subject = null,
+        public object|int|string|null $involving = null,
         string|array|null $scope = null,
         string|BackedEnum|array|null $actions = null,
-        public readonly ?DateTimeImmutable $from = null,
-        public readonly ?DateTimeImmutable $to = null,
-        public readonly int $limit = 100,
-        public readonly int $offset = 0,
+        public ?DateTimeImmutable $from = null,
+        public ?DateTimeImmutable $to = null,
+        public int $limit = 100,
+        public int $offset = 0,
     ) {
         $this->scopes  = $scope === null ? null : array_values(is_string($scope) ? [$scope] : $scope);
         $this->actions = $actions === null ? null : array_values(array_map(

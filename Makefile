@@ -13,7 +13,7 @@ endif
 COMPOSE     := $(COMPOSE_BIN) -f $(COMPOSE_FILE)
 SERVICE_PHP := php
 
-.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan igor qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history demo-smoke
+.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan igor qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history demo-smoke validate-translations
 
 # Default target
 help:
@@ -28,6 +28,7 @@ help:
 	@echo "  build         Rebuild Docker image (no cache)"
 	@echo "  shell         Open shell in container"
 	@echo "  install       Install Composer dependencies (starts container if needed)"
+	@echo "  assets        No-op (no frontend assets in this bundle)"
 	@echo "  test          Run PHPUnit tests"
 	@echo "  test-coverage Run tests with code coverage"
 	@echo "  test-coverage-100 Run tests and enforce 100% coverage"
@@ -39,14 +40,16 @@ help:
 	@echo "  igor          Run Igor worker-state audit (REQ-CS-008)"
 	@echo "  qa            Run all QA checks (cs-check + test)"
 	@echo "  release-check Pre-release: cs-fix, cs-check, rector-dry, phpstan, igor, test-coverage, demo healthchecks"
-	@echo "  demo-smoke    Boot demo/symfony8 and assert HTTP 200 (REQ-TEST-011)"
-	@echo "  check-open-prs Fail if unresolved open GitHub PRs remain (REQ-REL-003)"
 	@echo "  composer-sync Validate composer.json and align composer.lock (no install)"
 	@echo "  clean         Remove vendor and cache"
 	@echo "  update        Update composer.lock (composer update)"
 	@echo "  update-deps   Update bundle and demo dependencies (REQ-MAKE-008)"
 	@echo "  validate      Run composer validate --strict"
-	@echo "  assets        No-op (no frontend assets in this bundle)"
+	@echo ""
+	@echo "Bundle-specific:"
+	@echo "  validate-translations Check translation YAML key parity (REQ-MAKE-004)"
+	@echo "  demo-smoke    Boot demo/symfony8 and assert HTTP 200 (REQ-TEST-011)"
+	@echo "  check-open-prs Fail if unresolved open GitHub PRs remain (REQ-REL-003)"
 	@echo "  setup-hooks   Install git pre-commit hooks"
 	@echo ""
 	@echo "Demos: use make -C demo or make -C demo/<demo-name>"
@@ -132,7 +135,7 @@ qa: ensure-up
 # Run Igor worker-state audit (REQ-CS-008)
 igor: ensure-up
 	$(COMPOSE) exec -T php composer igor
-release-check: ensure-up check-no-cursor-coauthor check-open-prs composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage release-check-demos
+release-check: ensure-up check-no-cursor-coauthor check-open-prs validate-translations composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage release-check-demos
 
 # REQ-TEST-011 — boot demo stack and assert one HTTP 200
 # classic mode keeps FrankenPHP up before vendor/ is installed on fresh CI checkouts
@@ -174,6 +177,10 @@ update: ensure-up
 # Validate composer.json
 validate: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer validate --strict
+
+# REQ-MAKE-004: translation catalogues must share the en key set
+validate-translations: ensure-up
+	$(COMPOSE) exec -T $(SERVICE_PHP) php .scripts/validate-translations.php
 
 # No-op for bundles without frontend assets
 assets:

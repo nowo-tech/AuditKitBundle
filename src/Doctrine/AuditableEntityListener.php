@@ -20,15 +20,15 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Throwable;
 
 /** Sets timestamp and blame fields on Doctrine persist and update events. */
-final class AuditableEntityListener
+final readonly class AuditableEntityListener
 {
     public function __construct(
-        private readonly ProfileRegistry $registry,
-        private readonly AuditablePropertyResolver $propertyResolver,
-        private readonly CurrentUserResolver $currentUserResolver,
-        private readonly EntityManagerInterface $entityManager,
-        private readonly ClockInterface $clock,
-        private readonly LoggerInterface $logger = new NullLogger(),
+        private ProfileRegistry $registry,
+        private AuditablePropertyResolver $propertyResolver,
+        private CurrentUserResolver $currentUserResolver,
+        private EntityManagerInterface $entityManager,
+        private ClockInterface $clock,
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 

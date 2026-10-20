@@ -1,0 +1,6 @@
+nowo_audit_kit:
+    action_log:
+        empty: 'Nog geen activiteit geregistreerd.'
+        by: 'door %name%'
+        by_system: 'door het systeem'
+        subject: 'over %name%'

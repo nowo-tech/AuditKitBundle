@@ -19,9 +19,9 @@ use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 use function in_array;
 
 /** Maps configuration field names to entity properties and auditing traits. */
-final class AuditablePropertyResolver
+final readonly class AuditablePropertyResolver
 {
-    private readonly PropertyAccessorInterface $propertyAccessor;
+    private PropertyAccessorInterface $propertyAccessor;
 
     public function __construct(?PropertyAccessorInterface $propertyAccessor = null)
     {

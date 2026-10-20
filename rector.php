@@ -16,7 +16,7 @@ return RectorConfig::configure()
             __DIR__ . '/src/Doctrine/AuditableEntityListener.php',
         ],
     ])
-    ->withPhpSets(php81: true)
+    ->withPhpSets(php82: true)
     ->withPreparedSets(
         deadCode: true,
         codeQuality: true,

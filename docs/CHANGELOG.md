@@ -40,11 +40,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Action-log timeline translations for Italian, French, Portuguese, German and Dutch (`NowoAuditKitBundle.{it,fr,pt,de,nl}.yaml`, REQ-I18N-002).
+- `make validate-translations` (`.scripts/validate-translations.php`): catalogue key parity against `en`, wired into `release-check` (REQ-MAKE-004).
+
 ### Changed
 
+- `nowo:audit-kit:action-log:purge` computes its cutoff from the injected PSR-20 clock (`Psr\Clock\ClockInterface`, optional constructor argument) instead of `new DateTimeImmutable()` (REQ-DI-001).
+- `.github/SECURITY.md` follows the canonical Nowo policy template (REQ-SEC-003).
+- Tooling: Rector PHP set matches the PHP 8.2 floor (`php82`; six final classes become `readonly` classes, no behaviour change); `make help` follows the standard block order; the co-author check accepts git worktrees.
 - Dependencies refreshed (Composer and pnpm/npm lock files of the bundle and its demos, campaign 2026-10-19).
 - `.php-cs-fixer.dist.php`: `new ParallelConfig(2)` (REQ-CS-001).
-- Documentation: wave-1 REQ compliance — README documentation list order, canonical issue templates, CONTRIBUTING Code of Conduct link and Cursor Agent settings (REQ-IDE-006), tables of contents in long docs, demo compose project name `audit-kit-bundle-demo-symfony-8`, Spec Kit inventory refresh (36/36).
+- Documentation: wave-1 REQ compliance — README documentation list order, canonical issue templates, CONTRIBUTING Code of Conduct link and Cursor Agent settings (REQ-IDE-006), tables of contents in long docs, demo compose project name `audit-kit-bundle-demo-symfony-8`, Spec Kit inventory refresh (41/41 after the new catalogues).
+
+### Fixed
+
+- Demo entrypoint copied `/app/Caddyfile(.dev)` to `/etc/caddy/Caddyfile`, a path `frankenphp run --config /etc/frankenphp/Caddyfile` never reads; it now overrides `/etc/frankenphp/Caddyfile` (REQ-DEMO-010).
 
 ## [1.7.0] - 2026-10-16
 

@@ -15,6 +15,11 @@
 | `Resources/views/action_log/_timeline.html.twig` | Timeline partial | 003 FR-AL-008 | Mapped |
 | `Resources/translations/NowoAuditKitBundle.en.yaml` | Timeline strings (English) | 003 FR-AL-008 | Mapped |
 | `Resources/translations/NowoAuditKitBundle.es.yaml` | Timeline strings (Spanish) | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.it.yaml` | Timeline strings (Italian) | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.fr.yaml` | Timeline strings (French) | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.pt.yaml` | Timeline strings (Portuguese) | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.de.yaml` | Timeline strings (German) | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.nl.yaml` | Timeline strings (Dutch) | 003 FR-AL-008 | Mapped |
 
 ## PHP — bundle core
 
@@ -80,13 +85,13 @@
 
 | Category | Files | Mapped |
 | --- | ---: | ---: |
-| Symfony config, views and translations | 6 | 6 |
+| Symfony config, views and translations | 11 | 11 |
 | PHP — bundle core | 3 | 3 |
 | PHP — contracts & traits | 10 | 10 |
 | PHP — profiles | 3 | 3 |
 | PHP — Doctrine & security | 8 | 8 |
 | PHP — action log | 5 | 5 |
 | PHP — attributes | 1 | 1 |
-| **Total production sources** | **36** | **36** |
+| **Total production sources** | **41** | **41** |
 
-Audit command (production count): `git ls-files src | wc -l` → **36** (2026-10-20).
+Audit command (production count): `git ls-files src | wc -l` → **41** (2026-10-20).

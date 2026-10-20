@@ -8,10 +8,10 @@ use Attribute;
 
 /** Opt-in/out marker for the Doctrine auditing listener on a class. */
 #[Attribute(Attribute::TARGET_CLASS)]
-final class Auditable
+final readonly class Auditable
 {
     public function __construct(
-        public readonly bool $enabled = true,
+        public bool $enabled = true,
     ) {
     }
 }

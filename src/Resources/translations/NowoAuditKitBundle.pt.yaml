@@ -1,0 +1,6 @@
+nowo_audit_kit:
+    action_log:
+        empty: 'Ainda não há atividade registada.'
+        by: 'por %name%'
+        by_system: 'pelo sistema'
+        subject: 'sobre %name%'

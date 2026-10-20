@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRepository;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -39,6 +40,7 @@ final class PurgeActionLogCommand extends Command
         private readonly array $defaultActions = [],
         private readonly int $defaultDays = 90,
         private readonly int $batchSize = ActionLogRepository::DEFAULT_BATCH_SIZE,
+        private readonly ?ClockInterface $clock = null,
     ) {
         parent::__construct();
     }
@@ -79,7 +81,9 @@ final class PurgeActionLogCommand extends Command
             $repository = new ActionLogRepository($this->registry, $this->entityClass);
         }
 
-        $deleted = $repository->purgeBefore(new DateTimeImmutable(sprintf('-%d days', $days)), $actions, $batchSize);
+        // REQ-DI-001: the cutoff comes from the injected PSR-20 clock (the bundle wires the app clock service).
+        $now     = $this->clock?->now() ?? new DateTimeImmutable();
+        $deleted = $repository->purgeBefore($now->modify(sprintf('-%d days', $days)), $actions, $batchSize);
         $io->success(sprintf(
             'Action log: %d row(s) older than %d days purged (%s).',
             $deleted,

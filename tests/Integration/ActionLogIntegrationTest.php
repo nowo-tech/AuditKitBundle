@@ -14,17 +14,21 @@ use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\AuditKitTestKernel;
+use Nowo\AuditKitBundle\Tests\Integration\Kernel\CountingClock;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Repository\KernelActionLogRepository;
 use Nowo\AuditKitBundle\Tests\Support\SampleAction;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Clock\MockClock;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
+
+use function sprintf;
 
 /** Real kernel + DoctrineBundle + SQLite: action log mapping, recorder, filters, keyset purge and command. */
 final class ActionLogIntegrationTest extends TestCase
@@ -208,6 +212,11 @@ final class ActionLogIntegrationTest extends TestCase
     public function testPurgeCommandUsesConfiguredActionsByDefault(): void
     {
         $this->seedPurgeRows();
+        // The command takes its cutoff from the kernel clock (fixed in the test kernel); the rows are seeded
+        // relative to the wall clock, so align the kernel clock with it first.
+        $clock = $this->kernel->getContainer()->get('clock');
+        self::assertInstanceOf(CountingClock::class, $clock);
+        $clock->modify(sprintf('%+d seconds', time() - $clock->now()->getTimestamp()));
         $application = new Application($this->kernel);
 
         $tester = new CommandTester($application->find(PurgeActionLogCommand::NAME));
@@ -241,6 +250,19 @@ final class ActionLogIntegrationTest extends TestCase
         $tester = new CommandTester(new PurgeActionLogCommand($plainRegistry, KernelActionLog::class, ['item.viewed']));
         $this->assertSame(Command::SUCCESS, $tester->execute([]));
         $this->assertStringContainsString('5 row(s) older than 90 days purged', $tester->getDisplay());
+    }
+
+    public function testPurgeCommandUsesTheInjectedClockForTheCutoff(): void
+    {
+        $this->seedPurgeRows();
+        $registry = $this->kernel->getContainer()->get('doctrine');
+        self::assertInstanceOf(ManagerRegistry::class, $registry);
+
+        // A clock 200 days ahead makes every seeded row older than 30 days.
+        $clock  = new MockClock(new DateTimeImmutable('+200 days'));
+        $tester = new CommandTester(new PurgeActionLogCommand($registry, KernelActionLog::class, [], 90, 100, $clock));
+        $this->assertSame(Command::SUCCESS, $tester->execute(['--all-actions' => true, '--older-than-days' => '30']));
+        $this->assertStringContainsString('8 row(s) older than 30 days purged (all actions)', $tester->getDisplay());
     }
 
     /** Five old views (purgeable), one recent view, one old and one recent update. */

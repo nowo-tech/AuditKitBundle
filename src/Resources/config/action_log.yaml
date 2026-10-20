@@ -20,5 +20,6 @@ services:
             $defaultActions: '%nowo_audit_kit.action_log.purge.actions%'
             $defaultDays: '%nowo_audit_kit.action_log.purge.older_than_days%'
             $batchSize: '%nowo_audit_kit.action_log.purge.batch_size%'
+            $clock: '@?Psr\Clock\ClockInterface'
         tags:
             - { name: console.command, command: 'nowo:audit-kit:action-log:purge' }

@@ -14,10 +14,10 @@ use Doctrine\ORM\Events;
  * `#[ORM\EntityListeners]` mapping, delegating to {@see AuditableEntityListener} (which filters with
  * {@see AuditablePropertyResolver::isAuditable()}).
  */
-final class AuditableDoctrineListener
+final readonly class AuditableDoctrineListener
 {
     public function __construct(
-        private readonly AuditableEntityListener $auditor,
+        private AuditableEntityListener $auditor,
     ) {
     }
 

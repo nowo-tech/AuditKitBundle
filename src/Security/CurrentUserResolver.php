@@ -14,15 +14,15 @@ use function is_object;
 use function method_exists;
 
 /** Resolves the authenticated user from Symfony Security token storage. */
-final class CurrentUserResolver
+final readonly class CurrentUserResolver
 {
     /**
      * @param object|null $firewallMap SecurityBundle's `security.firewall.map` (optional, the bundle does not require SecurityBundle)
      */
     public function __construct(
-        private readonly TokenStorageInterface $tokenStorage,
-        private readonly ?RequestStack $requestStack = null,
-        private readonly ?object $firewallMap = null,
+        private TokenStorageInterface $tokenStorage,
+        private ?RequestStack $requestStack = null,
+        private ?object $firewallMap = null,
     ) {
     }
 
