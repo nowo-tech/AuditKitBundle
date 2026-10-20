@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.8.0] - 2026-10-20](#180---2026-10-20)
 - [[1.7.0] - 2026-10-16](#170---2026-10-16)
 - [[1.6.0] - 2026-10-14](#160---2026-10-14)
 - [[1.5.0] - 2026-10-13](#150---2026-10-13)
@@ -40,6 +41,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-10-20
+
+Timeline translations for it/fr/pt/de/nl, translation key-parity gate, clock-driven purge cutoff, dependency refresh and REQ tooling fixes. See [UPGRADING](UPGRADING.md#to-180).
+
 ### Added
 
 - Action-log timeline translations for Italian, French, Portuguese, German and Dutch (`NowoAuditKitBundle.{it,fr,pt,de,nl}.yaml`, REQ-I18N-002).
@@ -57,6 +62,8 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - Demo entrypoint copied `/app/Caddyfile(.dev)` to `/etc/caddy/Caddyfile`, a path `frankenphp run --config /etc/frankenphp/Caddyfile` never reads; it now overrides `/etc/frankenphp/Caddyfile` (REQ-DEMO-010).
+
+[1.8.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.8.0
 
 ## [1.7.0] - 2026-10-16
 
