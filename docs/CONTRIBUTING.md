@@ -8,15 +8,17 @@ Thank you for your interest in contributing to Audit Kit Bundle! This document p
 - [How Can I Contribute?](#how-can-i-contribute)
   - [Reporting Bugs](#reporting-bugs)
   - [Suggesting Enhancements](#suggesting-enhancements)
-  - [Submitting Pull Requests](#submitting-pull-requests)
+  - [Contributing Code](#contributing-code)
 - [Project Structure](#project-structure)
 - [Demos](#demos)
 - [Questions](#questions)
 - [Acknowledgments](#acknowledgments)
+- [AI co-author trailers](#ai-co-author-trailers)
+- [Cursor Agent (REQ-IDE-006)](#cursor-agent-req-ide-006)
 
 ## Code of Conduct
 
-This project adheres to a code of conduct. By participating, you are expected to uphold this code. Please report unacceptable behavior to hectorfranco@nowo.tech.
+This project adheres to the [Code of Conduct](../CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to hectorfranco@nowo.tech.
 
 ## How Can I Contribute?
 
@@ -161,3 +163,18 @@ If CI fails because trailers are already on the remote, see [GITHUB_CI.md](GITHU
 ## AI co-author trailers
 
 Do **not** add AI co-author trailers to commit messages: neither `Co-authored-by: Cursor` / `cursoragent@cursor.com` nor `Co-Authored-By: Claude …` / `noreply@anthropic.com` (REQ-GIT-001). Run `make setup-hooks` so the `commit-msg` hook strips them.
+
+## Cursor Agent (REQ-IDE-006)
+
+Contributors using Cursor Agent on this repository should:
+
+1. **Submit with Ctrl+Enter** (macOS: **⌘+Enter**). **Enter** inserts a newline; **Ctrl+Enter** / **⌘+Enter** submits the prompt. UI: **Cursor Settings → Agents / Chat → Submit with Ctrl + Enter**.
+2. **Queue follow-ups** while the agent is running. In user `settings.json` (not a repo file):
+
+```json
+{
+  "cursor.composer.queueMessageDefaultBehavior": "queue"
+}
+```
+
+Do **not** use `"steer"` as the org default: steer interrupts the running agent as soon as a follow-up is sent.

@@ -2,10 +2,10 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-10-13 (spec [`003-action-log`](../003-action-log/spec.md))  
+**Last audited**: 2026-10-20 (specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
 **Status**: Implemented
 
-## Symfony config (`src/Resources/config/`)
+## Symfony config, views and translations (`src/Resources/`)
 
 | Source file | Spec section | Requirement IDs | Status |
 | --- | --- | --- | --- |
@@ -13,7 +13,8 @@
 | `Resources/config/packages/nowo_audit_kit.yaml` | Default config template | FR-CFG-002 | Mapped |
 | `Resources/config/action_log.yaml` | Action log services (opt-in) | 003 FR-AL-004, FR-AL-006 | Mapped |
 | `Resources/views/action_log/_timeline.html.twig` | Timeline partial | 003 FR-AL-008 | Mapped |
-| `Resources/translations/NowoAuditKitBundle.{en,es}.yaml` | Timeline strings | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.en.yaml` | Timeline strings (English) | 003 FR-AL-008 | Mapped |
+| `Resources/translations/NowoAuditKitBundle.es.yaml` | Timeline strings (Spanish) | 003 FR-AL-008 | Mapped |
 
 ## PHP — bundle core
 
@@ -79,11 +80,13 @@
 
 | Category | Files | Mapped |
 | --- | ---: | ---: |
-| Bundle + DI | 3 | 3 |
-| Contracts & traits | 10 | 10 |
-| Profiles | 3 | 3 |
-| Doctrine & security | 6 | 6 |
-| Action log | 5 | 5 |
-| Attributes | 1 | 1 |
-| Symfony config / views / translations | 6 | 6 |
-| **Total production sources** | **34** | **34** |
+| Symfony config, views and translations | 6 | 6 |
+| PHP — bundle core | 3 | 3 |
+| PHP — contracts & traits | 10 | 10 |
+| PHP — profiles | 3 | 3 |
+| PHP — Doctrine & security | 8 | 8 |
+| PHP — action log | 5 | 5 |
+| PHP — attributes | 1 | 1 |
+| **Total production sources** | **36** | **36** |
+
+Audit command (production count): `git ls-files src | wc -l` → **36** (2026-10-20).

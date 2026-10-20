@@ -13,6 +13,8 @@
 - [Engram relationship](#engram-relationship)
 - [See also](#see-also)
 
+## Layers
+
 This repository uses **spec-driven development** with three layers that stay in sync:
 
 1. **GitHub Spec Kit baseline** — [`specs/001-baseline/`](../specs/001-baseline/) ([`spec.md`](../specs/001-baseline/spec.md), [`code-inventory.md`](../specs/001-baseline/code-inventory.md)). **Operator manual:** [`SPEC-KIT.md`](SPEC-KIT.md).

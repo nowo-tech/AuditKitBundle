@@ -134,7 +134,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 
 ## Success Criteria
 
-- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**18** units as of 2026-09-24).
+- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**36/36** units under `src/` as of 2026-10-20; `git ls-files src | wc -l`).
 - **SC-002**: Persist with authenticated user sets all four fields (functional test).
 - **SC-003**: Update changes only `updatedAt` / `updatedBy` (functional test).
 - **SC-004**: CLI persist leaves blame null, sets timestamps (functional test).

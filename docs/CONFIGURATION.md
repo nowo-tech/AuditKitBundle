@@ -4,6 +4,15 @@ All options live under the `nowo_audit_kit` root key.
 
 A commented default template ships at `src/Resources/config/packages/nowo_audit_kit.yaml` in the bundle repository (and in the Symfony Flex recipe). Copy or adapt it as `config/packages/nowo_audit_kit.yaml` in your application.
 
+## Table of contents
+
+- [Profiles](#profiles)
+  - [Field mapping (per profile)](#field-mapping-per-profile)
+  - [Resolving profiles at runtime](#resolving-profiles-at-runtime)
+- [Legacy flat configuration](#legacy-flat-configuration)
+- [Timestamp-only or blame-only](#timestamp-only-or-blame-only)
+- [Action log](#action-log)
+
 ## Profiles
 
 Each **profile** maps a `user_class` to its own audit field mapping and feature flags. Use multiple profiles when the application has more than one authenticated user entity (for example `App\Entity\User` and `App\Entity\Admin`).

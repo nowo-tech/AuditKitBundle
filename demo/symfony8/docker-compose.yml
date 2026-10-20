@@ -1,4 +1,4 @@
-name: audit-kit-demo-symfony8
+name: audit-kit-bundle-demo-symfony-8
 
 services:
   php:

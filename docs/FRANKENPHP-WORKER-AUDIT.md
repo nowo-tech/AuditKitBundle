@@ -9,6 +9,18 @@
 | **Verdict** | ✅ **Compatible with scenario B (100% for bundle-owned behaviour)** — services are effectively request-safe; blame ignores leftover tokens unless the current main request passed a firewall with security enabled; blame references use the event `ObjectManager` |
 | Remediation | W-01: `CurrentUserResolver` firewall guard (`RequestStack` + `@?security.firewall.map`). W-02: prefer `$event->getObjectManager()` for `getReference()`. Tests: `CurrentUserResolverWorkerTest`, `AuditableEntityListenerTest::testSecondRequestOutsideFirewallIsNotBlamedOnPreviousUser` |
 
+## Table of contents
+
+- [Execution model assumed](#execution-model-assumed)
+- [Summary](#summary)
+- [Services reviewed](#services-reviewed)
+- [Findings](#findings)
+  - [W-01 — Blame user depends on `security.token_storage` being reset (Medium) — **Resolved**](#w-01--blame-user-depends-on-securitytoken_storage-being-reset-medium--resolved)
+  - [W-02 — Injected EntityManager used for blame references (Low) — **Resolved**](#w-02--injected-entitymanager-used-for-blame-references-low--resolved)
+  - [W-03 — Profile resolution cache is class-keyed and bounded (Info)](#w-03--profile-resolution-cache-is-class-keyed-and-bounded-info)
+- [Usage recommendations in worker mode](#usage-recommendations-in-worker-mode)
+- [Re-audit triggers](#re-audit-triggers)
+
 ## Execution model assumed
 
 FrankenPHP worker mode boots the Symfony kernel once per worker and serves many requests with the same container. This audit assumes the **strict** variant: the kernel is **not** rebooted between requests (`reset` / reboot disabled), so every shared service, static property and PHP global survives from one request to the next. Two scenarios are evaluated:

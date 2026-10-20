@@ -40,6 +40,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation: wave-1 REQ compliance — README documentation list order, canonical issue templates, CONTRIBUTING Code of Conduct link and Cursor Agent settings (REQ-IDE-006), tables of contents in long docs, demo compose project name `audit-kit-bundle-demo-symfony-8`, Spec Kit inventory refresh (36/36).
+
 ## [1.7.0] - 2026-10-16
 
 ### Added
