@@ -41,6 +41,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **Developer tooling (REQ-MAKE-002):** `make release-check` runs the full REQ-MAKE-002 chain in order (ensure-up, co-author and open-PR gates, check-twig-extra, check-no-raw-html-form, validate-translations, composer-sync, cs-fix, cs-check, rector-dry, phpstan, igor, test-coverage, demo release-check). New `make check-twig-extra` (`.scripts/check-twig-extra.sh`, REQ-TWIG-004) and `make check-no-raw-html-form` (`.scripts/check-no-raw-html-form.sh`, REQ-TWIG-005) targets.
+
 ## [1.8.0] - 2026-10-20
 
 Timeline translations for it/fr/pt/de/nl, translation key-parity gate, clock-driven purge cutoff, dependency refresh and REQ tooling fixes. See [UPGRADING](UPGRADING.md#to-180).

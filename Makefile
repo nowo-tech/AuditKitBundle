@@ -13,7 +13,7 @@ endif
 COMPOSE     := $(COMPOSE_BIN) -f $(COMPOSE_FILE)
 SERVICE_PHP := php
 
-.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan igor qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor check-open-prs strip-cursor-coauthor-from-history demo-smoke validate-translations
+.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan igor qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form strip-cursor-coauthor-from-history demo-smoke validate-translations
 
 # Default target
 help:
@@ -50,6 +50,8 @@ help:
 	@echo "  validate-translations Check translation YAML key parity (REQ-MAKE-004)"
 	@echo "  demo-smoke    Boot demo/symfony8 and assert HTTP 200 (REQ-TEST-011)"
 	@echo "  check-open-prs Fail if unresolved open GitHub PRs remain (REQ-REL-003)"
+	@echo "  check-twig-extra Fail when Twig Extra is not wired (REQ-TWIG-004)"
+	@echo "  check-no-raw-html-form Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
 	@echo "  setup-hooks   Install git pre-commit hooks"
 	@echo ""
 	@echo "Demos: use make -C demo or make -C demo/<demo-name>"
@@ -130,12 +132,12 @@ phpstan: ensure-up
 qa: ensure-up
 	$(COMPOSE) exec -T $(SERVICE_PHP) composer qa
 
-# Pre-release checks (REQ-MAKE-002 / REQ-REL-003)
-
 # Run Igor worker-state audit (REQ-CS-008)
 igor: ensure-up
 	$(COMPOSE) exec -T php composer igor
-release-check: ensure-up check-no-cursor-coauthor check-open-prs validate-translations composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage release-check-demos
+
+# Pre-release checks (REQ-MAKE-002 / REQ-REL-003)
+release-check: ensure-up check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form validate-translations composer-sync cs-fix cs-check rector-dry phpstan igor test-coverage release-check-demos
 
 # REQ-TEST-011 — boot demo stack and assert one HTTP 200
 # classic mode keeps FrankenPHP up before vendor/ is installed on fresh CI checkouts
@@ -190,6 +192,14 @@ assets:
 check-no-cursor-coauthor:
 	@chmod +x .scripts/check-no-cursor-coauthor.sh
 	@./.scripts/check-no-cursor-coauthor.sh HEAD
+
+# Fail when Twig applies but Twig Extra is not installed / enabled (REQ-TWIG-004)
+check-twig-extra:
+	@bash .scripts/check-twig-extra.sh
+
+# Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)
+check-no-raw-html-form:
+	@bash .scripts/check-no-raw-html-form.sh
 
 # Fail when open GitHub PRs are unresolved (REQ-REL-003)
 check-open-prs:
