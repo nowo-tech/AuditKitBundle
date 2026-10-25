@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.9.0](#to-190)
 - [To 1.8.0](#to-180)
 - [To 1.7.0](#to-170)
 - [To 1.6.0](#to-160)
@@ -39,6 +40,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.9.0
+
+From **1.8.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 - `twig/extra-bundle` and `twig/string-extra` are now runtime requirements (REQ-TWIG-004), which also install `symfony/twig-bundle`. With Symfony Flex, `TwigExtraBundle` (and `TwigBundle`, if it was not installed yet) are added to `config/bundles.php` automatically; without Flex, register `Twig\Extra\TwigExtraBundle\TwigExtraBundle::class => ['all' => true]` yourself. No configuration or code change is needed.
 
