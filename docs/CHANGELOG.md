@@ -43,6 +43,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- **Dependencies (REQ-TWIG-004):** `twig/extra-bundle` `^3.12` and `twig/string-extra` `^3.12` are now required, because the bundle ships the `@NowoAuditKit/action_log/_timeline.html.twig` partial. They bring in `symfony/twig-bundle` and `twig/twig`, so `symfony/twig-bundle` is no longer listed under `suggest`. `make check-twig-extra` (and so `make release-check`) now passes.
+
 - **Developer tooling (REQ-MAKE-002):** `make release-check` runs the full REQ-MAKE-002 chain in order (ensure-up, co-author and open-PR gates, check-twig-extra, check-no-raw-html-form, validate-translations, composer-sync, cs-fix, cs-check, rector-dry, phpstan, igor, test-coverage, demo release-check). New `make check-twig-extra` (`.scripts/check-twig-extra.sh`, REQ-TWIG-004) and `make check-no-raw-html-form` (`.scripts/check-no-raw-html-form.sh`, REQ-TWIG-005) targets.
 
 ## [1.8.0] - 2026-10-20

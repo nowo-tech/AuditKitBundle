@@ -40,6 +40,8 @@
 
 ## Unreleased
 
+- `twig/extra-bundle` and `twig/string-extra` are now runtime requirements (REQ-TWIG-004), which also install `symfony/twig-bundle`. With Symfony Flex, `TwigExtraBundle` (and `TwigBundle`, if it was not installed yet) are added to `config/bundles.php` automatically; without Flex, register `Twig\Extra\TwigExtraBundle\TwigExtraBundle::class => ['all' => true]` yourself. No configuration or code change is needed.
+
 ## To 1.8.0
 
 From **1.7.0**:
