@@ -7,14 +7,14 @@ namespace Nowo\AuditKitBundle\Tests\Integration;
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
+use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
  * Integration tests: bundle extension loads services from default configuration.
- *
- * @covers \Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension
  */
+#[CoversClass(NowoAuditKitExtension::class)]
 final class AuditKitBundleIntegrationTest extends TestCase
 {
     public function testExtensionLoadsDefaultConfiguration(): void

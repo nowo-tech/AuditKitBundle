@@ -11,7 +11,7 @@ use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
 
-/** Renders @NowoAuditKit/action_log/_timeline.html.twig with a stub `trans` filter ([domain:key params]). */
+/** Renders @NowoAuditKitBundle/action_log/_timeline.html.twig with a stub `trans` filter ([domain:key params]). */
 final class TimelineTemplateTest extends TestCase
 {
     private Environment $twig;
@@ -19,7 +19,7 @@ final class TimelineTemplateTest extends TestCase
     protected function setUp(): void
     {
         $loader = new FilesystemLoader();
-        $loader->addPath(__DIR__ . '/../../../src/Resources/views', 'NowoAuditKit');
+        $loader->addPath(__DIR__ . '/../../../src/Resources/views', 'NowoAuditKitBundle');
         $this->twig = new Environment($loader, ['strict_variables' => true, 'autoescape' => 'html']);
         $this->twig->addFilter(new TwigFilter('trans', static fn (string $key, array $params = [], ?string $domain = null): string => '[' . $domain . ':' . $key . ($params === [] ? '' : ' ' . implode(',', $params)) . ']'));
     }
@@ -82,6 +82,6 @@ final class TimelineTemplateTest extends TestCase
      */
     private function render(array $context): string
     {
-        return $this->twig->render('@NowoAuditKit/action_log/_timeline.html.twig', $context);
+        return $this->twig->render('@NowoAuditKitBundle/action_log/_timeline.html.twig', $context);
     }
 }

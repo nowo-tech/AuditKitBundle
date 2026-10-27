@@ -20,6 +20,7 @@
   - [Querying](#querying)
   - [Purging](#purging)
   - [Timeline partial](#timeline-partial)
+- [Overriding templates](#overriding-templates)
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
 - [Related bundles](#related-bundles)
@@ -369,14 +370,45 @@ Rows are deleted by id in keyset batches with [`KeysetDelete`](#batched-deletes)
 With Twig installed, render a list of rows:
 
 ```twig
-{% include '@NowoAuditKit/action_log/_timeline.html.twig' with {
+{% include '@NowoAuditKitBundle/action_log/_timeline.html.twig' with {
     entries: entries,
     action_prefix: 'users.activity.action.',   {# action label keys, domain action_domain (messages) #}
     context_prefix: 'users.activity.context.',
 } only %}
 ```
 
-Classes: `nowo-ui-list`, `nowo-ui-list-item`, `nowo-ui-muted`, `nowo-ui-empty` (styled when [`nowo-tech/ui-kit-bundle`](https://github.com/nowo-tech/UiKitBundle) is installed) and `nowo-audit-timeline__*` hooks. Overridable variables: `translation_domain` (default `NowoAuditKitBundle`), `empty_key`, `by_key`, `by_system_key`, `subject_key`, `action_prefix`, `action_domain`, `context_prefix`, `show_ip`, `show_context`, `date_format`, `timeline_id`, `entry_testid`. User labels use `displayName`, then `userIdentifier`, then `id`. Override the whole file in `templates/bundles/NowoAuditKitBundle/action_log/_timeline.html.twig`.
+Classes: `nowo-ui-list`, `nowo-ui-list-item`, `nowo-ui-muted`, `nowo-ui-empty` (styled when [`nowo-tech/ui-kit-bundle`](https://github.com/nowo-tech/UiKitBundle) is installed) and `nowo-audit-timeline__*` hooks. Overridable variables: `translation_domain` (default `NowoAuditKitBundle`), `empty_key`, `by_key`, `by_system_key`, `subject_key`, `action_prefix`, `action_domain`, `context_prefix`, `show_ip`, `show_context`, `date_format`, `timeline_id`, `entry_testid`. User labels use `displayName`, then `userIdentifier`, then `id`. Prefer these variables over copying the file; for a full override see [Overriding templates](#overriding-templates).
+
+## Overriding templates
+
+The bundle registers the Twig namespace **`@NowoAuditKitBundle/`** (REQ-TWIG-002; same string as the bundle class and the `NowoAuditKitBundle` translation domain). **`TwigPathsPass`** maps **`templates/bundles/NowoAuditKitBundle/`** with **`prependPath()`** when that folder exists, then registers the bundle **`src/Resources/views`** path with **`addPath()`**, so application copies are always tried before vendor templates. Registration is unconditional whenever Twig is installed (it is a runtime requirement); there is no flag in [CONFIGURATION.md](CONFIGURATION.md) and no entry is needed in `config/packages/twig.yaml`.
+
+**Overridable templates (`<subpath>`):**
+
+| `<subpath>` | Purpose |
+| ----------- | ------- |
+| `action_log/_timeline.html.twig` | Read-only list of action-log rows (actor, subject, action label, context, IP, date) with `nowo-ui-*` classes and `nowo-audit-timeline__*` hooks. |
+
+**Override vs upgrade.** Choose the shallowest depth that does the job:
+
+| Depth | How | On bundle upgrade |
+| ----- | --- | ----------------- |
+| Preferred — no Twig fork | Pass the [timeline variables](#timeline-partial) (`translation_domain`, `*_key`, `action_prefix`, `show_ip`, `show_context`, `date_format`, …) and style the `nowo-ui-*` / `nowo-audit-timeline__*` classes in your CSS. | Vendor fixes apply automatically. |
+| Wrapper | Include the partial from your own template and add markup around it. | Vendor fixes apply automatically. |
+| Full-file override | Copy the file to `templates/bundles/NowoAuditKitBundle/<subpath>`. | That `<subpath>` is frozen. |
+
+**Freeze rule:** an application file at the override path **always wins** and will **not** pick up vendor changes for that path until you remove or merge it. Prefer the variables and CSS hooks above when you want upgrades to keep applying.
+
+**Procedure (app):**
+
+1. Take the `<subpath>` from the table above (path relative to the bundle views root `src/Resources/views`).
+2. Create **`templates/bundles/NowoAuditKitBundle/<subpath>`** in your project, e.g. `templates/bundles/NowoAuditKitBundle/action_log/_timeline.html.twig`.
+3. Clear the Twig / Symfony cache in dev if needed: **`php bin/console cache:clear`**.
+4. Treat the copy as a fork: it will not change when the bundle ships a new version of that `<subpath>`.
+
+**Recovering upstream after a freeze:** delete (or rename aside) the application file, clear the cache, and re-apply only the customisations you still need through variables or CSS. Diff your copy against `vendor/nowo-tech/audit-kit-bundle/src/Resources/views/<subpath>` before re-copying.
+
+Renaming or removing a `<subpath>` listed above is a breaking change and is announced in [UPGRADING.md](UPGRADING.md). The legacy namespace `@NowoAuditKit/` (Symfony's automatic bundle namespace) still resolves the same files for 1.x but is deprecated; use `@NowoAuditKitBundle/`.
 
 ## Doctrine migrations
 

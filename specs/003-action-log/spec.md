@@ -22,7 +22,7 @@ An opt-in, append-only action log next to the entity-level audit fields (`create
 | `ActionLog\ActionLogRepository` | Base repository: `findByCriteria()`, `countByCriteria()`, `findLatest()`, `findInvolving()`, keyset `purgeBefore()`. |
 | `ActionLog\ActionLogCriteria` | Filter value object (actor, subject, actor-or-subject, scope(s), action(s), date range, limit / offset). |
 | `ActionLog\Command\PurgeActionLogCommand` | `nowo:audit-kit:action-log:purge --older-than-days=N [--action=…] [--all-actions] [--batch-size=N]`. |
-| `@NowoAuditKit/action_log/_timeline.html.twig` | Optional timeline partial (UiKit `nowo-ui-*` classes + `nowo-audit-timeline__*` hooks), overridable translation keys. |
+| `@NowoAuditKitBundle/action_log/_timeline.html.twig` | Optional timeline partial (UiKit `nowo-ui-*` classes + `nowo-audit-timeline__*` hooks), overridable translation keys. |
 
 Nothing changes when `action_log.entity_class` is not set: no service, no Doctrine mapping, no table.
 
@@ -71,7 +71,7 @@ Nothing changes when `action_log.entity_class` is not set: no service, no Doctri
 - **FR-AL-005 (repository)**: `ActionLogRepository<T>` (extends `ServiceEntityRepository`, constructor `(ManagerRegistry, class-string<T>)`). Queries use DQL on mapped fields; `purgeBefore(DateTimeImmutable $before, ?array $actions, int $batchSize = 1000)` runs on DBAL with table / column names from the metadata (quote strategy), `SELECT id … WHERE id > :afterId AND created_at < :before [AND action IN (…)] ORDER BY id LIMIT n` then `DELETE … WHERE id IN (…)`; `null` actions = every action, `[]` = nothing.
 - **FR-AL-006 (command)**: `nowo:audit-kit:action-log:purge` — `--older-than-days` (≥ 1), repeatable `--action`, `--all-actions`, `--batch-size` (≥ 1); invalid values return `INVALID`. Uses the entity repository when it extends `ActionLogRepository`, otherwise a base `ActionLogRepository`.
 - **FR-AL-007 (config)**: `nowo_audit_kit.action_log.{entity_class, register_mapping, scope_context_key, capture_ip, purge.{older_than_days, batch_size, actions}}`; `entity_class` must extend `AbstractActionLog` (else `InvalidArgumentException` at container build). Parameters `nowo_audit_kit.action_log.*`.
-- **FR-AL-008 (timeline)**: `@NowoAuditKit/action_log/_timeline.html.twig` renders `entries`; keys / domains (`translation_domain`, `empty_key`, `by_key`, `by_system_key`, `subject_key`, `action_prefix`, `action_domain`, `context_prefix`), `show_ip`, `show_context`, `date_format`, `timeline_id`, `entry_testid` are overridable; user label = `displayName` ?? `userIdentifier` ?? `id`. Translations `NowoAuditKitBundle` (en, es). Twig and UiKit are suggestions, not requirements.
+- **FR-AL-008 (timeline)**: `@NowoAuditKitBundle/action_log/_timeline.html.twig` renders `entries`; keys / domains (`translation_domain`, `empty_key`, `by_key`, `by_system_key`, `subject_key`, `action_prefix`, `action_domain`, `context_prefix`), `show_ip`, `show_context`, `date_format`, `timeline_id`, `entry_testid` are overridable; user label = `displayName` ?? `userIdentifier` ?? `id`. Translations `NowoAuditKitBundle` (en, es). Twig and UiKit are suggestions, not requirements.
 - **FR-AL-009 (dependencies)**: `symfony/console` becomes a runtime requirement (`^7.4 || ^8.0`); `twig/twig` is a dev requirement (template test).
 
 ---
