@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.10.0] - 2026-10-27](#1100---2026-10-27)
 - [[1.9.0] - 2026-10-25](#190---2026-10-25)
 - [[1.8.0] - 2026-10-20](#180---2026-10-20)
 - [[1.7.0] - 2026-10-16](#170---2026-10-16)
@@ -42,6 +43,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-10-27
+
+@NowoAuditKitBundle Twig namespace via TwigPathsPass with app override path (REQ-TWIG-001/002); @NowoAuditKit deprecated See [UPGRADING](UPGRADING.md#to-1100).
+
 ### Added
 
 - **Twig namespace (REQ-TWIG-001, REQ-TWIG-002):** new `TwigPathsPass` registers the bundle views under `@NowoAuditKitBundle` on the native Twig loader — `prependPath()` for `templates/bundles/NowoAuditKitBundle/` when it exists, then `addPath()` for `src/Resources/views` — so application overrides always win. The timeline partial is now documented as `@NowoAuditKitBundle/action_log/_timeline.html.twig`; USAGE gains an "Overriding templates" section (subpath table, freeze rule, procedure, recovery). Covered by `TwigPathsPassTest` and a TwigBundle kernel test.
@@ -49,6 +54,8 @@ All notable changes to this project will be documented in this file.
 ### Deprecated
 
 - The `@NowoAuditKit/...` Twig namespace (Symfony's automatic bundle namespace) still resolves the same templates, but is deprecated in favour of `@NowoAuditKitBundle/...`. See [UPGRADING](UPGRADING.md#unreleased).
+
+[1.10.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.10.0
 
 ## [1.9.0] - 2026-10-25
 

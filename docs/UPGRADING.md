@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.10.0](#to-1100)
 - [To 1.9.0](#to-190)
 - [To 1.8.0](#to-180)
 - [To 1.7.0](#to-170)
@@ -40,6 +41,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.10.0
+
+From **1.9.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 - **Twig namespace (REQ-TWIG-002):** include the timeline as `@NowoAuditKitBundle/action_log/_timeline.html.twig` instead of `@NowoAuditKit/action_log/_timeline.html.twig`. The old name keeps working in 1.x (Symfony still registers it automatically) but is deprecated. Overrides stay where they were: `templates/bundles/NowoAuditKitBundle/action_log/_timeline.html.twig` wins for both names. No configuration change is needed.
 
