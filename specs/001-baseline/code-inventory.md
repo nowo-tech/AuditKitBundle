@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-10-20 (specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
+**Last audited**: 2026-10-28 (specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
 **Status**: Implemented
 
 ## Symfony config, views and translations (`src/Resources/`)
@@ -28,6 +28,7 @@
 | `NowoAuditKitBundle.php` | Bundle entry | FR-BUNDLE-001 | Mapped |
 | `DependencyInjection/Configuration.php` | Config tree | FR-CFG-001, FR-CFG-003 | Mapped |
 | `DependencyInjection/NowoAuditKitExtension.php` | DI extension | FR-CFG-002, FR-CFG-003 | Mapped |
+| `DependencyInjection/Compiler/TwigPathsPass.php` | `@NowoAuditKitBundle` Twig namespace, app override first | FR-TWIG-001 | Mapped |
 
 ## PHP — contracts & traits
 
@@ -86,12 +87,12 @@
 | Category | Files | Mapped |
 | --- | ---: | ---: |
 | Symfony config, views and translations | 11 | 11 |
-| PHP — bundle core | 3 | 3 |
+| PHP — bundle core | 4 | 4 |
 | PHP — contracts & traits | 10 | 10 |
 | PHP — profiles | 3 | 3 |
 | PHP — Doctrine & security | 8 | 8 |
 | PHP — action log | 5 | 5 |
 | PHP — attributes | 1 | 1 |
-| **Total production sources** | **41** | **41** |
+| **Total production sources** | **42** | **42** |
 
-Audit command (production count): `git ls-files src | wc -l` → **41** (2026-10-20).
+Audit command (production count): `git ls-files src | wc -l` → **42** (2026-10-28).

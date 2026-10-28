@@ -92,6 +92,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
   - `blameable` (bool, default `true`) — master switch for blame fields.
   - `timestampable` (bool, default `true`) — master switch for timestamps.
 - **FR-CFG-002**: Default YAML template under `Resources/config/packages/nowo_audit_kit.yaml`.
+- **FR-TWIG-001**: `TwigPathsPass` registers the `@NowoAuditKitBundle` namespace on the native Twig loader, prepending `templates/bundles/NowoAuditKitBundle/` when it exists so application overrides win (REQ-TWIG-001 / REQ-TWIG-002).
 - **FR-CFG-003**: Canonical multi-profile config: `default_profile` + `profiles` map; Extension validates that the default key exists; legacy flat keys still normalize into a default profile.
 
 ### Profiles
@@ -134,7 +135,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 
 ## Success Criteria
 
-- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**41/41** units under `src/` as of 2026-10-20; `git ls-files src | wc -l`).
+- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**42/42** units under `src/` as of 2026-10-28; `git ls-files src | wc -l`).
 - **SC-002**: Persist with authenticated user sets all four fields (functional test).
 - **SC-003**: Update changes only `updatedAt` / `updatedBy` (functional test).
 - **SC-004**: CLI persist leaves blame null, sets timestamps (functional test).
