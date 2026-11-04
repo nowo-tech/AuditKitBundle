@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.11.0] - 2026-11-04](#1110---2026-11-04)
 - [[1.10.0] - 2026-10-27](#1100---2026-10-27)
 - [[1.9.0] - 2026-10-25](#190---2026-10-25)
 - [[1.8.0] - 2026-10-20](#180---2026-10-20)
@@ -43,6 +44,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-04
+
 Target **1.11.0**: actor and subject avatars in the action log timeline (avatar contract v1.1, §10.4).
 
 ### Added
@@ -69,6 +72,8 @@ Target **1.11.0**: actor and subject avatars in the action log timeline (avatar 
   handler). With UiKit ≥ 2.26 installed it is styled and gets the broken-picture fallback of `nowo-ui-avatar.js`.
 - Demo: `/timeline` with a demo resolver (a picture, a broken URL, an anonymised account, a rejected `http:` URL) and
   a Playwright + axe e2e suite (`demo/symfony8/e2e`).
+
+[1.11.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.11.0
 
 ## [1.10.0] - 2026-10-27
 
