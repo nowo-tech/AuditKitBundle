@@ -6,3 +6,12 @@ services:
     App\Controller\:
         resource: '../src/Controller/'
         tags: ['controller.service_arguments']
+
+    App\Demo\:
+        resource: '../src/Demo/'
+        exclude:
+            - '../src/Demo/DemoActionLog.php'
+            - '../src/Demo/DemoPerson.php'
+
+    # AuditKit 1.11: the demo avatar resolver (a picture, a broken URL, an anonymised account, a rejected URL).
+    Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface: '@App\Demo\DemoAvatarResolver'

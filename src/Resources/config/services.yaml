@@ -12,6 +12,8 @@ services:
             - '../../Model/'
             - '../../Attribute/'
             - '../../Doctrine/SqlLike.php'
+            - '../../Avatar/AuditAvatarKey.php'
+            - '../../Avatar/AvatarUrlPolicy.php'
             - '../../NowoAuditKitBundle.php'
 
     Nowo\AuditKitBundle\Profile\ProfileRegistry:
@@ -40,3 +42,13 @@ services:
     Nowo\AuditKitBundle\Doctrine\PublicUuidListener:
         tags:
             - { name: doctrine.event_listener, event: prePersist, lazy: true }
+
+    # Since 1.11: action log avatars. The application overrides the alias with its resolver; the default returns null
+    # (no avatar, the timeline renders as before).
+    Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface: '@Nowo\AuditKitBundle\Avatar\NullActionLogAvatarResolver'
+
+    Nowo\AuditKitBundle\Avatar\ActionLogAvatars:
+        arguments:
+            $logger: '@?logger'
+        tags:
+            - { name: kernel.reset, method: reset }

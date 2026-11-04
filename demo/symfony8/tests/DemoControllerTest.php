@@ -20,4 +20,17 @@ final class DemoControllerTest extends WebTestCase
         self::assertSelectorTextContains('body', 'Auditable(enabled: false)');
         self::assertSelectorTextContains('body', 'Latest legacy records');
     }
+
+    public function testTimelineShowsActorAndSubjectAvatarsFromOneResolverCall(): void
+    {
+        $client = static::createClient();
+        $crawler = $client->request('GET', '/timeline');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('[data-testid="resolver-calls"]', 'Resolver calls for this timeline: 1');
+        self::assertCount(4, $crawler->filter('img.nowo-ui-avatar__image[data-nowo-avatar-image]'));
+        self::assertCount(2, $crawler->filter('img[src="/images/avatar-ada.svg"]'));
+        self::assertCount(2, $crawler->filter('img[src="/does-not-exist.webp"]'));
+        self::assertCount(0, $crawler->filter('img[src^="http:"]'));
+    }
 }

@@ -43,6 +43,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Target **1.11.0**: actor and subject avatars in the action log timeline (avatar contract v1.1, §10.4).
+
+### Added
+
+- **`Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface`** (`urlFor(object $user, int $size)` /
+  `urlsFor(list<object> $users, int $size)`, keyed by `AuditAvatarKey::of($user)`, the user's id as a string), with
+  the default **`NullActionLogAvatarResolver`** wired by an alias: with it nothing changes. The application overrides
+  the alias to show pictures.
+- Timeline avatars: `_timeline.html.twig` calls **`nowo_audit_kit_prime_avatars(entries)`** at its top (one
+  `urlsFor()` call per include, size 24, memoised per request and reset by `kernel.reset`), then shows a 24 px
+  decorative avatar before the actor's and the subject's name when the resolver returned a URL. A deleted actor
+  ("by system"), a user without an id and an account the resolver answers null for (anonymised, erased) get no
+  avatar. **`nowo_audit_kit_avatar_url(user)`** returns the memoised URL for hosts that draw their own.
+- **`Avatar\AvatarUrlPolicy`** (a copy of UiKit's, AuditKit only suggests UiKit): only `https://` URLs without
+  userinfo and same-origin `/` paths reach `<img src>`; `http:`, `data:` (including `data:image/…`), `javascript:`,
+  `blob:`, `//host`, IPv6-literal hosts, ports above 65535, backslashes, quotes, `<`, `>`, backtick, control
+  characters (also a trailing line feed) and anything over 2048 bytes are dropped (UiKit's case table,
+  `tests/Fixtures/avatar/url-policy-cases.json`). The avatar markup prints the URL as a string, so autoescape always
+  applies. A throwing resolver
+  gives no pictures and a warning; a rejected URL logs a debug line with the user key, never the URL.
+- `action_log/_avatar.html.twig`: the same markup and classes as UiKit's `partials/_avatar.html.twig`
+  (`nowo-ui-avatar nowo-ui-avatar--sm has-image`, `img.nowo-ui-avatar__image[data-nowo-avatar-image]`, `alt=""`,
+  `width` / `height` 24, `loading="lazy"`, `decoding="async"`, `referrerpolicy="same-origin"`, no inline style or
+  handler). With UiKit ≥ 2.26 installed it is styled and gets the broken-picture fallback of `nowo-ui-avatar.js`.
+- Demo: `/timeline` with a demo resolver (a picture, a broken URL, an anonymised account, a rejected `http:` URL) and
+  a Playwright + axe e2e suite (`demo/symfony8/e2e`).
+
 ## [1.10.0] - 2026-10-27
 
 @NowoAuditKitBundle Twig namespace via TwigPathsPass with app override path (REQ-TWIG-001/002); @NowoAuditKit deprecated See [UPGRADING](UPGRADING.md#to-1100).

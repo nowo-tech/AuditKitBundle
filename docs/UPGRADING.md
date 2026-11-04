@@ -42,6 +42,57 @@
 
 ## Unreleased
 
+Target **1.11.0**, from **1.10.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+No action needed: with the default `NullActionLogAvatarResolver` the timeline renders as before. To show the actor's
+and the subject's pictures, alias the resolver to a service of yours:
+
+```yaml
+# config/services.yaml
+services:
+    Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface: '@App\Audit\AuditAvatarUrls'
+```
+
+```php
+use Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface;
+use Nowo\AuditKitBundle\Avatar\AuditAvatarKey;
+
+final class AuditAvatarUrls implements ActionLogAvatarResolverInterface
+{
+    public function __construct(private readonly AvatarUrls $core) {}
+
+    public function urlFor(object $user, int $size): ?string
+    {
+        return $this->urlsFor([$user], $size)[AuditAvatarKey::of($user)] ?? null;
+    }
+
+    public function urlsFor(array $users, int $size): array
+    {
+        $urls = [];
+        foreach ($this->core->forUsers($users, $size) as $userId => $url) {   // null for anonymised / erased accounts
+            $urls[(string) $userId] = $url;
+        }
+
+        return $urls;
+    }
+}
+```
+
+- Return stable, access-checked, host-generated URLs (`https://…` or a same-origin `/path`, no bearer secret, never a
+  user-entered URL); anything else is dropped by `AvatarUrlPolicy`, including relative paths without a leading `/`,
+  protocol-relative or `http:` asset URLs, IPv6-literal hosts and URLs with quotes, `<`, `>` or backtick. Return null
+  for anonymised or erased accounts.
+- The timeline now calls the Twig functions `nowo_audit_kit_prime_avatars()` / `nowo_audit_kit_avatar_url()`, which
+  the bundle registers. A test that renders `@NowoAuditKitBundle/action_log/_timeline.html.twig` in a hand-built Twig
+  `Environment` adds `new ActionLogAvatarExtension(new ActionLogAvatars(new NullActionLogAvatarResolver()))`.
+  A full-file override of `_timeline.html.twig` keeps working and shows no avatars until you merge the new markup.
+- With UiKit ≥ 2.26 on the page (`nowo-ui.css` and `js/nowo-ui-avatar.js`), the picture covers the initials and a
+  broken one falls back to them. Without UiKit the initials sit next to the picture.
+
 ## To 1.10.0
 
 From **1.9.0**:

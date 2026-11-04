@@ -1,0 +1,14 @@
+{#
+  Action log avatar (since 1.11): the same markup and classes as UiKit's partials/_avatar.html.twig, size `sm`
+  (24 px), decorative (the name is printed next to it). A copy, because AuditKit only suggests UiKit. With UiKit's
+  stylesheet the picture goes over the initials and hides them once it has loaded; UiKit's js/nowo-ui-avatar.js
+  (`data-nowo-avatar-image`) removes a broken picture and shows the initials again. Without UiKit the initials sit
+  next to the picture, and a broken picture (alt="") paints nothing. No inline style or handler.
+
+  Variables:
+    name   display name (the initials come from its first two words)
+    src    picture URL, already filtered by the avatar URL policy (nowo_audit_kit_avatar_url()); printed as a string
+           (~ ''), so autoescape applies even to a Twig\Markup value
+#}
+{% set _initials = name|default('')|trim|split(' ')|filter(w => w|trim != '')|slice(0, 2)|map(w => w|trim|first)|join|upper %}
+<span class="nowo-ui-avatar nowo-ui-avatar--sm has-image nowo-audit-timeline__avatar" aria-hidden="true" data-nowo-ui-avatar>{{ _initials ?: '?' }}<img class="nowo-ui-avatar__image" data-nowo-avatar-image src="{{ src ~ '' }}" alt="" width="24" height="24" loading="lazy" decoding="async" referrerpolicy="same-origin"></span>
