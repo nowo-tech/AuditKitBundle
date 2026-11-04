@@ -397,10 +397,14 @@ services:
   query per user in the resolver.
 - **Who gets none:** a deleted actor ("by system"), a user without an id, and any user the resolver returns null for.
   Return null for anonymised or erased accounts.
-- **URL policy** (`Avatar\AvatarUrlPolicy`, the same rules as UiKit's): `https://` without userinfo or a same-origin
-  `/path`; `http:`, `data:`, `javascript:`, `blob:`, `//host`, backslashes, control characters and more than 2048
-  bytes are dropped. The URL should be stable and access-checked when fetched (no bearer secret in it). A resolver
-  that throws gives no pictures (and a `warning` log), never an error page.
+- **URL policy** (`Avatar\AvatarUrlPolicy`, the same rules and case table as UiKit's): `https://` without userinfo
+  or a same-origin `/path`; `http:`, `data:`, `javascript:`, `blob:`, `//host`, IPv6-literal hosts, ports above 65535,
+  backslashes, quotes, `<`, `>`, backtick, control characters (also a trailing line feed) and more than 2048 bytes are
+  dropped. The URL should be stable and access-checked when fetched (no bearer secret in it). A resolver that throws
+  gives no pictures (and a `warning` log), never an error page.
+- **Never return a user-entered URL.** Generate it from the account (e.g. an uploaded file's id): an accepted
+  same-origin path is a credentialed `GET` from every viewer of the timeline, and an accepted `https:` host is fetched
+  by every viewer's browser.
 - **Markup** (`action_log/_avatar.html.twig`, UiKit's avatar classes, decorative because the name follows):
 
   ```html

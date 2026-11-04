@@ -58,7 +58,10 @@ Target **1.11.0**: actor and subject avatars in the action log timeline (avatar 
   avatar. **`nowo_audit_kit_avatar_url(user)`** returns the memoised URL for hosts that draw their own.
 - **`Avatar\AvatarUrlPolicy`** (a copy of UiKit's, AuditKit only suggests UiKit): only `https://` URLs without
   userinfo and same-origin `/` paths reach `<img src>`; `http:`, `data:` (including `data:image/…`), `javascript:`,
-  `blob:`, `//host`, backslashes, control characters and anything over 2048 bytes are dropped. A throwing resolver
+  `blob:`, `//host`, IPv6-literal hosts, ports above 65535, backslashes, quotes, `<`, `>`, backtick, control
+  characters (also a trailing line feed) and anything over 2048 bytes are dropped (UiKit's case table,
+  `tests/Fixtures/avatar/url-policy-cases.json`). The avatar markup prints the URL as a string, so autoescape always
+  applies. A throwing resolver
   gives no pictures and a warning; a rejected URL logs a debug line with the user key, never the URL.
 - `action_log/_avatar.html.twig`: the same markup and classes as UiKit's `partials/_avatar.html.twig`
   (`nowo-ui-avatar nowo-ui-avatar--sm has-image`, `img.nowo-ui-avatar__image[data-nowo-avatar-image]`, `alt=""`,

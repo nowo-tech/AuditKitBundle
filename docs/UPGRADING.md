@@ -82,8 +82,10 @@ final class AuditAvatarUrls implements ActionLogAvatarResolverInterface
 }
 ```
 
-- Return stable, access-checked URLs (`https://…` or a same-origin `/path`, no bearer secret); anything else is
-  dropped by `AvatarUrlPolicy`. Return null for anonymised or erased accounts.
+- Return stable, access-checked, host-generated URLs (`https://…` or a same-origin `/path`, no bearer secret, never a
+  user-entered URL); anything else is dropped by `AvatarUrlPolicy`, including relative paths without a leading `/`,
+  protocol-relative or `http:` asset URLs, IPv6-literal hosts and URLs with quotes, `<`, `>` or backtick. Return null
+  for anonymised or erased accounts.
 - The timeline now calls the Twig functions `nowo_audit_kit_prime_avatars()` / `nowo_audit_kit_avatar_url()`, which
   the bundle registers. A test that renders `@NowoAuditKitBundle/action_log/_timeline.html.twig` in a hand-built Twig
   `Environment` adds `new ActionLogAvatarExtension(new ActionLogAvatars(new NullActionLogAvatarResolver()))`.

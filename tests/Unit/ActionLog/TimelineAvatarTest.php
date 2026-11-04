@@ -73,12 +73,17 @@ final class TimelineAvatarTest extends TestCase
         $evil    = $this->user(1, '"><script>alert(1)</script>');
         $entries = [(new KernelActionLog())->setAction('x')->setActor($evil)->setSubject($this->user(2, 'Bob'))];
 
-        $html = $this->render($entries, ['1' => '/a.webp?x="><b>', '2' => 'data:image/png;base64,AAAA']);
+        $html = $this->render($entries, ['1' => '/a.webp?x=1&y=2', '2' => 'data:image/png;base64,AAAA']);
 
-        $this->assertStringContainsString('src="/a.webp?x=&quot;&gt;&lt;b&gt;"', $html);
+        $this->assertStringContainsString('src="/a.webp?x=1&amp;y=2"', $html);
         $this->assertStringContainsString('aria-hidden="true" data-nowo-ui-avatar>&quot;<img', $html);
         $this->assertStringNotContainsString('<script', $html);
         $this->assertSame(1, substr_count($html, '<img '), 'the data: URL is dropped');
+
+        // Audit DZ-L2: quotes are rejected by the policy, so an attribute break-out never reaches the markup.
+        $broken = $this->render([(new KernelActionLog())->setAction('y')->setActor($this->user(3, 'Eve'))], ['3' => '/a"/onerror="alert(1)']);
+        $this->assertStringNotContainsString('<img', $broken);
+        $this->assertStringNotContainsString('onerror', $broken);
     }
 
     public function testNoCallForAnEmptyTimelineOrAGenerator(): void
