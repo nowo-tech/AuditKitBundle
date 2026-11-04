@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Tests\Integration;
 
 use Nowo\AuditKitBundle\DependencyInjection\Compiler\TwigPathsPass;
+use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
+use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\TwigKernel;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
@@ -46,6 +48,19 @@ final class TwigNamespaceIntegrationTest extends TestCase
         $this->assertSame((string) realpath(__DIR__ . '/Kernel/TwigOverrideProject/templates/bundles/NowoAuditKitBundle'), $paths[0]);
         $this->assertSame((string) realpath(__DIR__ . '/../../src/Resources/views'), $paths[array_key_last($paths)]);
         $this->assertStringContainsString('application timeline override', $twig->render(self::TIMELINE, ['entries' => []]));
+    }
+
+    public function testTheTimelineRendersWithTheDefaultNullAvatarResolver(): void
+    {
+        $twig     = $this->boot(__DIR__ . '/Kernel', 'avatars');
+        $user     = new KernelUser('ada@example.com');
+        $user->id = 1;
+
+        $html = $twig->render(self::TIMELINE, ['entries' => [(new KernelActionLog())->setAction('x')->setActor($user)]]);
+
+        $this->assertStringContainsString('data-testid="action-log-entry"', $html);
+        $this->assertStringNotContainsString('nowo-ui-avatar', $html);
+        $this->assertSame('', $twig->createTemplate('{{ nowo_audit_kit_avatar_url(user) }}')->render(['user' => $user]));
     }
 
     private function boot(string $projectDir, string $cacheKey): Environment

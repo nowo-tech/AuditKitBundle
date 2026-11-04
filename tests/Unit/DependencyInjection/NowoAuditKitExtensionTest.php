@@ -7,6 +7,11 @@ namespace Nowo\AuditKitBundle\Tests\Unit\DependencyInjection;
 use InvalidArgumentException;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand;
+use Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface;
+use Nowo\AuditKitBundle\Avatar\ActionLogAvatars;
+use Nowo\AuditKitBundle\Avatar\AuditAvatarKey;
+use Nowo\AuditKitBundle\Avatar\AvatarUrlPolicy;
+use Nowo\AuditKitBundle\Avatar\NullActionLogAvatarResolver;
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
@@ -16,6 +21,7 @@ use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuditKitBundle\Twig\ActionLogAvatarExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -74,6 +80,19 @@ final class NowoAuditKitExtensionTest extends TestCase
         ], $container);
 
         $this->assertSame('app_user', $container->getParameter('nowo_audit_kit.default_profile'));
+    }
+
+    public function testAvatarResolverDefaultsToTheNullResolver(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([['user_class' => 'App\\Entity\\User']], $container);
+
+        $this->assertSame(NullActionLogAvatarResolver::class, (string) $container->getAlias(ActionLogAvatarResolverInterface::class));
+        $this->assertTrue($container->getDefinition(ActionLogAvatars::class)->hasTag('kernel.reset'));
+        $this->assertTrue($container->hasDefinition(ActionLogAvatarExtension::class));
+        foreach ([AvatarUrlPolicy::class, AuditAvatarKey::class] as $helper) {
+            $this->assertTrue(!$container->hasDefinition($helper) || $container->getDefinition($helper)->hasTag('container.excluded'), $helper . ' is a static helper, not a service');
+        }
     }
 
     public function testAlias(): void

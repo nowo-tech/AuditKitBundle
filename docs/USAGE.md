@@ -20,6 +20,7 @@
   - [Querying](#querying)
   - [Purging](#purging)
   - [Timeline partial](#timeline-partial)
+  - [Timeline avatars (1.11)](#timeline-avatars-111)
 - [Overriding templates](#overriding-templates)
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
@@ -379,6 +380,40 @@ With Twig installed, render a list of rows:
 
 Classes: `nowo-ui-list`, `nowo-ui-list-item`, `nowo-ui-muted`, `nowo-ui-empty` (styled when [`nowo-tech/ui-kit-bundle`](https://github.com/nowo-tech/UiKitBundle) is installed) and `nowo-audit-timeline__*` hooks. Overridable variables: `translation_domain` (default `NowoAuditKitBundle`), `empty_key`, `by_key`, `by_system_key`, `subject_key`, `action_prefix`, `action_domain`, `context_prefix`, `show_ip`, `show_context`, `date_format`, `timeline_id`, `entry_testid`. User labels use `displayName`, then `userIdentifier`, then `id`. Prefer these variables over copying the file; for a full override see [Overriding templates](#overriding-templates).
 
+### Timeline avatars (1.11)
+
+The actor and the subject get a 24 px picture before their name when the application aliases
+`Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface` (default: `NullActionLogAvatarResolver`, no pictures).
+
+```yaml
+# config/services.yaml
+services:
+    Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface: '@App\Audit\AuditAvatarUrls'
+```
+
+- **One call per timeline.** The partial calls `nowo_audit_kit_prime_avatars(entries)` first: every actor and subject
+  not seen yet goes to **one** `urlsFor(list<object> $users, 24)` call, keyed by `AuditAvatarKey::of($user)` (the id
+  as a string). The bundle never calls `urlFor()`. Results are memoised for the request (`kernel.reset`). Do not run a
+  query per user in the resolver.
+- **Who gets none:** a deleted actor ("by system"), a user without an id, and any user the resolver returns null for.
+  Return null for anonymised or erased accounts.
+- **URL policy** (`Avatar\AvatarUrlPolicy`, the same rules as UiKit's): `https://` without userinfo or a same-origin
+  `/path`; `http:`, `data:`, `javascript:`, `blob:`, `//host`, backslashes, control characters and more than 2048
+  bytes are dropped. The URL should be stable and access-checked when fetched (no bearer secret in it). A resolver
+  that throws gives no pictures (and a `warning` log), never an error page.
+- **Markup** (`action_log/_avatar.html.twig`, UiKit's avatar classes, decorative because the name follows):
+
+  ```html
+  <span class="nowo-ui-avatar nowo-ui-avatar--sm has-image nowo-audit-timeline__avatar" aria-hidden="true" data-nowo-ui-avatar>AL<img
+        class="nowo-ui-avatar__image" data-nowo-avatar-image src="/files/…/s64" alt="" width="24" height="24"
+        loading="lazy" decoding="async" referrerpolicy="same-origin"></span>
+  ```
+
+  With UiKit ≥ 2.26 (`nowo-ui.css` + `js/nowo-ui-avatar.js`) the picture covers the initials once loaded and a broken
+  one falls back to the initials. Without UiKit the initials sit next to the picture and a broken picture paints
+  nothing.
+- `nowo_audit_kit_avatar_url(user)` returns the memoised URL (or null) for hosts that render their own avatar.
+
 ## Overriding templates
 
 The bundle registers the Twig namespace **`@NowoAuditKitBundle/`** (REQ-TWIG-002; same string as the bundle class and the `NowoAuditKitBundle` translation domain). **`TwigPathsPass`** maps **`templates/bundles/NowoAuditKitBundle/`** with **`prependPath()`** when that folder exists, then registers the bundle **`src/Resources/views`** path with **`addPath()`**, so application copies are always tried before vendor templates. Registration is unconditional whenever Twig is installed (it is a runtime requirement); there is no flag in [CONFIGURATION.md](CONFIGURATION.md) and no entry is needed in `config/packages/twig.yaml`.
@@ -388,6 +423,7 @@ The bundle registers the Twig namespace **`@NowoAuditKitBundle/`** (REQ-TWIG-002
 | `<subpath>` | Purpose |
 | ----------- | ------- |
 | `action_log/_timeline.html.twig` | Read-only list of action-log rows (actor, subject, action label, context, IP, date) with `nowo-ui-*` classes and `nowo-audit-timeline__*` hooks. |
+| `action_log/_avatar.html.twig` | *(1.11)* The 24 px actor / subject avatar of the timeline (UiKit's avatar markup and classes). |
 
 **Override vs upgrade.** Choose the shallowest depth that does the job:
 

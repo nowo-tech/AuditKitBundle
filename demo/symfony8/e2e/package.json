@@ -1,0 +1,14 @@
+{
+  "name": "nowo-audit-kit-demo-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright e2e + axe of the AuditKit demo (action log timeline avatars, 1.11)",
+  "scripts": {
+    "test": "playwright test",
+    "install-browsers": "playwright install chromium"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@playwright/test": "1.63.0"
+  }
+}

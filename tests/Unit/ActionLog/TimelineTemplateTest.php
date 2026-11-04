@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Nowo\AuditKitBundle\Tests\Unit\ActionLog;
 
+use Nowo\AuditKitBundle\Avatar\ActionLogAvatars;
+use Nowo\AuditKitBundle\Avatar\NullActionLogAvatarResolver;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
+use Nowo\AuditKitBundle\Twig\ActionLogAvatarExtension;
 use PHPUnit\Framework\TestCase;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
@@ -21,6 +24,7 @@ final class TimelineTemplateTest extends TestCase
         $loader = new FilesystemLoader();
         $loader->addPath(__DIR__ . '/../../../src/Resources/views', 'NowoAuditKitBundle');
         $this->twig = new Environment($loader, ['strict_variables' => true, 'autoescape' => 'html']);
+        $this->twig->addExtension(new ActionLogAvatarExtension(new ActionLogAvatars(new NullActionLogAvatarResolver())));
         $this->twig->addFilter(new TwigFilter('trans', static fn (string $key, array $params = [], ?string $domain = null): string => '[' . $domain . ':' . $key . ($params === [] ? '' : ' ' . implode(',', $params)) . ']'));
     }
 
@@ -63,6 +67,7 @@ final class TimelineTemplateTest extends TestCase
         $this->assertStringContainsString('[messages:nowo_audit_kit.action_log.context.project_name]', $html);
         $this->assertStringContainsString('<dd>Demo</dd>', $html);
         $this->assertStringContainsString('[&quot;a&quot;,&quot;b&quot;]', $html);
+        $this->assertStringNotContainsString('nowo-ui-avatar', $html, 'the null resolver renders no avatar');
     }
 
     public function testIpAndContextCanBeHidden(): void
