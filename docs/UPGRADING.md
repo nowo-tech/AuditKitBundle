@@ -43,6 +43,23 @@
 
 ## Unreleased
 
+Target **1.12.0**, from **1.11.x**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+No action needed: the new ports (`CurrentUserResolverInterface`, `BlameValueResolverInterface`,
+`ActionLogRecorderInterface`) are aliased to implementations that behave as before, and `BlameableTrait` /
+`BlameableInterface` are unchanged.
+
+- Firewall user that is not the `user_class` entity (blame used to stay `null`): alias
+  `Nowo\AuditKitBundle\Blame\BlameValueResolverInterface` to `Nowo\AuditKitBundle\Blame\SecurityUserIdBlameValueResolver`
+  (needs a `getId()` on the security user returning the entity id). See USAGE, "Using it from a DDD / hexagonal
+  application".
+- Code constructing `AuditableEntityListener` by hand keeps working; any `CurrentUserResolverInterface` is accepted.
+- Prefer type-hinting `ActionLogRecorderInterface` over the final `ActionLogRecorder`.
+
 ## To 1.11.0
 
 From **1.10.0**:

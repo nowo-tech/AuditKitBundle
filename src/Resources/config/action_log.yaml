@@ -23,3 +23,6 @@ services:
             $clock: '@?Psr\Clock\ClockInterface'
         tags:
             - { name: console.command, command: 'nowo:audit-kit:action-log:purge' }
+
+    # Since 1.12: port for hosts that type-hint the recorder (override the alias to swap it).
+    Nowo\AuditKitBundle\ActionLog\ActionLogRecorderInterface: '@Nowo\AuditKitBundle\ActionLog\ActionLogRecorder'

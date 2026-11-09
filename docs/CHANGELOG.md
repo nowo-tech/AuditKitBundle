@@ -44,6 +44,29 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Target **1.12.0**: ports for hexagonal hosts (DDD adapter audit 2026-11-09, gaps G1, G2, G5). Additive; the defaults keep
+the previous behaviour.
+
+### Added
+
+- **`Nowo\AuditKitBundle\Security\CurrentUserResolverInterface`** (`resolve(): ?UserInterface`), implemented by
+  `CurrentUserResolver` and aliased to it. `AuditableEntityListener` now type-hints the interface, so the actor can
+  come from somewhere else than the token storage (Messenger, impersonation, CLI).
+- **`Nowo\AuditKitBundle\Blame\BlameValueResolverInterface`** (`resolve(ProfileSettings, ObjectManager): mixed`): the
+  value written into the blame fields. Default **`EntityReferenceBlameValueResolver`** (the previous code, moved
+  unchanged out of the listener). Opt-in **`SecurityUserIdBlameValueResolver`** blames a firewall user that is not the
+  `user_class` entity through `getReference($userClass, $user->getId())`, instead of leaving blame `null`.
+- **`Nowo\AuditKitBundle\ActionLog\ActionLogRecorderInterface`** (`record()`, `recordAndFlush()`), implemented by
+  `ActionLogRecorder` and aliased to it when the action log is enabled.
+
+### Changed
+
+- `AuditableEntityListener` takes an optional last argument `?BlameValueResolverInterface $blameValueResolver` (null
+  builds the default); `AuditablePropertyResolver::setBlame()` accepts `mixed` (was `?object`) so a host resolver
+  can write a scalar id into its own fields. `BlameableInterface` / `BlameableTrait` are unchanged.
+
+- Docs: new USAGE section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).
+
 ## [1.11.0] - 2026-11-04
 
 Target **1.11.0**: actor and subject avatars in the action log timeline (avatar contract v1.1, §10.4).
