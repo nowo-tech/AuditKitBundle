@@ -44,6 +44,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Docs: new USAGE section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).
+
 ## [1.11.0] - 2026-11-04
 
 Target **1.11.0**: actor and subject avatars in the action log timeline (avatar contract v1.1, §10.4).

@@ -24,6 +24,7 @@
 - [Overriding templates](#overriding-templates)
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 - [Related bundles](#related-bundles)
 
 ## Configuration profiles
@@ -472,6 +473,63 @@ Recommended column types:
 | `preUpdate` | refreshes `updatedAt` only | refreshes `updatedBy` only |
 | No authenticated user | timestamps use `default_profile` | blame fields remain `null` |
 | Authenticated user not in any profile | timestamps use `default_profile` | blame fields remain `null` |
+
+## Using it from a DDD / hexagonal application
+
+**Layer:** infrastructure. AuditKit fills persistence fields from Doctrine lifecycle events: timestamps, blame and
+the public UUID. It also ships SQL helpers (`SqlLike`, `SqlFulltext`, `KeysetDelete`). The action log is optional;
+its table and entity belong to your application, and the bundle provides the mapped superclass, recorder,
+repository and timeline partial.
+It dispatches no Symfony events and owns no tables.
+
+**Keeping the domain free of the bundle**
+
+- Apply the traits (`TimestampableTrait`, `BlameableTrait`, `PublicUuidTrait`, `CreatedAtImmutableTrait`) to your
+  **Doctrine persistence model**, not to pure domain entities: the traits carry `#[ORM\…]` attributes.
+- If the Doctrine entity is your domain entity, implement `TimestampableInterface` (or `BlameableInterface`) and
+  declare the properties yourself; `fields.*` maps them to custom names. The listener only processes classes that
+  implement one of the bundle interfaces or use one of its traits.
+- Wrap `ActionLogRecorder` and your `ActionLogRepository` subclass in your own port, for example
+  `AuditTrail::record(string $action, ?UserId $actor, ?UserId $subject, array $context)`. Map your ids to user
+  entity references inside that adapter.
+
+```php
+final class DoctrineAuditTrail implements AuditTrail
+{
+    public function __construct(
+        private ActionLogRecorder $recorder,
+        private EntityManagerInterface $em,
+    ) {}
+
+    public function record(string $action, ?UserId $actor, ?UserId $subject, array $context = []): void
+    {
+        $this->recorder->record(
+            $action,
+            $actor ? $this->em->getReference(User::class, $actor->toInt()) : null,
+            $subject ? $this->em->getReference(User::class, $subject->toInt()) : null,
+            $context,
+        );
+    }
+}
+```
+
+**Integration points**
+
+- Port: `ActionLogAvatarResolverInterface` (avatar URLs for the timeline).
+- Contracts: `TimestampableInterface`, `BlameableInterface`, `AuditableInterface`, `PublicUuidInterface`.
+- Query object: `ActionLogCriteria`. It accepts user entities or ids for `actor`, `subject` and `involving`.
+- Config: `profiles.*` (`user_class`, `fields`, `blameable`, `timestampable`, `timestamp_type`), `action_log.*`
+  (`register_mapping: false` to map the superclass yourself), `#[Auditable(enabled: false)]` to opt out.
+
+**Known limitations**
+
+- Blame requires the Symfony security user to be an instance of the Doctrine `user_class`. If your firewall user
+  is a separate adapter class, blame fields stay `null`. Blame values are always user entity references, never
+  scalar ids.
+- `CurrentUserResolver` and `ActionLogRecorder` are final classes without interfaces.
+- Action log `actor`/`subject` are `ManyToOne` relations to the user table (resolved through
+  `resolve_target_entities`). Columns can be renamed with association overrides but cannot be plain id columns.
+- No events are dispatched when audit fields are written or an action is recorded.
 
 ## Related bundles
 
