@@ -6,12 +6,15 @@ namespace Nowo\AuditKitBundle\Tests\Unit\DependencyInjection;
 
 use InvalidArgumentException;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
+use Nowo\AuditKitBundle\ActionLog\ActionLogRecorderInterface;
 use Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand;
 use Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface;
 use Nowo\AuditKitBundle\Avatar\ActionLogAvatars;
 use Nowo\AuditKitBundle\Avatar\AuditAvatarKey;
 use Nowo\AuditKitBundle\Avatar\AvatarUrlPolicy;
 use Nowo\AuditKitBundle\Avatar\NullActionLogAvatarResolver;
+use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
+use Nowo\AuditKitBundle\Blame\EntityReferenceBlameValueResolver;
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
@@ -19,6 +22,8 @@ use Nowo\AuditKitBundle\Doctrine\PublicUuidListener;
 use Nowo\AuditKitBundle\Doctrine\SqlLike;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
+use Nowo\AuditKitBundle\Security\CurrentUserResolver;
+use Nowo\AuditKitBundle\Security\CurrentUserResolverInterface;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Twig\ActionLogAvatarExtension;
@@ -222,6 +227,15 @@ final class NowoAuditKitExtensionTest extends TestCase
         $this->assertSame([], $container->getExtensionConfig('doctrine'));
     }
 
+    public function testPortsDefaultToTheHistoricalImplementations(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([['user_class' => 'App\\Entity\\User']], $container);
+
+        $this->assertSame(CurrentUserResolver::class, (string) $container->getAlias(CurrentUserResolverInterface::class));
+        $this->assertSame(EntityReferenceBlameValueResolver::class, (string) $container->getAlias(BlameValueResolverInterface::class));
+    }
+
     public function testActionLogServicesAreOptIn(): void
     {
         $container = new ContainerBuilder();
@@ -229,6 +243,7 @@ final class NowoAuditKitExtensionTest extends TestCase
 
         $this->assertFalse($container->getParameter('nowo_audit_kit.action_log.enabled'));
         $this->assertFalse($container->hasDefinition(ActionLogRecorder::class));
+        $this->assertFalse($container->hasAlias(ActionLogRecorderInterface::class));
         $this->assertFalse($container->hasDefinition(PurgeActionLogCommand::class));
     }
 
@@ -252,6 +267,7 @@ final class NowoAuditKitExtensionTest extends TestCase
         $this->assertSame(90, $container->getParameter('nowo_audit_kit.action_log.purge.older_than_days'));
         $this->assertSame(1000, $container->getParameter('nowo_audit_kit.action_log.purge.batch_size'));
         $this->assertTrue($container->hasDefinition(ActionLogRecorder::class));
+        $this->assertSame(ActionLogRecorder::class, (string) $container->getAlias(ActionLogRecorderInterface::class));
         $command = $container->getDefinition(PurgeActionLogCommand::class);
         $this->assertSame([['command' => PurgeActionLogCommand::NAME]], $command->getTag('console.command'));
     }

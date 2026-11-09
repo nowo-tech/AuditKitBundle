@@ -76,7 +76,7 @@ nowo_audit_kit:
 ### Resolving profiles at runtime
 
 - **Timestamps:** the active profile is resolved from the authenticated user when possible; otherwise the `default_profile` is used (CLI, guest, or unmapped user classes).
-- **Blame fields:** only set when the authenticated user matches the active profile's `user_class`. Unmapped users (for example a third-party SSO user) do not populate blame fields even if timestamps are applied via the default profile.
+- **Blame fields:** only set when the authenticated user matches the active profile's `user_class`. Unmapped users (for example a third-party SSO user) do not populate blame fields even if timestamps are applied via the default profile. Since 1.12, alias `Nowo\AuditKitBundle\Blame\BlameValueResolverInterface` to `SecurityUserIdBlameValueResolver` to blame such a user through its `getId()`, or to your own resolver (see USAGE, "Using it from a DDD / hexagonal application").
 
 ## Legacy flat configuration
 

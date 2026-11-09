@@ -22,7 +22,7 @@ use function strlen;
  * {@see record()} only persists (the caller flushes with its own writes); {@see recordAndFlush()} flushes at once
  * (navigation / view events with no other writes). The client IP comes from the current request (`RequestStack`).
  */
-final readonly class ActionLogRecorder
+final readonly class ActionLogRecorder implements ActionLogRecorderInterface
 {
     /**
      * @param class-string<AbstractActionLog> $entityClass

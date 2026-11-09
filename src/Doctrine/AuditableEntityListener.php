@@ -9,27 +9,34 @@ use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Event\PrePersistEventArgs;
 use Doctrine\ORM\Event\PreUpdateEventArgs;
-use Doctrine\Persistence\ObjectManager;
+use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
+use Nowo\AuditKitBundle\Blame\EntityReferenceBlameValueResolver;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Profile\ProfileSettings;
-use Nowo\AuditKitBundle\Security\CurrentUserResolver;
+use Nowo\AuditKitBundle\Security\CurrentUserResolverInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Security\Core\User\UserInterface;
-use Throwable;
 
 /** Sets timestamp and blame fields on Doctrine persist and update events. */
 final readonly class AuditableEntityListener
 {
+    private BlameValueResolverInterface $blameValueResolver;
+
+    /**
+     * @param BlameValueResolverInterface|null $blameValueResolver null: {@see EntityReferenceBlameValueResolver} (the behaviour before 1.12)
+     */
     public function __construct(
         private ProfileRegistry $registry,
         private AuditablePropertyResolver $propertyResolver,
-        private CurrentUserResolver $currentUserResolver,
-        private EntityManagerInterface $entityManager,
+        private CurrentUserResolverInterface $currentUserResolver,
+        EntityManagerInterface $entityManager,
         private ClockInterface $clock,
-        private LoggerInterface $logger = new NullLogger(),
+        LoggerInterface $logger = new NullLogger(),
+        ?BlameValueResolverInterface $blameValueResolver = null,
     ) {
+        $this->blameValueResolver = $blameValueResolver ?? new EntityReferenceBlameValueResolver($currentUserResolver, $entityManager, $logger);
     }
 
     public function prePersist(object $entity, PrePersistEventArgs $event): void
@@ -49,7 +56,7 @@ final readonly class AuditableEntityListener
         }
 
         if ($profile->blameable && $this->propertyResolver->hasBlameFields($entity, $profile->fields)) {
-            $user = $this->resolveBlameUser($profile, $event->getObjectManager());
+            $user = $this->blameValueResolver->resolve($profile, $event->getObjectManager());
             // @igor-ignore - Not shared worker service state.
             $this->propertyResolver->setBlame($entity, 'created_by', $user, $profile->fields);
             // @igor-ignore - Not shared worker service state.
@@ -71,7 +78,7 @@ final readonly class AuditableEntityListener
 
         if ($profile->blameable && $this->propertyResolver->hasBlameFields($entity, $profile->fields)) {
             // @igor-ignore - Not shared worker service state.
-            $this->propertyResolver->setBlame($entity, 'updated_by', $this->resolveBlameUser($profile, $event->getObjectManager()), $profile->fields);
+            $this->propertyResolver->setBlame($entity, 'updated_by', $this->blameValueResolver->resolve($profile, $event->getObjectManager()), $profile->fields);
         }
     }
 
@@ -95,41 +102,5 @@ final readonly class AuditableEntityListener
         return $profile->timestampType === 'datetime'
             ? DateTime::createFromImmutable($now)
             : $now;
-    }
-
-    private function resolveBlameUser(ProfileSettings $profile, ObjectManager $objectManager): ?object
-    {
-        $user = $this->currentUserResolver->resolve();
-        if (!$user instanceof UserInterface) {
-            return null;
-        }
-
-        if (!$user instanceof $profile->userClass) {
-            return null;
-        }
-
-        // Prefer the event's ObjectManager (correct EM under multi-manager apps / worker scenario B).
-        $em = $objectManager instanceof EntityManagerInterface ? $objectManager : $this->entityManager;
-
-        try {
-            $metadata = $em->getClassMetadata($profile->userClass);
-            $idField  = $metadata->getSingleIdentifierFieldName();
-            $idValues = $metadata->getIdentifierValues($user);
-            $idValue  = $idValues[$idField] ?? null;
-
-            if ($idValue !== null) {
-                return $em->getReference($profile->userClass, $idValue);
-            }
-        } catch (Throwable $e) {
-            // Fall back to the managed/authenticated user instance.
-            $this->logger->warning('AuditKit: failed to resolve blame user Doctrine reference; using token user.', [
-                'bundle'    => 'nowo-tech/audit-kit-bundle',
-                'action'    => 'resolve_blame_user',
-                'exception' => $e::class,
-                'message'   => $e->getMessage(),
-            ]);
-        }
-
-        return $user;
     }
 }

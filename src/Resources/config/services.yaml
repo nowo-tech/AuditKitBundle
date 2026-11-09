@@ -27,6 +27,10 @@ services:
         arguments:
             $firewallMap: '@?security.firewall.map'
 
+    # Since 1.12: ports, overridable by alias. The defaults keep the previous behaviour.
+    Nowo\AuditKitBundle\Security\CurrentUserResolverInterface: '@Nowo\AuditKitBundle\Security\CurrentUserResolver'
+    Nowo\AuditKitBundle\Blame\BlameValueResolverInterface: '@Nowo\AuditKitBundle\Blame\EntityReferenceBlameValueResolver'
+
     # Kept registered in the entity listener resolver for entities mapping it via #[ORM\EntityListeners].
     Nowo\AuditKitBundle\Doctrine\AuditableEntityListener:
         tags:

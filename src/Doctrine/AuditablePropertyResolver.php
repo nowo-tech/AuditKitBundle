@@ -76,7 +76,7 @@ final readonly class AuditablePropertyResolver
     /**
      * @param array{created_at: string, updated_at: string, created_by: string, updated_by: string} $fields
      */
-    public function setBlame(object $entity, string $configKey, ?object $user, array $fields): void
+    public function setBlame(object $entity, string $configKey, mixed $user, array $fields): void
     {
         // @igor-ignore - Not shared worker service state.
         $this->propertyAccessor->setValue($entity, $fields[$configKey], $user);

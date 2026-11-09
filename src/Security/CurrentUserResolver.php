@@ -13,8 +13,8 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use function is_object;
 use function method_exists;
 
-/** Resolves the authenticated user from Symfony Security token storage. */
-final readonly class CurrentUserResolver
+/** Resolves the authenticated user from Symfony Security token storage (default {@see CurrentUserResolverInterface}). */
+final readonly class CurrentUserResolver implements CurrentUserResolverInterface
 {
     /**
      * @param object|null $firewallMap SecurityBundle's `security.firewall.map` (optional, the bundle does not require SecurityBundle)

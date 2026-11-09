@@ -24,6 +24,7 @@
 - [Overriding templates](#overriding-templates)
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 - [Related bundles](#related-bundles)
 
 ## Configuration profiles
@@ -472,6 +473,100 @@ Recommended column types:
 | `preUpdate` | refreshes `updatedAt` only | refreshes `updatedBy` only |
 | No authenticated user | timestamps use `default_profile` | blame fields remain `null` |
 | Authenticated user not in any profile | timestamps use `default_profile` | blame fields remain `null` |
+
+## Using it from a DDD / hexagonal application
+
+**Layer:** infrastructure. AuditKit fills persistence fields from Doctrine lifecycle events: timestamps, blame and
+the public UUID. It also ships SQL helpers (`SqlLike`, `SqlFulltext`, `KeysetDelete`). The action log is optional;
+its table and entity belong to your application, and the bundle provides the mapped superclass, recorder,
+repository and timeline partial.
+It dispatches no Symfony events and owns no tables.
+
+**Keeping the domain free of the bundle**
+
+- Apply the traits (`TimestampableTrait`, `BlameableTrait`, `PublicUuidTrait`, `CreatedAtImmutableTrait`) to your
+  **Doctrine persistence model**, not to pure domain entities: the traits carry `#[ORM\…]` attributes.
+- If the Doctrine entity is your domain entity, implement `TimestampableInterface` (or `BlameableInterface`) and
+  declare the properties yourself; `fields.*` maps them to custom names. The listener only processes classes that
+  implement one of the bundle interfaces or use one of its traits.
+- Type-hint `ActionLogRecorderInterface` (since 1.12) and wrap it, with your `ActionLogRepository` subclass, in your
+  own port, for example `AuditTrail::record(string $action, ?UserId $actor, ?UserId $subject, array $context)`. Map
+  your ids to user entity references inside that adapter.
+
+```php
+final class DoctrineAuditTrail implements AuditTrail
+{
+    public function __construct(
+        private ActionLogRecorderInterface $recorder,
+        private EntityManagerInterface $em,
+    ) {}
+
+    public function record(string $action, ?UserId $actor, ?UserId $subject, array $context = []): void
+    {
+        $this->recorder->record(
+            $action,
+            $actor ? $this->em->getReference(User::class, $actor->toInt()) : null,
+            $subject ? $this->em->getReference(User::class, $subject->toInt()) : null,
+            $context,
+        );
+    }
+}
+```
+
+**Your security user is not the Doctrine user entity (since 1.12)**
+
+Blame is computed by two ports, both overridable by alias. The defaults keep the behaviour of earlier versions.
+
+| Port | Default | What it decides |
+| --- | --- | --- |
+| `Nowo\AuditKitBundle\Security\CurrentUserResolverInterface` | `CurrentUserResolver` (Symfony token storage, worker-safe) | who is acting (`resolve(): ?UserInterface`) |
+| `Nowo\AuditKitBundle\Blame\BlameValueResolverInterface` | `EntityReferenceBlameValueResolver` (reference to the user when it is an instance of the profile `user_class`, else `null`) | the value written into `created_by` / `updated_by` (`resolve(ProfileSettings, ObjectManager): mixed`) |
+
+- Firewall user is a wrapper / DTO exposing the user's id through `getId()`: alias the opt-in
+  `SecurityUserIdBlameValueResolver`. It writes `getReference($userClass, $user->getId())`, so the blame relation and
+  `BlameableTrait` stay unchanged.
+
+```yaml
+# config/services.yaml
+services:
+    Nowo\AuditKitBundle\Blame\BlameValueResolverInterface: '@Nowo\AuditKitBundle\Blame\SecurityUserIdBlameValueResolver'
+    Nowo\AuditKitBundle\Blame\SecurityUserIdBlameValueResolver:
+        arguments:
+            $acceptedUserClasses: ['App\Infrastructure\Security\SecurityUser']
+```
+
+  - It trusts `getId()` as the **default profile's** `user_class` id (a wrapper never matches a profile). Set
+    `$acceptedUserClasses` to the wrapper classes that carry that id: with an empty list any security user is
+    accepted, so in a multi-profile application or behind another user provider (API keys, OAuth clients) a user
+    whose id collides would be blamed as another person.
+  - `null`, `''`, `'0'`, zero and negative ids are not blamed. Id objects (Symfony `Uuid` / `Ulid`, value objects)
+    are passed to `getReference()` as they are.
+  - An id with no user row (deleted user, stale session) makes the flush fail where the blame foreign key is
+    enforced (`BlameableTrait`'s `created_by_id` / `updated_by_id`); without a foreign key the dangling id is stored.
+- Actor outside the firewall (a Messenger worker replaying the command's initiator, impersonation): implement
+  `CurrentUserResolverInterface` and alias it. In FrankenPHP worker mode decorate the default `CurrentUserResolver`
+  rather than replacing it: it is what ignores a token left over from a previous request. The resolved user also
+  selects the profile.
+- No Doctrine user entity at all: implement `BlameValueResolverInterface` and return your own value (for example a
+  UUID string), with `fields.created_by` / `fields.updated_by` pointing at properties whose setters accept it.
+  `BlameableInterface` / `BlameableTrait` keep `?object`, so use your own properties in that case.
+
+**Integration points**
+
+- Ports: `CurrentUserResolverInterface`, `BlameValueResolverInterface`, `ActionLogRecorderInterface` (since 1.12),
+  `ActionLogAvatarResolverInterface` (avatar URLs for the timeline).
+- Contracts: `TimestampableInterface`, `BlameableInterface`, `AuditableInterface`, `PublicUuidInterface`.
+- Query object: `ActionLogCriteria`. It accepts user entities or ids for `actor`, `subject` and `involving`.
+- Config: `profiles.*` (`user_class`, `fields`, `blameable`, `timestampable`, `timestamp_type`), `action_log.*`
+  (`register_mapping: false` to map the superclass yourself), `#[Auditable(enabled: false)]` to opt out.
+
+**Known limitations**
+
+- Opting a class in still needs a bundle interface or trait; `#[Auditable]` alone does not opt in.
+- Action log `actor`/`subject` are `ManyToOne` relations to the user table (resolved through
+  `resolve_target_entities`). Columns can be renamed with association overrides but cannot be plain id columns.
+- `user_class` is required even when blame and the action log are unused.
+- No events are dispatched when audit fields are written or an action is recorded.
 
 ## Related bundles
 
