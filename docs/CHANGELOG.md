@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.12.0] - 2026-11-09](#1120---2026-11-09)
 - [[1.11.0] - 2026-11-04](#1110---2026-11-04)
 - [[1.10.0] - 2026-10-27](#1100---2026-10-27)
 - [[1.9.0] - 2026-10-25](#190---2026-10-25)
@@ -44,6 +45,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-09
+
 Target **1.12.0**: ports for hexagonal hosts (DDD adapter audit 2026-11-09, gaps G1, G2, G5). Additive; the defaults keep
 the previous behaviour.
 
@@ -68,6 +71,8 @@ the previous behaviour.
   can write a scalar id into its own fields. `BlameableInterface` / `BlameableTrait` are unchanged.
 
 - Docs: new USAGE section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).
+
+[1.12.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.12.0
 
 ## [1.11.0] - 2026-11-04
 
