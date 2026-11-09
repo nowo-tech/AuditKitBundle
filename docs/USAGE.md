@@ -530,10 +530,23 @@ Blame is computed by two ports, both overridable by alias. The defaults keep the
 # config/services.yaml
 services:
     Nowo\AuditKitBundle\Blame\BlameValueResolverInterface: '@Nowo\AuditKitBundle\Blame\SecurityUserIdBlameValueResolver'
+    Nowo\AuditKitBundle\Blame\SecurityUserIdBlameValueResolver:
+        arguments:
+            $acceptedUserClasses: ['App\Infrastructure\Security\SecurityUser']
 ```
 
+  - It trusts `getId()` as the **default profile's** `user_class` id (a wrapper never matches a profile). Set
+    `$acceptedUserClasses` to the wrapper classes that carry that id: with an empty list any security user is
+    accepted, so in a multi-profile application or behind another user provider (API keys, OAuth clients) a user
+    whose id collides would be blamed as another person.
+  - `null`, `''`, `'0'`, zero and negative ids are not blamed. Id objects (Symfony `Uuid` / `Ulid`, value objects)
+    are passed to `getReference()` as they are.
+  - An id with no user row (deleted user, stale session) makes the flush fail where the blame foreign key is
+    enforced (`BlameableTrait`'s `created_by_id` / `updated_by_id`); without a foreign key the dangling id is stored.
 - Actor outside the firewall (a Messenger worker replaying the command's initiator, impersonation): implement
-  `CurrentUserResolverInterface` and alias it.
+  `CurrentUserResolverInterface` and alias it. In FrankenPHP worker mode decorate the default `CurrentUserResolver`
+  rather than replacing it: it is what ignores a token left over from a previous request. The resolved user also
+  selects the profile.
 - No Doctrine user entity at all: implement `BlameValueResolverInterface` and return your own value (for example a
   UUID string), with `fields.created_by` / `fields.updated_by` pointing at properties whose setters accept it.
   `BlameableInterface` / `BlameableTrait` keep `?object`, so use your own properties in that case.

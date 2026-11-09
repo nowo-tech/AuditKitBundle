@@ -16,6 +16,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use RuntimeException;
+use Stringable;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 final class BlameValueResolverTest extends TestCase
@@ -125,6 +126,32 @@ final class BlameValueResolverTest extends TestCase
         $this->assertNull((new SecurityUserIdBlameValueResolver($this->current(new BlameSecurityUser('')), $em))->resolve($this->profile(), $em));
         $this->assertNull((new SecurityUserIdBlameValueResolver($this->current(new BlameSecurityUser(null)), $em))->resolve($this->profile(), $em));
         $this->assertNull((new SecurityUserIdBlameValueResolver($this->current(new BlameIdlessUser()), $em))->resolve($this->profile(), $em));
+        $this->assertNull((new SecurityUserIdBlameValueResolver($this->current(new BlameSecurityUser(0)), $em))->resolve($this->profile(), $em));
+        $this->assertNull((new SecurityUserIdBlameValueResolver($this->current(new BlameSecurityUser(-4)), $em))->resolve($this->profile(), $em));
+        $this->assertNull((new SecurityUserIdBlameValueResolver($this->current(new BlameSecurityUser('0')), $em))->resolve($this->profile(), $em));
+    }
+
+    public function testSecurityUserIdAcceptsIdObjects(): void
+    {
+        $id        = new BlameUuid('0190a1b2-0000-7000-8000-000000000001');
+        $reference = new BlameEntityUser(7);
+        $em        = $this->entityManager();
+        $em->expects($this->once())->method('getReference')->with(BlameEntityUser::class, $id)->willReturn($reference);
+
+        $this->assertSame($reference, (new SecurityUserIdBlameValueResolver($this->current(new BlameSecurityUser($id)), $em))->resolve($this->profile(), $em));
+    }
+
+    public function testSecurityUserIdOnlyTrustsTheAcceptedSecurityUserClasses(): void
+    {
+        $reference = new BlameEntityUser(7);
+        $em        = $this->entityManager();
+        $em->expects($this->once())->method('getReference')->with(BlameEntityUser::class, 7)->willReturn($reference);
+
+        $accepted = new SecurityUserIdBlameValueResolver($this->current(new BlameSecurityUser(7)), $em, acceptedUserClasses: [BlameSecurityUser::class]);
+        $this->assertSame($reference, $accepted->resolve($this->profile(), $em));
+
+        $other = new SecurityUserIdBlameValueResolver($this->current(new BlameOtherProviderUser(7)), $em, acceptedUserClasses: [BlameSecurityUser::class]);
+        $this->assertNull($other->resolve($this->profile(), $em));
     }
 
     public function testSecurityUserIdLogsAndLeavesBlameNullWhenTheReferenceFails(): void
@@ -201,11 +228,11 @@ class BlameEntityUser implements UserInterface
 /** A firewall user that is not the Doctrine entity (hexagonal host): only its id is shared. */
 final readonly class BlameSecurityUser implements UserInterface
 {
-    public function __construct(private int|string|null $id)
+    public function __construct(private int|string|object|null $id)
     {
     }
 
-    public function getId(): int|string|null
+    public function getId(): int|string|object|null
     {
         return $this->id;
     }
@@ -221,7 +248,7 @@ final readonly class BlameSecurityUser implements UserInterface
 
     public function getUserIdentifier(): string
     {
-        return 'security-' . $this->id;
+        return 'security-' . get_debug_type($this->id);
     }
 }
 
@@ -239,5 +266,45 @@ final class BlameIdlessUser implements UserInterface
     public function getUserIdentifier(): string
     {
         return 'idless';
+    }
+}
+
+/** A user from another provider whose id space differs from the `user_class` one. */
+final readonly class BlameOtherProviderUser implements UserInterface
+{
+    public function __construct(private int $id)
+    {
+    }
+
+    public function getId(): int
+    {
+        return $this->id;
+    }
+
+    public function getRoles(): array
+    {
+        return ['ROLE_API'];
+    }
+
+    public function eraseCredentials(): void
+    {
+    }
+
+    public function getUserIdentifier(): string
+    {
+        return 'api-' . $this->id;
+    }
+}
+
+/** A UUID-like id value object. */
+final readonly class BlameUuid implements Stringable
+{
+    public function __construct(public string $value)
+    {
+    }
+
+    public function __toString(): string
+    {
+        return $this->value;
     }
 }

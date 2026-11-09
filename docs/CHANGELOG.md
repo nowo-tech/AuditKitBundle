@@ -55,7 +55,9 @@ the previous behaviour.
 - **`Nowo\AuditKitBundle\Blame\BlameValueResolverInterface`** (`resolve(ProfileSettings, ObjectManager): mixed`): the
   value written into the blame fields. Default **`EntityReferenceBlameValueResolver`** (the previous code, moved
   unchanged out of the listener). Opt-in **`SecurityUserIdBlameValueResolver`** blames a firewall user that is not the
-  `user_class` entity through `getReference($userClass, $user->getId())`, instead of leaving blame `null`.
+  `user_class` entity through `getReference($userClass, $user->getId())`, instead of leaving blame `null`. It refuses
+  `null`, `''`, `'0'`, zero and negative ids, passes id objects (Uuid / Ulid) through, and takes an optional
+  `$acceptedUserClasses` list to trust only the wrapper classes that carry the `user_class` id (audit JV-A1..A3).
 - **`Nowo\AuditKitBundle\ActionLog\ActionLogRecorderInterface`** (`record()`, `recordAndFlush()`), implemented by
   `ActionLogRecorder` and aliased to it when the action log is enabled.
 
