@@ -53,12 +53,13 @@ Target **1.13.0**, from **1.12.x**:
 composer update nowo-tech/audit-kit-bundle
 ```
 
-Entities using the bundle interfaces or traits behave as before; nothing to change for them.
+Nothing to change: the defaults keep the 1.12 behaviour (`auditable_entities: []`, `attribute_opt_in: false`).
 
-- **Check `#[Auditable]` without an interface or trait.** Such a class used to be ignored; it is now audited: its
-  configured fields (`createdAt` / `updatedAt`, and `createdBy` / `updatedBy` when blame is on) are written on persist
-  and update when they are readable and writable. Search for `#[Auditable]` on classes that use none of the bundle
-  interfaces or traits; remove the attribute (or use `#[Auditable(enabled: false)]`) where you do not want auditing.
+- **One fix in the safe direction:** `#[Auditable(enabled: false)]` is now also read on parent classes, so an
+  opted-out entity loaded as a Doctrine proxy (or a subclass of it) is no longer audited on update.
+- **Optional:** `attribute_opt_in: true` makes `#[Auditable]` alone opt a class in. Before you turn it on, search for
+  `#[Auditable]` on classes that use none of the bundle interfaces or traits: they start being audited (and blamed when
+  blame is on). **The default becomes `true` in 2.0.**
 - Optional, for DDD / hexagonal hosts: list classes, or a marker interface of your own, under
   `nowo_audit_kit.auditable_entities` to audit them without any bundle type (see USAGE, "Using it from a DDD /
   hexagonal application"). An unknown class makes the container build fail.

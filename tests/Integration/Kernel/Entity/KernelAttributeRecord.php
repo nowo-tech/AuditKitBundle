@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\AuditKitBundle\Attribute\Auditable;
 
-/** Since 1.13: opted in by `#[Auditable]` alone, with its own timestamp and blame (user id string) properties. */
+/** Since 1.13: opted in by `#[Auditable]` alone (`attribute_opt_in: true` in the test kernel), with its own timestamp and blame properties. */
 #[Auditable]
 #[ORM\Entity]
 #[ORM\Table(name: 'kernel_attribute_record')]

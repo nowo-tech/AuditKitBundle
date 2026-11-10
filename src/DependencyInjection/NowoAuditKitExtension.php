@@ -84,6 +84,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $container->setParameter('nowo_audit_kit.blameable', $defaultProfile['blameable']);
         $container->setParameter('nowo_audit_kit.timestampable', $defaultProfile['timestampable']);
         $container->setParameter('nowo_audit_kit.auditable_entities', $this->auditableEntities($config['auditable_entities']));
+        $container->setParameter('nowo_audit_kit.attribute_opt_in', $config['attribute_opt_in']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');

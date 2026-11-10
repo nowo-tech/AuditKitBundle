@@ -70,6 +70,7 @@ final class AuditKitTestKernel extends Kernel
         $container->loadFromExtension('nowo_audit_kit', [
             'user_class'         => Entity\KernelUser::class,
             'auditable_entities' => [Entity\KernelAuditedRecord::class],
+            'attribute_opt_in'   => true,
             'action_log'         => [
                 'entity_class'      => Entity\KernelActionLog::class,
                 'scope_context_key' => 'project_uuid',

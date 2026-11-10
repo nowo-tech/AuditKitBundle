@@ -25,6 +25,8 @@ services:
     Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver:
         arguments:
             $auditableClasses: '%nowo_audit_kit.auditable_entities%'
+            $attributeOptIn: '%nowo_audit_kit.attribute_opt_in%'
+            $logger: '@?logger'
 
     Nowo\AuditKitBundle\Security\CurrentUserResolver:
         arguments:
