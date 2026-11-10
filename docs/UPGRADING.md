@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.0](#to-1100)
@@ -43,6 +44,24 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.13.0
+
+Target **1.13.0**, from **1.12.x**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+Entities using the bundle interfaces or traits behave as before; nothing to change for them.
+
+- **Check `#[Auditable]` without an interface or trait.** Such a class used to be ignored; it is now audited: its
+  configured fields (`createdAt` / `updatedAt`, and `createdBy` / `updatedBy` when blame is on) are written on persist
+  and update when they are readable and writable. Search for `#[Auditable]` on classes that use none of the bundle
+  interfaces or traits; remove the attribute (or use `#[Auditable(enabled: false)]`) where you do not want auditing.
+- Optional, for DDD / hexagonal hosts: list classes, or a marker interface of your own, under
+  `nowo_audit_kit.auditable_entities` to audit them without any bundle type (see USAGE, "Using it from a DDD /
+  hexagonal application"). An unknown class makes the container build fail.
 
 ## To 1.12.0
 

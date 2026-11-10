@@ -18,30 +18,47 @@ use Symfony\Component\PropertyAccess\PropertyAccessorInterface;
 
 use function in_array;
 
-/** Maps configuration field names to entity properties and auditing traits. */
+/**
+ * Maps configuration field names to entity properties and auditing traits.
+ *
+ * A class is audited when it implements one of the bundle interfaces or uses one of its traits, or (since 1.13, without
+ * any bundle interface or trait) when it carries `#[Auditable]` or is listed in `nowo_audit_kit.auditable_entities`
+ * (the class itself, a parent class or an interface it implements). `#[Auditable(enabled: false)]` always opts out.
+ */
 final readonly class AuditablePropertyResolver
 {
     private PropertyAccessorInterface $propertyAccessor;
 
-    public function __construct(?PropertyAccessorInterface $propertyAccessor = null)
-    {
+    /**
+     * @param list<class-string> $auditableClasses Since 1.13: classes / interfaces opted in by configuration (`auditable_entities`)
+     */
+    public function __construct(
+        ?PropertyAccessorInterface $propertyAccessor = null,
+        private array $auditableClasses = [],
+    ) {
         $this->propertyAccessor = $propertyAccessor ?? PropertyAccess::createPropertyAccessor();
     }
 
     public function isAuditable(object $entity): bool
     {
-        if (!$this->implementsAuditingContracts($entity)) {
-            return false;
-        }
-
-        $reflection = new ReflectionClass($entity);
-        $attributes = $reflection->getAttributes(AuditableAttribute::class);
-
+        $attributes = (new ReflectionClass($entity))->getAttributes(AuditableAttribute::class);
         if ($attributes !== []) {
+            // Since 1.13: `#[Auditable]` opts the class in on its own; `enabled: false` opts it out, as before.
             return $attributes[0]->newInstance()->enabled;
         }
 
-        return true;
+        return $this->implementsAuditingContracts($entity) || $this->isConfiguredAuditable($entity);
+    }
+
+    private function isConfiguredAuditable(object $entity): bool
+    {
+        foreach ($this->auditableClasses as $class) {
+            if ($entity instanceof $class) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

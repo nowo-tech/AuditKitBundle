@@ -45,6 +45,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Target **1.13.0**: opt-in without bundle types (DDD audit 2026-11-09, gap G3). Additive; see [UPGRADING](UPGRADING.md#to-1130).
+
+### Added
+
+- **`nowo_audit_kit.auditable_entities`** (list, default `[]`): classes audited without any AuditKit interface or
+  trait. An entry may be the entity class, a parent class or an interface of your own (a marker of your persistence
+  layer), so the domain class never imports a bundle type. Each entry must exist (checked when the container is
+  built). The configured `fields.*` must be readable and writable (getter and setter, or public), as before.
+
+### Changed
+
+- **`#[Auditable]` (enabled) opts a class in on its own.** Before 1.13 the attribute only took effect on a class that
+  also implemented a bundle interface or used a trait; alone it was ignored. `#[Auditable(enabled: false)]` still
+  opts out, and now also wins over `auditable_entities`. Classes using the interfaces or traits behave as before.
+
 ## [1.12.0] - 2026-11-09
 
 Target **1.12.0**: ports for hexagonal hosts (DDD adapter audit 2026-11-09, gaps G1, G2, G5). Additive; the defaults keep

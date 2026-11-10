@@ -45,7 +45,7 @@ No public HTTP controllers, Messenger handlers, or subprocesses ship in this pac
 
 ## Mitigations
 
-- **Opt-in only**: entities must use traits/interfaces or remain auditable; `#[Auditable(enabled: false)]` skips an entity.
+- **Opt-in only**: entities must use traits/interfaces, carry `#[Auditable]` or be listed in `auditable_entities` (since 1.13); `#[Auditable(enabled: false)]` skips an entity.
 - **User resolution**: blame uses `TokenStorage` / `CurrentUserResolver`; anonymous and CLI leave blame `null`.
 - **Type guard**: blame is set only when the token user is an instance of the configured `user_class`.
 - **Doctrine reference**: prefers `EntityManager::getReference` by identifier; on failure logs a warning and uses the token user instance.

@@ -21,6 +21,7 @@ Each **profile** maps a `user_class` to its own audit field mapping and feature 
 | --- | --- | --- | --- |
 | `default_profile` | string | first profile key (after all config files are merged) | Profile used for timestamps when no authenticated user is resolved (CLI, guest) or when the user class does not match any profile. |
 | `profiles` | map | `default` | Named profile definitions (at least one required). |
+| `auditable_entities` | list | `[]` | Since 1.13: classes audited without any AuditKit interface or trait (the class, a parent class or an interface of your own). Each must exist. The fields must be readable and writable. `#[Auditable]` on a class does the same; `#[Auditable(enabled: false)]` opts out. |
 
 Each profile supports:
 
