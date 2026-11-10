@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.0](#to-1100)
@@ -43,6 +44,25 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.13.0
+
+Target **1.13.0**, from **1.12.x**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+Nothing to change: the defaults keep the 1.12 behaviour (`auditable_entities: []`, `attribute_opt_in: false`).
+
+- **One fix in the safe direction:** `#[Auditable(enabled: false)]` is now also read on parent classes, so an
+  opted-out entity loaded as a Doctrine proxy (or a subclass of it) is no longer audited on update.
+- **Optional:** `attribute_opt_in: true` makes `#[Auditable]` alone opt a class in. Before you turn it on, search for
+  `#[Auditable]` on classes that use none of the bundle interfaces or traits: they start being audited (and blamed when
+  blame is on). **The default becomes `true` in 2.0.**
+- Optional, for DDD / hexagonal hosts: list classes, or a marker interface of your own, under
+  `nowo_audit_kit.auditable_entities` to audit them without any bundle type (see USAGE, "Using it from a DDD /
+  hexagonal application"). An unknown class makes the container build fail.
 
 ## To 1.12.0
 

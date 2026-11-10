@@ -11,7 +11,10 @@ use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\AuditKitTestKernel;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\CountingClock;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelArticle;
+use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelAttributeRecord;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelLegacyArticle;
+use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelPlainRecord;
+use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUnlistedRecord;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Filesystem\Filesystem;
@@ -118,6 +121,53 @@ final class AuditKitKernelPersistenceTest extends TestCase
         $stored = $this->em->find(KernelLegacyArticle::class, $legacy->id);
         self::assertInstanceOf(KernelLegacyArticle::class, $stored);
         self::assertEquals(new DateTimeImmutable('2026-01-01 11:00:00'), $stored->getUpdatedAt());
+    }
+
+    public function testAConfiguredClassIsAuditedWithoutAnyBundleInterfaceOrTrait(): void
+    {
+        $record = new KernelPlainRecord();
+        $this->em->persist($record);
+        $this->em->flush();
+        self::assertEquals(new DateTimeImmutable('2026-01-01 10:00:00'), $record->getCreatedAt());
+
+        $this->clock->modify('+1 hour');
+        $record->title = 'changed';
+        $this->em->flush();
+        $this->em->clear();
+
+        $stored = $this->em->find(KernelPlainRecord::class, $record->id);
+        self::assertInstanceOf(KernelPlainRecord::class, $stored);
+        self::assertEquals(new DateTimeImmutable('2026-01-01 10:00:00'), $stored->getCreatedAt());
+        self::assertEquals(new DateTimeImmutable('2026-01-01 11:00:00'), $stored->getUpdatedAt());
+    }
+
+    public function testTheAuditableAttributeAloneOptsAClassInWithBlame(): void
+    {
+        $author = new KernelUser('attr@example.com');
+        $this->em->persist($author);
+        $this->em->flush();
+        $this->authenticate($author);
+
+        $record = new KernelAttributeRecord();
+        $this->em->persist($record);
+        $this->em->flush();
+        $this->em->clear();
+
+        $stored = $this->em->find(KernelAttributeRecord::class, $record->id);
+        self::assertInstanceOf(KernelAttributeRecord::class, $stored);
+        self::assertEquals(new DateTimeImmutable('2026-01-01 10:00:00'), $stored->createdAt);
+        self::assertSame($author->id, $this->userId($stored->createdBy));
+        self::assertSame($author->id, $this->userId($stored->updatedBy));
+    }
+
+    public function testAnUnlistedClassIsStillNotAudited(): void
+    {
+        $record = new KernelUnlistedRecord();
+        $this->em->persist($record);
+        $this->em->flush();
+
+        self::assertNull($record->createdAt);
+        self::assertSame(0, $this->clock->calls);
     }
 
     private function authenticate(KernelUser $user): void

@@ -21,7 +21,12 @@ services:
             $profiles: '%nowo_audit_kit.profiles%'
             $defaultProfileName: '%nowo_audit_kit.default_profile%'
 
-    Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver: ~
+    # Since 1.13: classes opted in by configuration (no bundle interface or trait needed).
+    Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver:
+        arguments:
+            $auditableClasses: '%nowo_audit_kit.auditable_entities%'
+            $attributeOptIn: '%nowo_audit_kit.attribute_opt_in%'
+            $logger: '@?logger'
 
     Nowo\AuditKitBundle\Security\CurrentUserResolver:
         arguments:

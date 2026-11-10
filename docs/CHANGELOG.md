@@ -45,6 +45,27 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Target **1.13.0**: opt-in without bundle types (DDD audit 2026-11-09, gap G3). Additive; see [UPGRADING](UPGRADING.md#to-1130).
+
+### Added
+
+- **`nowo_audit_kit.auditable_entities`** (list, default `[]`): classes audited without any AuditKit interface or
+  trait. An entry may be the entity class, a parent class or an interface of your own (a marker of your persistence
+  layer), so the domain class never imports a bundle type. Each entry must exist (checked when the container is
+  built). Only the configured `fields.*` that exist and accept the value are written; any other is skipped and a
+  warning is logged once per class and field (audit KO-A-L1), so a class with only `createdAt` never fails a flush.
+- **`nowo_audit_kit.attribute_opt_in`** (bool, default `false`): with `true`, `#[Auditable]` alone (no interface or
+  trait) opts a class in, with the same guarded writes. The default keeps the 1.12 behaviour (the attribute alone is
+  ignored); it becomes `true` in 2.0 (audit KO-A-M1).
+
+### Changed
+
+- **`#[Auditable]` is read on the class and its parent classes** (audit KO-A-L2), so `#[Auditable(enabled: false)]` on
+  an entity also applies to its subclasses and to its Doctrine proxies (legacy proxies extend the entity). It always
+  opts out, also over `auditable_entities`. Before, an opted-out class loaded as a proxy was audited on update.
+- The audit decision is memoised per class (one reflection per class instead of one per persisted entity, KO-A-I1).
+  Classes using the interfaces or traits are otherwise written as before.
+
 ## [1.12.0] - 2026-11-09
 
 Target **1.12.0**: ports for hexagonal hosts (DDD adapter audit 2026-11-09, gaps G1, G2, G5). Additive; the defaults keep

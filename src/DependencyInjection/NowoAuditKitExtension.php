@@ -16,8 +16,12 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 
+use function array_keys;
+use function class_exists;
+use function interface_exists;
 use function is_array;
 use function is_string;
+use function ltrim;
 use function sprintf;
 
 /** Loads bundle parameters and services from processed configuration. */
@@ -79,6 +83,8 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $container->setParameter('nowo_audit_kit.timestamp_type', $defaultProfile['timestamp_type']);
         $container->setParameter('nowo_audit_kit.blameable', $defaultProfile['blameable']);
         $container->setParameter('nowo_audit_kit.timestampable', $defaultProfile['timestampable']);
+        $container->setParameter('nowo_audit_kit.auditable_entities', $this->auditableEntities($config['auditable_entities']));
+        $container->setParameter('nowo_audit_kit.attribute_opt_in', $config['attribute_opt_in']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
@@ -91,6 +97,27 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             $container->removeDefinition(AuditableEntityListener::class);
             $container->removeDefinition(AuditableDoctrineListener::class);
         }
+    }
+
+    /**
+     * Since 1.13: the classes of `auditable_entities`, each an existing class or interface, once.
+     *
+     * @param list<string> $classes
+     *
+     * @return list<class-string>
+     */
+    private function auditableEntities(array $classes): array
+    {
+        $valid = [];
+        foreach ($classes as $class) {
+            $class = ltrim($class, '\\');
+            if (!class_exists($class) && !interface_exists($class)) {
+                throw new InvalidArgumentException(sprintf('The "nowo_audit_kit.auditable_entities" entry "%s" is not an existing class or interface.', $class));
+            }
+            $valid[$class] = true;
+        }
+
+        return array_keys($valid);
     }
 
     /**

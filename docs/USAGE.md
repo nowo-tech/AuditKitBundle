@@ -6,6 +6,7 @@
 - [Quick start with AuditableTrait](#quick-start-with-auditabletrait)
 - [Traits and interfaces](#traits-and-interfaces)
 - [Custom property names](#custom-property-names)
+- [Opt-in without the traits (since 1.13)](#opt-in-without-the-traits-since-113)
 - [Opt-out per entity](#opt-out-per-entity)
 - [Blame fields without the trait](#blame-fields-without-the-trait)
 - [Public UUID](#public-uuid)
@@ -80,6 +81,32 @@ nowo_audit_kit:
     fields:
         created_by: createdByUser
         updated_by: updatedByUser
+```
+
+## Opt-in without the traits (since 1.13)
+
+A class is audited without any AuditKit interface or trait when it is listed in `auditable_entities` (the class, a
+parent class or an interface of your own), or, with `attribute_opt_in: true`, when it carries `#[Auditable]` (the
+default `false` keeps the 1.12 rule: the attribute alone is ignored; it becomes `true` in 2.0). Each configured field is
+written only when it exists, is writable (setter or public property) and accepts the value; any other is skipped and
+a warning is logged once per class and field. `#[Auditable(enabled: false)]`, also on a parent class, always opts out.
+The mapping is yours.
+
+```yaml
+nowo_audit_kit:
+    user_class: App\Entity\User
+    auditable_entities:
+        - App\Infrastructure\Persistence\AuditedRecord   # your marker interface
+```
+
+```php
+#[ORM\Entity]
+class Invoice implements AuditedRecord   // no AuditKit import
+{
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $createdAt = null;
+    // ... getCreatedAt() / setCreatedAt(), same for updatedAt
+}
 ```
 
 ## Opt-out per entity
@@ -486,9 +513,11 @@ It dispatches no Symfony events and owns no tables.
 
 - Apply the traits (`TimestampableTrait`, `BlameableTrait`, `PublicUuidTrait`, `CreatedAtImmutableTrait`) to your
   **Doctrine persistence model**, not to pure domain entities: the traits carry `#[ORM\…]` attributes.
-- If the Doctrine entity is your domain entity, implement `TimestampableInterface` (or `BlameableInterface`) and
-  declare the properties yourself; `fields.*` maps them to custom names. The listener only processes classes that
-  implement one of the bundle interfaces or use one of its traits.
+- If the Doctrine entity is your domain entity, declare the properties yourself (`fields.*` maps them to custom names)
+  and opt the class in without any bundle type: list it, a parent class or a marker interface of your own under
+  `auditable_entities` (since 1.13; see [Opt-in without the traits](#opt-in-without-the-traits-since-113)). The
+  interfaces (`TimestampableInterface`, `BlameableInterface`) still work, and `#[Auditable]` too with `attribute_opt_in`. The listener only
+  processes classes opted in one of these ways.
 - Type-hint `ActionLogRecorderInterface` (since 1.12) and wrap it, with your `ActionLogRepository` subclass, in your
   own port, for example `AuditTrail::record(string $action, ?UserId $actor, ?UserId $subject, array $context)`. Map
   your ids to user entity references inside that adapter.
@@ -558,15 +587,17 @@ services:
 - Contracts: `TimestampableInterface`, `BlameableInterface`, `AuditableInterface`, `PublicUuidInterface`.
 - Query object: `ActionLogCriteria`. It accepts user entities or ids for `actor`, `subject` and `involving`.
 - Config: `profiles.*` (`user_class`, `fields`, `blameable`, `timestampable`, `timestamp_type`), `action_log.*`
-  (`register_mapping: false` to map the superclass yourself), `#[Auditable(enabled: false)]` to opt out.
+  (`register_mapping: false` to map the superclass yourself), `auditable_entities` (since 1.13) and `#[Auditable]` with
+  `attribute_opt_in: true` to opt a class in without a bundle interface or trait, `#[Auditable(enabled: false)]` to opt out.
 
 **Known limitations**
 
-- Opting a class in still needs a bundle interface or trait; `#[Auditable]` alone does not opt in.
 - Action log `actor`/`subject` are `ManyToOne` relations to the user table (resolved through
   `resolve_target_entities`). Columns can be renamed with association overrides but cannot be plain id columns.
 - `user_class` is required even when blame and the action log are unused.
 - No events are dispatched when audit fields are written or an action is recorded.
+- `#[Auditable]` alone opts a class in only with `attribute_opt_in: true` (default `false` until 2.0); use
+  `auditable_entities` meanwhile.
 
 ## Related bundles
 
