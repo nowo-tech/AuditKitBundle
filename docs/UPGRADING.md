@@ -4,6 +4,7 @@
 
 - [Unreleased](#unreleased)
 - [To 1.13.0](#to-1130)
+- [To 1.13.0](#to-1130-1)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.0](#to-1100)
@@ -44,6 +45,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.13.0
+
+From **1.12.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 ## To 1.13.0
 

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.13.0] - 2026-11-10](#1130---2026-11-10)
 - [[1.12.0] - 2026-11-09](#1120---2026-11-09)
 - [[1.11.0] - 2026-11-04](#1110---2026-11-04)
 - [[1.10.0] - 2026-10-27](#1100---2026-10-27)
@@ -45,6 +46,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-10
+
 Target **1.13.0**: opt-in without bundle types (DDD audit 2026-11-09, gap G3). Additive; see [UPGRADING](UPGRADING.md#to-1130).
 
 ### Added
@@ -65,6 +68,8 @@ Target **1.13.0**: opt-in without bundle types (DDD audit 2026-11-09, gap G3). A
   opts out, also over `auditable_entities`. Before, an opted-out class loaded as a proxy was audited on update.
 - The audit decision is memoised per class (one reflection per class instead of one per persisted entity, KO-A-I1).
   Classes using the interfaces or traits are otherwise written as before.
+
+[1.13.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.13.0
 
 ## [1.12.0] - 2026-11-09
 
