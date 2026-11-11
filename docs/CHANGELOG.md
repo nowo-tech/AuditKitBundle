@@ -68,6 +68,11 @@ configuration change, same defaults.
 
 ### Changed
 
+- `ReferenceId` (used by `AbstractIdActionLog::setActorId()` / `setSubjectId()`, `recordIds()` and the repository
+  filters) only stores explicit ids: scalars, Symfony `Uuid` / `Ulid`, or what `getId()` returns. An object's own
+  `__toString()` is never used, so a security user without `getId()` (e.g. `InMemoryUser`, whose string form is the
+  identifier / e-mail address) is "no user" (audit LQ-A-L1).
+- CI runs `composer igor` (FrankenPHP worker-state audit) as its own job.
 - `user_class` is no longer required for a profile with `blameable: false` (it then matches every security user).
 - `ActionLogRepository` accepts `AbstractIdActionLog` entities (filters compare the stored ids; no join) and the
   timeline partial prints the stored ids for them. `resolve_target_entities` is not prepended for an interface

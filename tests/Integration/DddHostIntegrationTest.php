@@ -29,6 +29,7 @@ use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -130,7 +131,7 @@ final class DddHostIntegrationTest extends TestCase
         $this->assertInstanceOf(AuditEntry::class, $entry);
         $this->assertSame(self::ALICE, $entry->getActorId());
         $recorder->recordIds('invoice.viewed', self::BOB);
-        $recorder->recordIds('system.cleanup');
+        $recorder->recordIds('system.cleanup', new InMemoryUser('mallory@example.com', null));
         $this->em->flush();
         $this->em->clear();
 

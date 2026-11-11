@@ -6,7 +6,7 @@ namespace Nowo\AuditKitBundle\ActionLog;
 
 use BackedEnum;
 use Nowo\AuditKitBundle\Model\ReferenceId;
-use Stringable;
+use Symfony\Component\Uid\AbstractUid;
 
 /**
  * Port for recording action log rows by user **id** (since 1.14), for hosts that hold ids, not user entities.
@@ -23,8 +23,8 @@ interface ActionLogIdRecorderInterface
     /**
      * Creates and persists a row (not flushed).
      *
-     * @param int|string|Stringable|null $actorId id of the user who acted (null: system)
-     * @param int|string|Stringable|null $subjectId id of the user the action is about
+     * @param AbstractUid|int|object|string|null $actorId id of the user who acted (null: system)
+     * @param AbstractUid|int|object|string|null $subjectId id of the user the action is about
      * @param array<string, mixed> $context UI-facing metadata (names, roles, UUIDs, …)
      */
     public function recordIds(
@@ -38,8 +38,8 @@ interface ActionLogIdRecorderInterface
     /**
      * Creates, persists and flushes a row (only the entity manager that maps the action log class).
      *
-     * @param int|string|Stringable|null $actorId
-     * @param int|string|Stringable|null $subjectId
+     * @param AbstractUid|int|object|string|null $actorId
+     * @param AbstractUid|int|object|string|null $subjectId
      * @param array<string, mixed> $context
      */
     public function recordIdsAndFlush(

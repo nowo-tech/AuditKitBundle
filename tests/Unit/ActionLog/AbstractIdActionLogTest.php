@@ -8,6 +8,7 @@ use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\AuditEntry;
 use Nowo\AuditKitBundle\Tests\Support\SampleAction;
 use Nowo\AuditKitBundle\Tests\Support\SampleIntAction;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Component\Uid\Uuid;
 
 final class AbstractIdActionLogTest extends TestCase
@@ -38,5 +39,16 @@ final class AbstractIdActionLogTest extends TestCase
         $this->assertNull($entry->getActorId());
         $this->assertNull($entry->getSubjectId());
         $this->assertSame('tenant', $entry->getScope());
+    }
+
+    /** LQ-A-L1: a security user without getId() is "no user", never its identifier / e-mail address. */
+    public function testSecurityUserWithoutIdIsNeverStoredAsItsIdentifier(): void
+    {
+        $entry = (new AuditEntry())
+            ->setActorId(new InMemoryUser('alice@example.com', null))
+            ->setSubjectId(new InMemoryUser('bob@example.com', null));
+
+        $this->assertNull($entry->getActorId());
+        $this->assertNull($entry->getSubjectId());
     }
 }

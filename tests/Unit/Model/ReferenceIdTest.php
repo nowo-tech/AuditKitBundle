@@ -9,6 +9,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use Stringable;
+use Symfony\Component\Security\Core\User\InMemoryUser;
+use Symfony\Component\Uid\Ulid;
 use Symfony\Component\Uid\Uuid;
 
 final class ReferenceIdTest extends TestCase
@@ -66,12 +68,32 @@ final class ReferenceIdTest extends TestCase
             public string $id = 'u-1';
         }, 'u-1'];
         yield 'object without id' => [new stdClass(), null];
+        // LQ-A-L1: an object's own __toString() is never stored (it is often the identifier / e-mail address).
         yield 'stringable without id' => [new class implements Stringable {
             public function __toString(): string
             {
                 return 'ref-9';
             }
-        }, 'ref-9'];
+        }, null];
+        yield 'in-memory security user' => [new InMemoryUser('alice@example.com', null), null];
+        yield 'ulid object' => [new Ulid('01ARZ3NDEKTSV4RRFFQ69G5FAV'), '01ARZ3NDEKTSV4RRFFQ69G5FAV'];
+        yield 'entity with stringable id value object' => [new class {
+            public function getId(): Stringable
+            {
+                return new class implements Stringable {
+                    public function __toString(): string
+                    {
+                        return 'vo-7';
+                    }
+                };
+            }
+        }, 'vo-7'];
+        yield 'getId returning a security user' => [new class {
+            public function getId(): InMemoryUser
+            {
+                return new InMemoryUser('bob@example.com', null);
+            }
+        }, null];
     }
 
     #[DataProvider('references')]

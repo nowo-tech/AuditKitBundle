@@ -598,9 +598,11 @@ final class DoctrineAuditTrail implements AuditTrail   // your own port
 }
 ```
 
-- Ids are normalised by `Nowo\AuditKitBundle\Model\ReferenceId`: ints, strings, `Stringable` id objects (`Uuid`,
-  `Ulid`, value objects) or objects with `getId()`. `null`, `''`, `'0'`, zero and negative ints mean "no user". The
-  user identifier (often an e-mail address) is never written.
+- Ids are normalised by `Nowo\AuditKitBundle\Model\ReferenceId`: ints, strings, Symfony `Uuid` / `Ulid`, or objects
+  whose `getId()` returns one of those (or a `Stringable` id value object). Any other object, including a security
+  user without `getId()` such as `InMemoryUser`, means "no user": an object's own `__toString()` is never used, so
+  the user identifier (often an e-mail address) is never written. `null`, `''`, `'0'`, zero and negative ints also
+  mean "no user". Values are stored verbatim (no trim, no case folding).
 - `recordIds()` also works on the standard path: the ids become Doctrine references to the actor / subject target
   entity. `record()` with an `AbstractIdActionLog` class throws a `LogicException` pointing to `recordIds()`.
 - `ActionLogRepository` (`new ActionLogRepository($registry, AuditEntry::class)` or a subclass) filters by the stored

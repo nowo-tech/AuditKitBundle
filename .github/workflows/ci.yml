@@ -240,6 +240,26 @@ jobs:
       - name: PHPStan (level and ignoreErrors from phpstan.neon.dist; fails the build on any error)
         run: composer phpstan --no-interaction
 
+  igor:
+    name: Igor (FrankenPHP worker state, REQ-CS-008)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Igor worker-state audit (fails on any KO)
+        run: composer igor
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest

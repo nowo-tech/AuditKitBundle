@@ -109,7 +109,7 @@ abstract class AbstractIdActionLog implements ActionLogEntryInterface
         return $this->actorId;
     }
 
-    /** Accepts an id (int, string, `Stringable` id object) or an object with `getId()`; see {@see ReferenceId}. */
+    /** Accepts an id (int, string, `Uuid` / `Ulid`) or an object with `getId()`; see {@see ReferenceId}. */
     public function setActorId(mixed $actorId): static
     {
         // @igor-ignore - Doctrine entity; instance-scoped, not a shared service.
@@ -123,7 +123,7 @@ abstract class AbstractIdActionLog implements ActionLogEntryInterface
         return $this->subjectId;
     }
 
-    /** Accepts an id (int, string, `Stringable` id object) or an object with `getId()`; see {@see ReferenceId}. */
+    /** Accepts an id (int, string, `Uuid` / `Ulid`) or an object with `getId()`; see {@see ReferenceId}. */
     public function setSubjectId(mixed $subjectId): static
     {
         // @igor-ignore - Doctrine entity; instance-scoped, not a shared service.
