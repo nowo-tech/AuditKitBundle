@@ -5,7 +5,9 @@
     {% include '@NowoAuditKitBundle/action_log/_timeline.html.twig' with {entries: entries} only %}
 
   Required:
-    entries: iterable of Nowo\AuditKitBundle\ActionLog\AbstractActionLog
+    entries: iterable of Nowo\AuditKitBundle\ActionLog\AbstractActionLog or (since 1.14) AbstractIdActionLog. Id-mode
+             rows have no user objects: the actor / subject id is printed (override this file to show names) and no
+             avatar is resolved.
 
   Optional (translation keys and domains are overridable):
     translation_domain         chrome strings domain (default NowoAuditKitBundle)
@@ -45,10 +47,13 @@
     {% do nowo_audit_kit_prime_avatars(entries) %}
     <ol id="{{ timeline_id }}" class="nowo-ui-list nowo-audit-timeline" data-nowo-audit-timeline>
         {% for entry in entries %}
-            {% set actor_name = entry.actor ? (entry.actor.displayName ?? entry.actor.userIdentifier ?? entry.actor.id ?? '') : null %}
-            {% set subject_name = entry.subject ? (entry.subject.displayName ?? entry.subject.userIdentifier ?? entry.subject.id ?? '') : null %}
-            {% set actor_avatar = actor_name is not null ? nowo_audit_kit_avatar_url(entry.actor) : null %}
-            {% set subject_avatar = subject_name is not null ? nowo_audit_kit_avatar_url(entry.subject) : null %}
+            {% set by_id = entry.actor is not defined %}
+            {% set actor = by_id ? null : entry.actor %}
+            {% set subject = by_id ? null : entry.subject %}
+            {% set actor_name = by_id ? entry.actorId : (actor ? (actor.displayName ?? actor.userIdentifier ?? actor.id ?? '') : null) %}
+            {% set subject_name = by_id ? entry.subjectId : (subject ? (subject.displayName ?? subject.userIdentifier ?? subject.id ?? '') : null) %}
+            {% set actor_avatar = actor ? nowo_audit_kit_avatar_url(actor) : null %}
+            {% set subject_avatar = subject ? nowo_audit_kit_avatar_url(subject) : null %}
             <li class="nowo-ui-list-item nowo-audit-timeline__entry" data-testid="{{ entry_testid }}" data-action="{{ entry.action }}">
                 <div class="nowo-audit-timeline__head">
                     <span class="nowo-audit-timeline__action">{{ (action_prefix ~ entry.action)|trans({}, action_domain) }}</span>

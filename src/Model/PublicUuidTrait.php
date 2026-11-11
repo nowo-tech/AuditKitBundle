@@ -15,6 +15,11 @@ use function sprintf;
  * Public opaque identifier for URL routing: `uuid` column (string, length 36, not null; empty until assigned).
  *
  * Pair with {@see PublicUuidInterface} so {@see PublicUuidListener} fills it on persist.
+ *
+ * XML-mapped hosts: map the private property in the entity's `.orm.xml` (add `unique="true"` if you look rows up
+ * by it):
+ *
+ *     <field name="uuid" type="string" column="uuid" length="36"/>
  */
 trait PublicUuidTrait
 {

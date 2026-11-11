@@ -6,6 +6,9 @@ namespace Nowo\AuditKitBundle\DependencyInjection;
 
 use InvalidArgumentException;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
+use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
+use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
+use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
@@ -15,6 +18,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_keys;
 use function class_exists;
@@ -45,7 +49,8 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             $userClass = $this->findAuthKitUserClass($container);
         }
 
-        if ($userClass === null) {
+        // Since 1.14 user_class may be an interface (blame_mode "id"): an interface is not a Doctrine target.
+        if ($userClass === null || interface_exists($userClass)) {
             return;
         }
 
@@ -70,7 +75,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         }
 
         $profiles = $config['profiles'];
-        $this->resolveMissingUserClasses($profiles, $defaultProfileName, $container);
+        $this->resolveMissingUserClasses($profiles, $defaultProfileName, $container, $config['blame_mode']);
         $this->assertUniqueUserClasses($profiles);
 
         $defaultProfile = $profiles[$defaultProfileName];
@@ -85,9 +90,15 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $container->setParameter('nowo_audit_kit.timestampable', $defaultProfile['timestampable']);
         $container->setParameter('nowo_audit_kit.auditable_entities', $this->auditableEntities($config['auditable_entities']));
         $container->setParameter('nowo_audit_kit.attribute_opt_in', $config['attribute_opt_in']);
+        $container->setParameter('nowo_audit_kit.blame_mode', $config['blame_mode']);
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
+
+        if ($config['blame_mode'] === 'id') {
+            // The host can still alias the port to its own resolver in its services configuration.
+            $container->setAlias(BlameValueResolverInterface::class, UserIdBlameValueResolver::class);
+        }
 
         $this->loadActionLog($config['action_log'], $container);
 
@@ -142,7 +153,9 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
      * Maps the {@see AbstractActionLog} mapped superclass (outside the host mapping paths) on the default entity
      * manager when the action log is enabled; `action_log.register_mapping: false` leaves it to the host.
      *
-     * @param array{entity_class: ?string, register_mapping: bool} $config
+     * Since 1.14 `action_log.mapping: xml` registers the shipped XML mapping instead of the attributes.
+     *
+     * @param array{entity_class: ?string, register_mapping: bool, mapping: string} $config
      */
     private function prependActionLogMapping(array $config, ContainerBuilder $container): void
     {
@@ -150,18 +163,26 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             return;
         }
 
+        $xml = $config['mapping'] === 'xml';
+
         $container->prependExtensionConfig('doctrine', [
             'orm' => [
                 'mappings' => [
                     self::ACTION_LOG_MAPPING => [
-                        'type'      => 'attribute',
+                        'type'      => $xml ? 'xml' : 'attribute',
                         'is_bundle' => false,
-                        'dir'       => __DIR__ . '/../ActionLog',
+                        'dir'       => $xml ? self::actionLogXmlMappingDir() : __DIR__ . '/../ActionLog',
                         'prefix'    => 'Nowo\\AuditKitBundle\\ActionLog',
                     ],
                 ],
             ],
         ]);
+    }
+
+    /** Since 1.14: directory of the XML mapping of the action log superclasses (for hosts mapping them themselves). */
+    public static function actionLogXmlMappingDir(): string
+    {
+        return __DIR__ . '/../Resources/config/doctrine/action_log';
     }
 
     /**
@@ -178,8 +199,8 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             return;
         }
 
-        if (!is_subclass_of($entityClass, AbstractActionLog::class)) {
-            throw new InvalidArgumentException(sprintf('The "nowo_audit_kit.action_log.entity_class" value "%s" must be an existing class extending "%s".', $entityClass, AbstractActionLog::class));
+        if (!is_subclass_of($entityClass, AbstractActionLog::class) && !is_subclass_of($entityClass, AbstractIdActionLog::class)) {
+            throw new InvalidArgumentException(sprintf('The "nowo_audit_kit.action_log.entity_class" value "%s" must be an existing class extending "%s" or "%s".', $entityClass, AbstractActionLog::class, AbstractIdActionLog::class));
         }
 
         $container->setParameter('nowo_audit_kit.action_log.entity_class', $entityClass);
@@ -219,19 +240,18 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
     /**
      * @param array<string, array<string, mixed>> $profiles
      */
-    private function resolveMissingUserClasses(array &$profiles, string $defaultProfileName, ContainerBuilder $container): void
+    private function resolveMissingUserClasses(array &$profiles, string $defaultProfileName, ContainerBuilder $container, string $blameMode): void
     {
-        if ('' !== ($profiles[$defaultProfileName]['user_class'] ?? '')) {
-            return;
-        }
-
-        if ($container->hasParameter('nowo_auth_kit.user_class')) {
+        if ('' === ($profiles[$defaultProfileName]['user_class'] ?? '') && $container->hasParameter('nowo_auth_kit.user_class')) {
             $profiles[$defaultProfileName]['user_class'] = $container->getParameter('nowo_auth_kit.user_class');
-
-            return;
         }
 
-        throw new InvalidArgumentException(sprintf('The "nowo_audit_kit.profiles.%s.user_class" configuration value is required.', $defaultProfileName));
+        // Since 1.14: a profile that needs no entity reference (blame_mode "id", or no blame) matches any security user.
+        foreach ($profiles as $name => $profile) {
+            if ('' === ($profile['user_class'] ?? '') && ($blameMode === 'id' || $profile['blameable'] === false)) {
+                $profiles[$name]['user_class'] = UserInterface::class;
+            }
+        }
     }
 
     /**

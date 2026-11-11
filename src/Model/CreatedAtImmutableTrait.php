@@ -13,6 +13,10 @@ use Doctrine\ORM\Mapping as ORM;
  *
  * Alternative to {@see TimestampableTrait} (nullable `createdAt` / `updatedAt` written by the audit listener) for
  * rows that are never updated (logs, events, history). Do not combine both traits on the same entity.
+ *
+ * XML-mapped hosts: map the private property in the entity's `.orm.xml`:
+ *
+ *     <field name="createdAt" type="datetime_immutable" column="created_at"/>
  */
 trait CreatedAtImmutableTrait
 {

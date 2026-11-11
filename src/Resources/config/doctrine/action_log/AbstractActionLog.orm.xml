@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Since 1.14: XML mapping of Nowo\AuditKitBundle\ActionLog\AbstractActionLog (identical to its attributes).
+    Registered by nowo_audit_kit.action_log.mapping: xml, or by the host itself (register_mapping: false) with
+    type xml, prefix Nowo\AuditKitBundle\ActionLog and this directory.
+-->
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <mapped-superclass name="Nowo\AuditKitBundle\ActionLog\AbstractActionLog">
+        <id name="id" type="integer" column="id">
+            <generator strategy="AUTO"/>
+        </id>
+        <field name="action" type="string" column="action" length="48"/>
+        <field name="context" type="json" column="context"/>
+        <field name="scope" type="string" column="scope" length="64" nullable="true"/>
+        <field name="ipAddress" type="string" column="ip_address" length="45" nullable="true"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at"/>
+        <many-to-one field="actor" target-entity="Nowo\AuditKitBundle\Model\AuditUserInterface">
+            <join-column name="actor_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+        <many-to-one field="subject" target-entity="Nowo\AuditKitBundle\Model\AuditUserInterface">
+            <join-column name="subject_id" referenced-column-name="id" nullable="true" on-delete="SET NULL"/>
+        </many-to-one>
+    </mapped-superclass>
+</doctrine-mapping>

@@ -12,6 +12,7 @@ A commented default template ships at `src/Resources/config/packages/nowo_audit_
 - [Legacy flat configuration](#legacy-flat-configuration)
 - [Timestamp-only or blame-only](#timestamp-only-or-blame-only)
 - [Action log](#action-log)
+  - [DDD host: ids instead of relations (since 1.14)](#ddd-host-ids-instead-of-relations-since-114)
 
 ## Profiles
 
@@ -23,13 +24,14 @@ Each **profile** maps a `user_class` to its own audit field mapping and feature 
 | `profiles` | map | `default` | Named profile definitions (at least one required). |
 | `auditable_entities` | list | `[]` | Since 1.13: classes audited without any AuditKit interface or trait (the class, a parent class or an interface of your own). Each must exist. Only the fields that exist and accept the value are written (others are skipped with a warning). `#[Auditable(enabled: false)]` opts out. |
 | `attribute_opt_in` | bool | `false` | Since 1.13: `#[Auditable]` alone (no interface or trait) opts a class in. `false` keeps the 1.12 behaviour; the default becomes `true` in 2.0. |
+| `blame_mode` | `reference`\|`id` | `reference` | Since 1.14: what the blame fields receive. `reference`: a Doctrine reference to the profile `user_class` entity (`BlameableTrait` relations, unchanged). `id`: the current security user's `getId()` as a string (never the user identifier), for plain id columns; `user_class` becomes optional and may be an interface. |
 
 Each profile supports:
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
 | `enabled` | bool | `true` | Enable auditing for this profile. When all profiles are disabled, the Doctrine listener is not registered. |
-| `user_class` | string | — | FQCN used for `createdBy` / `updatedBy` references (required; must be unique across profiles). |
+| `user_class` | string | — | FQCN used for `createdBy` / `updatedBy` references (must be unique across profiles). Required with `blame_mode: reference` and `blameable: true`. Since 1.14 optional with `blame_mode: id` or `blameable: false` (the profile then matches every security user: `Symfony\Component\Security\Core\User\UserInterface`); it may also be an interface. |
 | `timestamp_type` | string | `datetime_immutable` | `datetime_immutable` or `datetime` |
 | `timestampable` | bool | `true` | When `false`, timestamp fields are not managed for this profile. |
 | `blameable` | bool | `true` | When `false`, blame fields are not managed for this profile. |
@@ -120,8 +122,9 @@ Since **1.5.0**, opt-in: nothing is registered (services, Doctrine mapping, comm
 
 | Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `action_log.entity_class` | string\|null | `null` | Host entity extending `Nowo\AuditKitBundle\ActionLog\AbstractActionLog`. Enables `ActionLogRecorder` and `nowo:audit-kit:action-log:purge`. Must extend the superclass (checked at container build). |
-| `action_log.register_mapping` | bool | `true` | Prepend the Doctrine ORM mapping `NowoAuditKitActionLog` (`AbstractActionLog`) on the default entity manager. Set `false` with several entity managers and map `vendor/nowo-tech/audit-kit-bundle/src/ActionLog` (prefix `Nowo\AuditKitBundle\ActionLog`, attribute) yourself. |
+| `action_log.entity_class` | string\|null | `null` | Host entity extending `Nowo\AuditKitBundle\ActionLog\AbstractActionLog` (actor / subject relations to the user entity) or, since 1.14, `AbstractIdActionLog` (actor / subject id columns, no foreign key). Enables `ActionLogRecorder` and `nowo:audit-kit:action-log:purge`. Must extend one of them (checked at container build). |
+| `action_log.register_mapping` | bool | `true` | Prepend the Doctrine ORM mapping `NowoAuditKitActionLog` (both superclasses) on the default entity manager. Set `false` with several entity managers and map it yourself: `vendor/nowo-tech/audit-kit-bundle/src/ActionLog` (type `attribute`) or `vendor/nowo-tech/audit-kit-bundle/src/Resources/config/doctrine/action_log` (type `xml`), prefix `Nowo\AuditKitBundle\ActionLog`. |
+| `action_log.mapping` | `attribute`\|`xml` | `attribute` | Since 1.14: driver of the prepended superclass mapping. `xml` uses the shipped `*.orm.xml` files (same columns), for hosts that map everything in XML. |
 | `action_log.scope_context_key` | string\|null | `null` | Context key copied into `scope` by the recorder when no scope is passed (e.g. `project_uuid`). |
 | `action_log.capture_ip` | bool | `true` | Store the client IP of the current request. |
 | `action_log.purge.older_than_days` | int ≥ 1 | `90` | Default `--older-than-days`. |
@@ -142,3 +145,20 @@ nowo_audit_kit:
 ```
 
 Container parameters: `nowo_audit_kit.action_log.enabled`, and when enabled `nowo_audit_kit.action_log.entity_class`, `.scope_context_key`, `.capture_ip`, `.purge.older_than_days`, `.purge.batch_size`, `.purge.actions`.
+
+### DDD host: ids instead of relations (since 1.14)
+
+Opt-in; the defaults above are unchanged. A host whose domain is mapped in XML, whose firewall user is not a Doctrine
+entity, or whose users live in another bounded context:
+
+```yaml
+nowo_audit_kit:
+    blame_mode: id                       # createdBy / updatedBy receive the user id string; no user_class needed
+    auditable_entities:
+        - App\Domain\Invoice\Invoice    # no bundle interface, trait or attribute in the domain
+    action_log:
+        entity_class: App\Infrastructure\Persistence\AuditEntry   # extends AbstractIdActionLog
+        mapping: xml                     # superclass mapping from the shipped XML
+```
+
+See [Usage — Using it from a DDD / hexagonal application](USAGE.md#using-it-from-a-ddd--hexagonal-application).

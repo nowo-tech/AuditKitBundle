@@ -7,6 +7,7 @@ namespace Nowo\AuditKitBundle\Tests\Unit\ActionLog;
 use DateTimeImmutable;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
+use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Tests\Support\SampleAction;
 use Nowo\AuditKitBundle\Tests\Support\SampleIntAction;
 use PHPUnit\Framework\TestCase;
@@ -44,6 +45,20 @@ final class AbstractActionLogTest extends TestCase
         $this->assertSame('::1', $entry->getIpAddress());
 
         $this->assertNull($entry->setScope('')->getScope());
+    }
+
+    public function testIdAccessorsDeriveFromTheRelatedUsers(): void
+    {
+        $entry = new KernelActionLog();
+        $this->assertNull($entry->getActorId());
+        $this->assertNull($entry->getSubjectId());
+
+        $actor     = new KernelUser('alice@example.com');
+        $actor->id = 5;
+        $entry->setActor($actor)->setSubject(new KernelUser('bob@example.com'));
+
+        $this->assertSame('5', $entry->getActorId());
+        $this->assertNull($entry->getSubjectId(), 'a user that was never persisted has no id');
     }
 
     public function testActionValueNormalisesEnumsAndStrings(): void

@@ -46,6 +46,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Target **1.14.0** (minor). Architecture bar W2 (rule 2: a strict DDD host can use the bundle). Standard hosts: no
+configuration change, same defaults.
+
+### Added
+
+- `blame_mode` (`reference` default | `id`): with `id` the blame fields receive the current security user's `getId()`
+  as a string (`UserIdBlameValueResolver`), never the user identifier, so XML-mapped domains can keep plain id
+  columns. `user_class` becomes optional in that mode and may be an interface.
+- `AbstractIdActionLog`: action log mapped superclass with `actor_id` / `subject_id` id columns (string 64, no foreign
+  key, no user entity), and `ActionLogIdRecorderInterface::recordIds()` / `recordIdsAndFlush()` (implemented by
+  `ActionLogRecorder`; on `AbstractActionLog` the ids become Doctrine references).
+- `ActionLogEntryInterface`, implemented by both superclasses; `AbstractActionLog::getActorId()` / `getSubjectId()`.
+- XML mapping of both superclasses (`src/Resources/config/doctrine/action_log/*.orm.xml`) and
+  `action_log.mapping: attribute|xml` to register it instead of the attributes.
+- `Nowo\AuditKitBundle\Model\ReferenceId` (id normalisation shared by the recorder and the repository).
+- Trait docblocks and USAGE list the XML fields to map for `TimestampableTrait`, `BlameableTrait`,
+  `CreatedAtImmutableTrait` and `PublicUuidTrait`.
+- Kernel test of a DDD host: XML-mapped domain without attributes, `blame_mode: id` without `user_class`, id-mode
+  action log on the shipped XML; a test checks the XML mapping equals the attributes.
+
+### Changed
+
+- `user_class` is no longer required for a profile with `blameable: false` (it then matches every security user).
+- `ActionLogRepository` accepts `AbstractIdActionLog` entities (filters compare the stored ids; no join) and the
+  timeline partial prints the stored ids for them. `resolve_target_entities` is not prepended for an interface
+  `user_class`.
+
 ## [1.13.0] - 2026-11-10
 
 Target **1.13.0**: opt-in without bundle types (DDD audit 2026-11-09, gap G3). Additive; see [UPGRADING](UPGRADING.md#to-1130).
