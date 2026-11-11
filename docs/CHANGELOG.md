@@ -60,7 +60,10 @@ Next patch: 1.14.1.
   the start (`kernel.request`) and end (`kernel.finish_request`) of every main request, at
   `WorkerMessageReceivedEvent` / `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent` (event names as strings,
   Messenger stays optional) and at `console.terminate`. Within one unit of work the memo now holds at most
-  `ActionLogAvatars::MAX_MEMOISED` (1,000) users. Affected: **1.11.0 to 1.14.0** (hosts that render the timeline
+  `ActionLogAvatars::MAX_MEMOISED` (1,000) users, and it is keyed by user class + id (one resolver call per user
+  class; Doctrine proxies map to their entity class), so two user classes with the same id never share a picture.
+  The bundle cannot see tenants: one unit of work that renders timelines for several tenants whose users share ids
+  (a digest loop, for example) must call `ActionLogAvatars::reset()` between tenants. Affected: **1.11.0 to 1.14.0** (hosts that render the timeline
   avatars, i.e. bind `ActionLogAvatarResolverInterface`; the default null resolver memoises only nulls).
 
 ### Tests

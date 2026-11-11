@@ -98,6 +98,11 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 - **Fix (1.14.1):** `ActionLogAvatarsResetSubscriber` (see [Boundary events](#boundary-events)) and a bound of
   `ActionLogAvatars::MAX_MEMOISED` (1,000) users within one unit of work: a batch that would go over starts the memo
   again. The memo is not meant to persist across units of work (pictures and tenants change), so it is not kept.
+  The memo key is user class + id (one resolver call per class, Doctrine proxies mapped to the entity class), so two
+  user classes with the same id never collide. Tenants are invisible to the bundle: one unit that renders several
+  tenants whose users share ids must call `ActionLogAvatars::reset()` between tenants (documented in USAGE).
+  Known and accepted: `kernel.finish_request` empties the memo before a streamed body renders, so a timeline rendered
+  inside a `StreamedResponse` resolves one user per call (no leak; the next `kernel.request` empties it again).
 
 ## Boundary events
 

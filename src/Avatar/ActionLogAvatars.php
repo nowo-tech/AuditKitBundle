@@ -13,10 +13,13 @@ use function array_column;
 use function array_key_exists;
 use function count;
 use function is_string;
+use function strrpos;
+use function substr;
 
 /**
  * Since 1.11: batches and memoises the action log avatar URLs of one request. {@see prime()} resolves every user not
- * seen yet in ONE {@see ActionLogAvatarResolverInterface::urlsFor()} call; {@see urlOf()} returns the memoised,
+ * seen yet in ONE {@see ActionLogAvatarResolverInterface::urlsFor()} call per user class (one call for a timeline whose
+ * users share a class); {@see urlOf()} returns the memoised,
  * sanitised URL (a miss primes that one user). Every URL goes through {@see AvatarUrlPolicy}; a rejected one becomes
  * null (a debug line names the key, never the URL). A resolver that throws gives null for the whole batch and a
  * warning: a broken picture service never breaks the timeline.
@@ -26,6 +29,12 @@ use function is_string;
  * message and at `console.terminate`; `kernel.reset` still empties it too. Within one unit it holds at most
  * {@see self::MAX_MEMOISED} users (plus the users of the batch being primed): when a new batch would go over, the memo
  * starts again, so a long command rendering many timelines does not grow without bound.
+ *
+ * Since 1.14.1 the memo is keyed by user class + {@see AuditAvatarKey} (the resolver contract is unchanged: it still
+ * receives one class per call and keys its result by {@see AuditAvatarKey::of()}), so two user classes with the same
+ * id never share a picture. The bundle cannot see tenants: a single unit of work that renders timelines for several
+ * tenants whose users share ids must call {@see reset()} between tenants (inject this service; `reset()` is supported
+ * for hosts).
  *
  * @internal used by the Twig functions `nowo_audit_kit_prime_avatars()` / `nowo_audit_kit_avatar_url()`
  */
@@ -37,7 +46,7 @@ final class ActionLogAvatars implements ResetInterface
     /** Since 1.14.1: most users memoised at once; a batch that would go over starts the memo again. */
     public const MAX_MEMOISED = 1000;
 
-    /** @var array<array-key, string|null> key => sanitised URL (numeric keys are ints) */
+    /** @var array<string, string|null> user class + '#' + key => sanitised URL */
     private array $urls = [];
 
     public function __construct(
@@ -71,37 +80,48 @@ final class ActionLogAvatars implements ResetInterface
      */
     public function prime(iterable $users): void
     {
-        $batch = [];
+        /** @var array<string, array<string, array{0: string, 1: object}>> $batches class => memo key => [resolver key, user] */
+        $batches = [];
+        $count   = 0;
         foreach ($users as $user) {
             if ($user === null) {
                 continue;
             }
             $key = AuditAvatarKey::of($user);
-            if ($key !== null && !array_key_exists($key, $this->urls) && !isset($batch[$key])) {
-                $batch[$key] = [$key, $user];
+            if ($key === null) {
+                continue;
+            }
+            $class   = $this->userClass($user);
+            $memoKey = $class . '#' . $key;
+            if (!array_key_exists($memoKey, $this->urls) && !isset($batches[$class][$memoKey])) {
+                $batches[$class][$memoKey] = [$key, $user];
+                ++$count;
             }
         }
-        if ($batch === []) {
+        if ($batches === []) {
             return;
         }
 
-        try {
-            $resolved = $this->resolver->urlsFor(array_column($batch, 1), self::SIZE);
-        } catch (Throwable $e) {
-            $this->logger?->warning('AuditKit avatar resolver failed; the timeline shows no pictures.', ['exception' => $e]);
-            $resolved = [];
-        }
-
-        if (count($this->urls) + count($batch) > self::MAX_MEMOISED) {
+        if (count($this->urls) + $count > self::MAX_MEMOISED) {
             $this->urls = [];
         }
 
-        // The key is read from the pair: an array key would be an int for numeric ids.
-        foreach ($batch as [$key]) {
-            $url              = $resolved[$key] ?? null;
-            $this->urls[$key] = is_string($url) ? AvatarUrlPolicy::sanitize($url) : null;
-            if (is_string($url) && $this->urls[$key] === null) {
-                $this->logger?->debug('AuditKit avatar URL rejected by the policy.', ['user' => $key]);
+        // One resolver call per user class: the resolver keys its result by id only.
+        foreach ($batches as $batch) {
+            try {
+                $resolved = $this->resolver->urlsFor(array_column($batch, 1), self::SIZE);
+            } catch (Throwable $e) {
+                $this->logger?->warning('AuditKit avatar resolver failed; the timeline shows no pictures.', ['exception' => $e]);
+                $resolved = [];
+            }
+
+            // The key is read from the pair: an array key would be an int for numeric ids.
+            foreach ($batch as $memoKey => [$key]) {
+                $url                  = $resolved[$key] ?? null;
+                $this->urls[$memoKey] = is_string($url) ? AvatarUrlPolicy::sanitize($url) : null;
+                if (is_string($url) && $this->urls[$memoKey] === null) {
+                    $this->logger?->debug('AuditKit avatar URL rejected by the policy.', ['user' => $key]);
+                }
             }
         }
     }
@@ -116,15 +136,26 @@ final class ActionLogAvatars implements ResetInterface
         if ($key === null) {
             return null;
         }
-        if (!array_key_exists($key, $this->urls)) {
+        $memoKey = $this->userClass($user) . '#' . $key;
+        if (!array_key_exists($memoKey, $this->urls)) {
             $this->prime([$user]);
         }
 
-        return $this->urls[$key] ?? null;
+        return $this->urls[$memoKey] ?? null;
     }
 
+    /** Empties the memo (unit-of-work boundaries, `kernel.reset`, or a host between tenants inside one unit). */
     public function reset(): void
     {
         $this->urls = [];
+    }
+
+    /** The user's class, with a Doctrine proxy mapped to its entity class (same user, same memo entry). */
+    private function userClass(object $user): string
+    {
+        $class = $user::class;
+        $pos   = strrpos($class, '\\__CG__\\');
+
+        return $pos === false ? $class : substr($class, $pos + 8);
     }
 }

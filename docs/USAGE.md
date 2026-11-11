@@ -423,11 +423,14 @@ services:
     Nowo\AuditKitBundle\Avatar\ActionLogAvatarResolverInterface: '@App\Audit\AuditAvatarUrls'
 ```
 
-- **One call per timeline.** The partial calls `nowo_audit_kit_prime_avatars(entries)` first: every actor and subject
-  not seen yet goes to **one** `urlsFor(list<object> $users, 24)` call, keyed by `AuditAvatarKey::of($user)` (the id
+- **One call per timeline** (per user class since 1.14.1). The partial calls `nowo_audit_kit_prime_avatars(entries)`
+  first: every actor and subject not seen yet goes to **one** `urlsFor(list<object> $users, 24)` call per user class, keyed by `AuditAvatarKey::of($user)` (the id
   as a string). The bundle never calls `urlFor()`. Results are memoised for the unit of work only: the bundle empties the memo at the
   start and end of every main request, of every Messenger message and at `console.terminate` (also on `kernel.reset`),
-  and keeps at most 1,000 users at once (since 1.14.1). Do not run a query per user in the resolver.
+  and keeps at most 1,000 users at once (since 1.14.1). The memo key is the user class + `AuditAvatarKey::of()`, so
+  two user classes with the same id never share a picture; the bundle cannot see tenants, so one unit of work that
+  renders timelines for several tenants whose users share ids must inject `ActionLogAvatars` and call `reset()`
+  between tenants. Do not run a query per user in the resolver.
 - **Who gets none:** a deleted actor ("by system"), a user without an id, and any user the resolver returns null for.
   Return null for anonymised or erased accounts.
 - **URL policy** (`Avatar\AvatarUrlPolicy`, the same rules and case table as UiKit's): `https://` without userinfo
