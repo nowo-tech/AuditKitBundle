@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.0] - 2026-11-11](#1140---2026-11-11)
 - [[1.13.0] - 2026-11-10](#1130---2026-11-10)
 - [[1.12.0] - 2026-11-09](#1120---2026-11-09)
 - [[1.11.0] - 2026-11-04](#1110---2026-11-04)
@@ -46,8 +47,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-Target **1.14.0** (minor). Architecture bar W2 (rule 2: a strict DDD host can use the bundle). Standard hosts: no
-configuration change, same defaults.
+## [1.14.0] - 2026-11-11
+
+DDD host path: user ids instead of entity relations (blame_mode: id) and XML mapping; an object's __toString() is never stored as a user id. See [UPGRADING](https://github.com/nowo-tech/AuditKitBundle/blob/v1.14.0/docs/UPGRADING.md#to-1140).
+
 
 ### Added
 
@@ -78,6 +81,8 @@ configuration change, same defaults.
 - `ActionLogRepository` accepts `AbstractIdActionLog` entities (filters compare the stored ids; no join) and the
   timeline partial prints the stored ids for them. `resolve_target_entities` is not prepended for an interface
   `user_class`.
+
+[1.14.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.14.0
 
 ## [1.13.0] - 2026-11-10
 
