@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.14.1] - 2026-11-11](#1141---2026-11-11)
 - [[1.14.0] - 2026-11-11](#1140---2026-11-11)
 - [[1.13.0] - 2026-11-10](#1130---2026-11-10)
 - [[1.12.0] - 2026-11-09](#1120---2026-11-09)
@@ -47,6 +48,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-11-11
+
 Next patch: 1.14.1.
 
 ### Security
@@ -79,10 +82,11 @@ Next patch: 1.14.1.
 - `docs/FRANKENPHP-WORKER-AUDIT.md` refreshed for 1.14.1 (was at 1.1.16): avatar memo (W-04), boundary events,
   worker tests. USAGE: the memo lifetime.
 
+[1.14.1]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.14.1
+
 ## [1.14.0] - 2026-11-11
 
 DDD host path: user ids instead of entity relations (blame_mode: id) and XML mapping; an object's __toString() is never stored as a user id. See [UPGRADING](https://github.com/nowo-tech/AuditKitBundle/blob/v1.14.0/docs/UPGRADING.md#to-1140).
-
 
 ### Added
 

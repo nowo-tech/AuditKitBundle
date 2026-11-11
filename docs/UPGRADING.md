@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.14.1](#to-1141)
 - [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
 - [To 1.12.0](#to-1120)
@@ -45,6 +46,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.14.1
+
+From **1.14.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 Next patch: 1.14.1. No API or configuration change. The timeline avatar memo is now emptied at every unit-of-work
 boundary (main request start and finish, each Messenger message, `console.terminate`), so the resolver is called again
