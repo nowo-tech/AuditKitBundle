@@ -7,6 +7,7 @@ namespace Nowo\AuditKitBundle\ActionLog\Command;
 use DateTimeImmutable;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
+use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRepository;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -31,7 +32,7 @@ final class PurgeActionLogCommand extends Command
     public const NAME = 'nowo:audit-kit:action-log:purge';
 
     /**
-     * @param class-string<AbstractActionLog> $entityClass
+     * @param class-string<AbstractActionLog>|class-string<AbstractIdActionLog> $entityClass
      * @param list<string> $defaultActions
      */
     public function __construct(

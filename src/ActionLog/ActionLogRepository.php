@@ -12,15 +12,17 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\QueryBuilder;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\Doctrine\KeysetDelete;
+use Nowo\AuditKitBundle\Model\ReferenceId;
 
 /**
- * Queries and keyset purge for an {@see AbstractActionLog} entity.
+ * Queries and keyset purge for an {@see AbstractActionLog} or (since 1.14) {@see AbstractIdActionLog} entity.
  *
  * Extend it in the host (`class UserActionRepository extends ActionLogRepository`, constructor calling
  * `parent::__construct($registry, UserAction::class)`) and point the entity `repositoryClass` to the subclass.
- * Every query goes through the entity metadata, so renamed columns (attribute / association overrides) work.
+ * Every query goes through the entity metadata, so renamed columns (attribute / association overrides) work. With an
+ * id-mode entity, `actor` / `subject` / `involving` filters compare the stored ids (entities are turned into their id).
  *
- * @template T of AbstractActionLog
+ * @template T of ActionLogEntryInterface
  *
  * @extends ServiceEntityRepository<T>
  */
@@ -47,10 +49,13 @@ class ActionLogRepository extends ServiceEntityRepository
             return [];
         }
 
-        $qb = $this->createCriteriaQueryBuilder($criteria)
-            ->leftJoin('a.actor', 'actor')->addSelect('actor')
-            ->leftJoin('a.subject', 'subject')->addSelect('subject')
-            ->orderBy('a.createdAt', 'DESC')
+        $qb = $this->createCriteriaQueryBuilder($criteria);
+        if ($this->referencesByAssociation()) {
+            $qb->leftJoin('a.actor', 'actor')->addSelect('actor')
+                ->leftJoin('a.subject', 'subject')->addSelect('subject');
+        }
+
+        $qb->orderBy('a.createdAt', 'DESC')
             ->addOrderBy('a.id', 'DESC')
             ->setMaxResults(max(1, $criteria->limit))
             ->setFirstResult(max(0, $criteria->offset));
@@ -140,16 +145,18 @@ class ActionLogRepository extends ServiceEntityRepository
     {
         $qb = $this->createQueryBuilder('a');
 
+        [$actor, $subject] = $this->referencesByAssociation() ? ['a.actor', 'a.subject'] : ['a.actorId', 'a.subjectId'];
+
         if ($criteria->actor !== null) {
-            $qb->andWhere('a.actor = :actor')->setParameter('actor', $criteria->actor);
+            $qb->andWhere($actor . ' = :actor')->setParameter('actor', $this->referenceValue($criteria->actor));
         }
 
         if ($criteria->subject !== null) {
-            $qb->andWhere('a.subject = :subject')->setParameter('subject', $criteria->subject);
+            $qb->andWhere($subject . ' = :subject')->setParameter('subject', $this->referenceValue($criteria->subject));
         }
 
         if ($criteria->involving !== null) {
-            $qb->andWhere('a.actor = :involving OR a.subject = :involving')->setParameter('involving', $criteria->involving);
+            $qb->andWhere($actor . ' = :involving OR ' . $subject . ' = :involving')->setParameter('involving', $this->referenceValue($criteria->involving));
         }
 
         if ($criteria->scopes !== null) {
@@ -169,5 +176,17 @@ class ActionLogRepository extends ServiceEntityRepository
         }
 
         return $qb;
+    }
+
+    /** True for {@see AbstractActionLog} entities (`actor` / `subject` relations), false for id columns. */
+    protected function referencesByAssociation(): bool
+    {
+        return $this->getClassMetadata()->hasAssociation('actor');
+    }
+
+    /** The filter value as given for relations; the stored id string for id columns (`''` matches nothing). */
+    private function referenceValue(object|int|string $reference): object|int|string
+    {
+        return $this->referencesByAssociation() ? $reference : (ReferenceId::of($reference) ?? '');
     }
 }

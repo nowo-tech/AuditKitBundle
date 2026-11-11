@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<doctrine-mapping xmlns="http://doctrine-project.org/schemas/orm/doctrine-mapping"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://doctrine-project.org/schemas/orm/doctrine-mapping https://www.doctrine-project.org/schemas/orm/doctrine-mapping.xsd">
+    <entity name="Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\Invoice" table="ddd_invoice">
+        <id name="id" type="string" column="id" length="36"/>
+        <field name="title" type="string" column="title" length="255"/>
+        <field name="createdAt" type="datetime_immutable" column="created_at" nullable="true"/>
+        <field name="updatedAt" type="datetime_immutable" column="updated_at" nullable="true"/>
+        <field name="createdBy" type="string" column="created_by" length="64" nullable="true"/>
+        <field name="updatedBy" type="string" column="updated_by" length="64" nullable="true"/>
+    </entity>
+</doctrine-mapping>

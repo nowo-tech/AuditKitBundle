@@ -197,6 +197,30 @@ final class ActionLogIntegrationTest extends TestCase
         $this->assertSame(['item.deleted'], array_map(static fn (AbstractActionLog $row): string => $row->getAction(), $involving));
     }
 
+    public function testRecordIdsTurnsIdsIntoUserReferencesOnTheStandardPath(): void
+    {
+        $recorder = $this->recorder();
+        $entry    = $recorder->recordIdsAndFlush(SampleAction::Viewed, $this->alice->id, (string) $this->bob->id, ['project_uuid' => 'p-1']);
+        $system   = $recorder->recordIds('item.updated', null, 0);
+        $this->em->flush();
+        $this->em->clear();
+
+        $this->assertInstanceOf(KernelActionLog::class, $entry);
+        $this->assertSame((string) $this->alice->id, $entry->getActorId());
+        $this->assertSame((string) $this->bob->id, $entry->getSubjectId());
+        $this->assertSame('p-1', $entry->getScope());
+        $this->assertInstanceOf(KernelActionLog::class, $system);
+        $this->assertNull($system->getActor());
+        $this->assertNull($system->getSubject());
+
+        $reloaded = $this->repository->find($entry->getId());
+        self::assertInstanceOf(KernelActionLog::class, $reloaded);
+        $actor = $reloaded->getActor();
+        self::assertInstanceOf(KernelUser::class, $actor);
+        $this->assertSame('alice@example.com', $actor->getUserIdentifier());
+        $this->assertSame(['item.viewed'], $this->actions(new ActionLogCriteria(actor: $this->alice)));
+    }
+
     public function testKeysetPurgeDeletesOnlyOldRowsOfListedActions(): void
     {
         $this->seedPurgeRows();

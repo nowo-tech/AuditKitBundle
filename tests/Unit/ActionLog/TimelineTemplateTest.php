@@ -6,6 +6,7 @@ namespace Nowo\AuditKitBundle\Tests\Unit\ActionLog;
 
 use Nowo\AuditKitBundle\Avatar\ActionLogAvatars;
 use Nowo\AuditKitBundle\Avatar\NullActionLogAvatarResolver;
+use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\AuditEntry;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Twig\ActionLogAvatarExtension;
@@ -41,6 +42,20 @@ final class TimelineTemplateTest extends TestCase
         $html = $this->render(['entries' => [], 'empty_key' => 'audit.none', 'translation_domain' => 'admin']);
 
         $this->assertStringContainsString('[admin:audit.none]', $html);
+    }
+
+    public function testRendersIdModeEntriesWithTheStoredIds(): void
+    {
+        $byUser = (new AuditEntry())->setAction('invoice.sent')->setActorId('u-1')->setSubjectId('u-2');
+        $system = (new AuditEntry())->setAction('invoice.purged');
+
+        $html = $this->render(['entries' => [$byUser, $system]]);
+
+        $this->assertSame(2, substr_count($html, 'data-testid="action-log-entry"'));
+        $this->assertStringContainsString('[NowoAuditKitBundle:nowo_audit_kit.action_log.by u-1]', $html);
+        $this->assertStringContainsString('[NowoAuditKitBundle:nowo_audit_kit.action_log.subject u-2]', $html);
+        $this->assertStringContainsString('[NowoAuditKitBundle:nowo_audit_kit.action_log.by_system]', $html);
+        $this->assertStringNotContainsString('nowo-ui-avatar', $html);
     }
 
     public function testRendersEntriesWithActorSubjectIpAndContext(): void

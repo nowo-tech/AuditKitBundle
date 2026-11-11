@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
 - [To 1.13.0](#to-1130-1)
 - [To 1.12.0](#to-1120)
@@ -45,6 +46,26 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.14.0
+
+Target **1.14.0**, from **1.13.x**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+Nothing to change: `blame_mode` defaults to `reference` and `action_log.mapping` to `attribute`, so standard hosts keep
+the 1.13 behaviour (blame relations to `user_class`, `AbstractActionLog` with relations, attribute mapping).
+
+- `ActionLogRepository`'s template bound is now `ActionLogEntryInterface` (`AbstractActionLog` implements it), and
+  `AbstractActionLog` gains `getActorId()` / `getSubjectId()`. A subclass that already declares methods with these
+  names must keep compatible signatures (`?string`).
+- A profile with `blameable: false` may now omit `user_class`.
+- Optional, for DDD / hexagonal hosts (opt-in): `blame_mode: id`, an `AbstractIdActionLog` subclass recorded through
+  `ActionLogIdRecorderInterface::recordIds()`, and `action_log.mapping: xml`. See USAGE, "Using it from a DDD /
+  hexagonal application". Moving an existing action log table from relations to ids needs your own migration (drop
+  the foreign keys and widen `actor_id` / `subject_id` to strings).
 
 ## To 1.13.0
 

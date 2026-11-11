@@ -8,6 +8,7 @@ use BackedEnum;
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Model\CreatedAtImmutableTrait;
+use Nowo\AuditKitBundle\Model\ReferenceId;
 
 /**
  * Append-only action log row (who did what, to whom, in which scope, from which IP).
@@ -21,13 +22,17 @@ use Nowo\AuditKitBundle\Model\CreatedAtImmutableTrait;
  * `id`, `action` (string 48), `actor_id`, `subject_id` (FK SET NULL), `context` (json), `scope` (string 64, nullable),
  * `ip_address` (string 45, nullable), `created_at` (datetime_immutable).
  *
+ * The mapping also ships as XML (`Resources/config/doctrine/action_log/AbstractActionLog.orm.xml`, enabled with
+ * `action_log.mapping: xml`). Hosts that reference users by id (no relation to a user entity) extend
+ * {@see AbstractIdActionLog} instead.
+ *
  * Treat the actor IP and the context as personal data.
  */
 #[ORM\MappedSuperclass]
 #[ORM\AttributeOverrides([
     new ORM\AttributeOverride(name: 'createdAt', column: new ORM\Column(name: 'created_at', type: 'datetime_immutable')),
 ])]
-abstract class AbstractActionLog
+abstract class AbstractActionLog implements ActionLogEntryInterface
 {
     use CreatedAtImmutableTrait;
 
@@ -114,6 +119,12 @@ abstract class AbstractActionLog
         return $this;
     }
 
+    /** Since 1.14: id of the actor (its `getId()`, see {@see ReferenceId}). */
+    public function getActorId(): ?string
+    {
+        return ReferenceId::of($this->actor);
+    }
+
     public function getSubject(): ?object
     {
         return $this->subject;
@@ -125,6 +136,12 @@ abstract class AbstractActionLog
         $this->subject = $subject;
 
         return $this;
+    }
+
+    /** Since 1.14: id of the subject (its `getId()`, see {@see ReferenceId}). */
+    public function getSubjectId(): ?string
+    {
+        return ReferenceId::of($this->subject);
     }
 
     /**

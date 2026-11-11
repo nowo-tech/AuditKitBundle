@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Tests\Unit\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorderInterface;
 use Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand;
@@ -15,6 +16,7 @@ use Nowo\AuditKitBundle\Avatar\AvatarUrlPolicy;
 use Nowo\AuditKitBundle\Avatar\NullActionLogAvatarResolver;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Blame\EntityReferenceBlameValueResolver;
+use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
@@ -24,6 +26,7 @@ use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
 use Nowo\AuditKitBundle\Security\CurrentUserResolverInterface;
+use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\AuditEntry;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Twig\ActionLogAvatarExtension;
@@ -31,6 +34,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
 
 final class NowoAuditKitExtensionTest extends TestCase
 {
@@ -394,6 +398,86 @@ final class NowoAuditKitExtensionTest extends TestCase
     {
         $container = $this->createContainerWithDoctrineExtension();
         $container->prependExtensionConfig('nowo_auth_kit', ['profiles' => ['main' => []]]);
+
+        (new NowoAuditKitExtension())->prepend($container);
+
+        $this->assertSame([], $container->getExtensionConfig('doctrine'));
+    }
+
+    public function testBlameModeIdNeedsNoUserClassAndAliasesTheIdResolver(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([['blame_mode' => 'id']], $container);
+
+        $this->assertSame('id', $container->getParameter('nowo_audit_kit.blame_mode'));
+        $this->assertSame(UserInterface::class, $container->getParameter('nowo_audit_kit.user_class'));
+        $this->assertSame(UserIdBlameValueResolver::class, (string) $container->getAlias(BlameValueResolverInterface::class));
+        $this->assertTrue($container->hasDefinition(UserIdBlameValueResolver::class));
+    }
+
+    public function testBlameModeIdKeepsAnExplicitUserClassOrInterface(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([[
+            'blame_mode' => 'id',
+            'profiles'   => [
+                'staff'    => ['user_class' => 'App\\Security\\StaffUser'],
+                'customer' => [],
+            ],
+        ]], $container);
+
+        $profiles = $container->getParameter('nowo_audit_kit.profiles');
+        $this->assertIsArray($profiles);
+        $this->assertSame('App\\Security\\StaffUser', $profiles['staff']['user_class']);
+        $this->assertSame(UserInterface::class, $profiles['customer']['user_class']);
+    }
+
+    public function testProfileWithoutBlameNeedsNoUserClassOnTheReferencePath(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([['blameable' => false]], $container);
+
+        $this->assertSame('reference', $container->getParameter('nowo_audit_kit.blame_mode'));
+        $this->assertSame(UserInterface::class, $container->getParameter('nowo_audit_kit.user_class'));
+        $this->assertSame(EntityReferenceBlameValueResolver::class, (string) $container->getAlias(BlameValueResolverInterface::class));
+    }
+
+    public function testActionLogAcceptsTheIdSuperclassAndAliasesTheIdRecorder(): void
+    {
+        $container = new ContainerBuilder();
+        (new NowoAuditKitExtension())->load([[
+            'blame_mode' => 'id',
+            'action_log' => ['entity_class' => AuditEntry::class],
+        ]], $container);
+
+        $this->assertSame(AuditEntry::class, $container->getParameter('nowo_audit_kit.action_log.entity_class'));
+        $this->assertSame(ActionLogRecorder::class, (string) $container->getAlias(ActionLogIdRecorderInterface::class));
+        $this->assertSame(ActionLogRecorder::class, (string) $container->getAlias(ActionLogRecorderInterface::class));
+    }
+
+    public function testPrependRegistersTheXmlActionLogMapping(): void
+    {
+        $container = $this->createContainerWithDoctrineExtension();
+        $container->prependExtensionConfig('nowo_audit_kit', [
+            'blame_mode' => 'id',
+            'action_log' => ['entity_class' => AuditEntry::class, 'mapping' => 'xml'],
+        ]);
+
+        (new NowoAuditKitExtension())->prepend($container);
+
+        $doctrine = $container->getExtensionConfig('doctrine');
+        $this->assertCount(1, $doctrine, 'no resolve_target_entities without a user entity');
+        $mapping = $doctrine[0]['orm']['mappings'][NowoAuditKitExtension::ACTION_LOG_MAPPING];
+        $this->assertSame('xml', $mapping['type']);
+        $this->assertSame(NowoAuditKitExtension::actionLogXmlMappingDir(), $mapping['dir']);
+        $this->assertFileExists($mapping['dir'] . '/AbstractActionLog.orm.xml');
+        $this->assertFileExists($mapping['dir'] . '/AbstractIdActionLog.orm.xml');
+    }
+
+    public function testPrependSkipsAnInterfaceUserClass(): void
+    {
+        $container = $this->createContainerWithDoctrineExtension();
+        $container->prependExtensionConfig('nowo_audit_kit', ['blame_mode' => 'id', 'user_class' => UserInterface::class]);
 
         (new NowoAuditKitExtension())->prepend($container);
 

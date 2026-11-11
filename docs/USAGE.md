@@ -258,6 +258,10 @@ $deleted = KeysetDelete::run(
 
 Since **1.5.0**. An opt-in, append-only log of *who did what, to whom*: admin actions, membership changes, page views. It is independent of the entity-level audit fields above. Specification: [`specs/003-action-log`](../specs/003-action-log/spec.md).
 
+The examples below use `AbstractActionLog` (actor / subject relations to your user entity). Since 1.14 a host that
+references users by id extends `AbstractIdActionLog` instead and records with `recordIds()`; see
+[Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application).
+
 ### Entity
 
 Extend the mapped superclass and declare the table, indexes and repository in the host:
@@ -509,38 +513,124 @@ its table and entity belong to your application, and the bundle provides the map
 repository and timeline partial.
 It dispatches no Symfony events and owns no tables.
 
-**Keeping the domain free of the bundle**
+Both paths are supported. The standard one is the zero-config default; the DDD one is opt-in (since 1.14) and needs
+no bundle type, no Doctrine attribute and no user entity in your domain.
+
+| | Standard Symfony host (default) | DDD / hexagonal host (opt-in) |
+| --- | --- | --- |
+| Opt a class in | `AuditableTrait` / interfaces / `#[Auditable]` | `auditable_entities` (class, parent or marker interface of your own) |
+| Mapping | attributes from the traits | your own XML; trait field lists below |
+| Blame value | `ManyToOne` to `user_class` (`blame_mode: reference`) | user id string in a plain column (`blame_mode: id`), no `user_class` |
+| Action log entity | extends `AbstractActionLog` (actor / subject relations) | extends `AbstractIdActionLog` (`actor_id` / `subject_id` id columns, no foreign key) |
+| Superclass mapping | attributes (`action_log.mapping: attribute`) | shipped XML (`action_log.mapping: xml`) |
+| Recording | `ActionLogRecorderInterface::record($action, $user, $subject)` | `ActionLogIdRecorderInterface::recordIds($action, $actorId, $subjectId)` |
+
+**Standard path (unchanged)**
 
 - Apply the traits (`TimestampableTrait`, `BlameableTrait`, `PublicUuidTrait`, `CreatedAtImmutableTrait`) to your
-  **Doctrine persistence model**, not to pure domain entities: the traits carry `#[ORM\…]` attributes.
-- If the Doctrine entity is your domain entity, declare the properties yourself (`fields.*` maps them to custom names)
-  and opt the class in without any bundle type: list it, a parent class or a marker interface of your own under
-  `auditable_entities` (since 1.13; see [Opt-in without the traits](#opt-in-without-the-traits-since-113)). The
-  interfaces (`TimestampableInterface`, `BlameableInterface`) still work, and `#[Auditable]` too with `attribute_opt_in`. The listener only
-  processes classes opted in one of these ways.
-- Type-hint `ActionLogRecorderInterface` (since 1.12) and wrap it, with your `ActionLogRepository` subclass, in your
-  own port, for example `AuditTrail::record(string $action, ?UserId $actor, ?UserId $subject, array $context)`. Map
-  your ids to user entity references inside that adapter.
+  Doctrine entities, extend `AbstractActionLog`, and record with user entities. Nothing to configure beyond
+  `user_class`.
+
+**DDD path (since 1.14)**
+
+```yaml
+# config/packages/nowo_audit_kit.yaml
+nowo_audit_kit:
+    blame_mode: id                 # createdBy / updatedBy = current user's getId() as a string
+    # user_class is optional now; set a class or an interface to restrict which security users are blamed
+    auditable_entities:
+        - App\Domain\Invoice\Invoice
+    action_log:
+        entity_class: App\Infrastructure\Persistence\AuditEntry
+        mapping: xml
+```
 
 ```php
-final class DoctrineAuditTrail implements AuditTrail
+// Plain PHP: no bundle type, no Doctrine attribute.
+final class Invoice
 {
-    public function __construct(
-        private ActionLogRecorderInterface $recorder,
-        private EntityManagerInterface $em,
-    ) {}
+    private ?\DateTimeImmutable $createdAt = null;
+    private ?\DateTimeImmutable $updatedAt = null;
+    private ?string $createdBy = null;   // user id
+    private ?string $updatedBy = null;
+
+    public function setCreatedAt(\DateTimeImmutable $at): void { $this->createdAt = $at; }
+    public function setUpdatedAt(\DateTimeImmutable $at): void { $this->updatedAt = $at; }
+    public function setCreatedBy(?string $id): void { $this->createdBy = $id; }
+    public function setUpdatedBy(?string $id): void { $this->updatedBy = $id; }
+    // getters…
+}
+
+// Infrastructure: the action log row, users by id.
+class AuditEntry extends \Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog
+{
+}
+```
+
+```xml
+<!-- config/doctrine/Invoice.orm.xml -->
+<entity name="App\Domain\Invoice\Invoice" table="invoice">
+    <id name="id" type="string" length="36"/>
+    <field name="createdAt" type="datetime_immutable" column="created_at" nullable="true"/>
+    <field name="updatedAt" type="datetime_immutable" column="updated_at" nullable="true"/>
+    <field name="createdBy" type="string" column="created_by" length="64" nullable="true"/>
+    <field name="updatedBy" type="string" column="updated_by" length="64" nullable="true"/>
+</entity>
+
+<!-- config/doctrine/AuditEntry.orm.xml: the superclass columns come from the bundle's XML -->
+<entity name="App\Infrastructure\Persistence\AuditEntry" table="audit_entry">
+    <indexes>
+        <index name="idx_audit_entry_actor_created" columns="actor_id,created_at"/>
+        <index name="idx_audit_entry_subject_created" columns="subject_id,created_at"/>
+    </indexes>
+</entity>
+```
+
+```php
+final class DoctrineAuditTrail implements AuditTrail   // your own port
+{
+    public function __construct(private ActionLogIdRecorderInterface $recorder) {}
 
     public function record(string $action, ?UserId $actor, ?UserId $subject, array $context = []): void
     {
-        $this->recorder->record(
-            $action,
-            $actor ? $this->em->getReference(User::class, $actor->toInt()) : null,
-            $subject ? $this->em->getReference(User::class, $subject->toInt()) : null,
-            $context,
-        );
+        $this->recorder->recordIds($action, $actor?->toString(), $subject?->toString(), $context);
     }
 }
 ```
+
+- Ids are normalised by `Nowo\AuditKitBundle\Model\ReferenceId`: ints, strings, Symfony `Uuid` / `Ulid`, or objects
+  whose `getId()` returns one of those (or a `Stringable` id value object). Any other object, including a security
+  user without `getId()` such as `InMemoryUser`, means "no user": an object's own `__toString()` is never used, so
+  the user identifier (often an e-mail address) is never written. `null`, `''`, `'0'`, zero and negative ints also
+  mean "no user". Values are stored verbatim (no trim, no case folding).
+- A `Stringable` id value object passed **directly** (`setActorId(new UserId('u-42'))`, `recordIds($userId)`, a
+  criteria filter) also means "no actor", silently: pass `$userId->toString()` (or the user object whose `getId()`
+  returns it). The same value object returned by a user's `getId()` is accepted, for the action log and for
+  `blame_mode: id`.
+- `recordIds()` also works on the standard path: the ids become Doctrine references to the actor / subject target
+  entity. `record()` with an `AbstractIdActionLog` class throws a `LogicException` pointing to `recordIds()`.
+- `ActionLogRepository` (`new ActionLogRepository($registry, AuditEntry::class)` or a subclass) filters by the stored
+  ids; user objects passed to `ActionLogCriteria` are turned into their id. Both superclasses implement
+  `ActionLogEntryInterface` (`getActorId()` / `getSubjectId()` exist on `AbstractActionLog` too).
+- The timeline partial prints the actor / subject id for id-mode rows (override it to show names) and resolves no
+  avatar for them.
+- Several entity managers: keep `register_mapping: false` and add the bundle mapping yourself (type `xml`, dir
+  `vendor/nowo-tech/audit-kit-bundle/src/Resources/config/doctrine/action_log`, prefix
+  `Nowo\AuditKitBundle\ActionLog`).
+
+**Mapping the traits in XML**
+
+A trait cannot carry its own XML mapping. If you keep a trait on an XML-mapped entity, map its private properties in
+the entity's `.orm.xml` (columns as the default `underscore_number_aware` naming strategy names them):
+
+| Trait | XML |
+| --- | --- |
+| `TimestampableTrait` | `<field name="createdAt" type="datetime_immutable" column="created_at" nullable="true"/>` and the same for `updatedAt` / `updated_at` |
+| `CreatedAtImmutableTrait` | `<field name="createdAt" type="datetime_immutable" column="created_at"/>` |
+| `PublicUuidTrait` | `<field name="uuid" type="string" column="uuid" length="36"/>` (add `unique="true"` to look rows up by it) |
+| `BlameableTrait` | `<many-to-one field="createdBy" target-entity="Nowo\AuditKitBundle\Model\AuditUserInterface"><join-column name="created_by_id" referenced-column-name="id" on-delete="SET NULL"/></many-to-one>` and the same for `updatedBy` / `updated_by_id` |
+
+With `blame_mode: id`, skip `BlameableTrait` (its properties are typed `?object`) and declare `?string` id columns.
 
 **Your security user is not the Doctrine user entity (since 1.12)**
 
@@ -576,32 +666,32 @@ services:
   `CurrentUserResolverInterface` and alias it. In FrankenPHP worker mode decorate the default `CurrentUserResolver`
   rather than replacing it: it is what ignores a token left over from a previous request. The resolved user also
   selects the profile.
-- No Doctrine user entity at all: implement `BlameValueResolverInterface` and return your own value (for example a
-  UUID string), with `fields.created_by` / `fields.updated_by` pointing at properties whose setters accept it.
-  `BlameableInterface` / `BlameableTrait` keep `?object`, so use your own properties in that case.
+- No Doctrine user entity at all: set `blame_mode: id` (since 1.14, see above), or implement
+  `BlameValueResolverInterface` and return your own value, with `fields.created_by` / `fields.updated_by` pointing at
+  properties whose setters accept it. `BlameableInterface` / `BlameableTrait` keep `?object`, so use your own
+  properties in that case.
 
 **Integration points**
 
 - Ports: `CurrentUserResolverInterface`, `BlameValueResolverInterface`, `ActionLogRecorderInterface` (since 1.12),
-  `ActionLogAvatarResolverInterface` (avatar URLs for the timeline).
+  `ActionLogIdRecorderInterface` (since 1.14), `ActionLogAvatarResolverInterface` (avatar URLs for the timeline).
 - Contracts: `TimestampableInterface`, `BlameableInterface`, `AuditableInterface`, `PublicUuidInterface`.
 - Query object: `ActionLogCriteria`. It accepts user entities or ids for `actor`, `subject` and `involving`.
-- Config: `profiles.*` (`user_class`, `fields`, `blameable`, `timestampable`, `timestamp_type`), `action_log.*`
-  (`register_mapping: false` to map the superclass yourself), `auditable_entities` (since 1.13) and `#[Auditable]` with
+- Config: `blame_mode` (since 1.14), `profiles.*` (`user_class`, `fields`, `blameable`, `timestampable`,
+  `timestamp_type`), `action_log.*` (`mapping: xml` since 1.14, `register_mapping: false` to map the superclass yourself), `auditable_entities` (since 1.13) and `#[Auditable]` with
   `attribute_opt_in: true` to opt a class in without a bundle interface or trait, `#[Auditable(enabled: false)]` to opt out.
 
 **Known limitations**
 
-- Action log `actor`/`subject` are `ManyToOne` relations to the user table (resolved through
-  `resolve_target_entities`). Columns can be renamed with association overrides but cannot be plain id columns.
-- `user_class` is required even when blame and the action log are unused.
+- `blame_mode` is global: every profile writes either entity references or ids.
 - No events are dispatched when audit fields are written or an action is recorded.
 - `#[Auditable]` alone opts a class in only with `attribute_opt_in: true` (default `false` until 2.0); use
   `auditable_entities` meanwhile.
+- The action log row id is an auto-increment integer (an internal key of the log; user references are strings).
 
 ## Related bundles
 
 - [`nowo-tech/user-kit-bundle`](https://github.com/nowo-tech/UserKitBundle) — account state / presence
 - [`nowo-tech/auth-kit-bundle`](https://github.com/nowo-tech/AuthKitBundle) — authentication flows
 
-Audit Kit Bundle is independent; it only needs a resolvable `user_class` and Symfony Security when blame fields should be populated.
+Audit Kit Bundle is independent; it needs Symfony Security when blame fields should be populated, and a resolvable `user_class` entity only on the default `blame_mode: reference` path.

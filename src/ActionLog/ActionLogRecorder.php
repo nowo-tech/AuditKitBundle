@@ -8,6 +8,7 @@ use BackedEnum;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
 use LogicException;
+use Nowo\AuditKitBundle\Model\ReferenceId;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
@@ -17,15 +18,19 @@ use function sprintf;
 use function strlen;
 
 /**
- * Creates and persists {@see AbstractActionLog} rows of the configured `nowo_audit_kit.action_log.entity_class`.
+ * Creates and persists action log rows of the configured `nowo_audit_kit.action_log.entity_class`.
  *
  * {@see record()} only persists (the caller flushes with its own writes); {@see recordAndFlush()} flushes at once
- * (navigation / view events with no other writes). The client IP comes from the current request (`RequestStack`).
+ * (navigation / view events with no other writes), only the entity manager that maps the action log class. The
+ * client IP comes from the current request (`RequestStack`).
+ *
+ * Since 1.14 {@see recordIds()} records by user id, with an {@see AbstractIdActionLog} (ids stored as they are) or an
+ * {@see AbstractActionLog} (ids turned into references). {@see record()} needs an {@see AbstractActionLog} class.
  */
-final readonly class ActionLogRecorder implements ActionLogRecorderInterface
+final readonly class ActionLogRecorder implements ActionLogRecorderInterface, ActionLogIdRecorderInterface
 {
     /**
-     * @param class-string<AbstractActionLog> $entityClass
+     * @param class-string<AbstractActionLog>|class-string<AbstractIdActionLog> $entityClass
      * @param string|null $scopeContextKey context key copied into `scope` when no scope is given
      */
     public function __construct(
@@ -50,22 +55,14 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface
         ?string $scope = null,
     ): AbstractActionLog {
         $entry = new ($this->entityClass)();
-        $entry->setAction($action);
-        $entry->setActor($actor);
-        $entry->setSubject($subject);
-        $entry->setContext($context);
-        $entry->setScope($scope ?? $this->scopeFromContext($context));
-
-        if ($this->captureIp) {
-            $request = $this->requestStack->getCurrentRequest();
-            if ($request instanceof Request) {
-                $entry->setIpAddress($request->getClientIp());
-            }
+        if (!$entry instanceof AbstractActionLog) {
+            throw new LogicException(sprintf('The action log class "%s" references users by id: record rows with %s::recordIds().', $this->entityClass, ActionLogIdRecorderInterface::class));
         }
 
-        $this->entityManager()->persist($entry);
+        $entry->setActor($actor);
+        $entry->setSubject($subject);
 
-        return $entry;
+        return $this->persist($entry, $action, $context, $scope);
     }
 
     /**
@@ -86,10 +83,91 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface
         return $entry;
     }
 
-    /** @return class-string<AbstractActionLog> */
+    /**
+     * Since 1.14: creates and persists a row from user ids (not flushed).
+     *
+     * @param array<string, mixed> $context
+     */
+    public function recordIds(
+        string|BackedEnum $action,
+        mixed $actorId = null,
+        mixed $subjectId = null,
+        array $context = [],
+        ?string $scope = null,
+    ): ActionLogEntryInterface {
+        $entry = new ($this->entityClass)();
+        if ($entry instanceof AbstractIdActionLog) {
+            $entry->setActorId($actorId);
+            $entry->setSubjectId($subjectId);
+        } else {
+            $entry->setActor($this->userReference('actor', $actorId));
+            $entry->setSubject($this->userReference('subject', $subjectId));
+        }
+
+        return $this->persist($entry, $action, $context, $scope);
+    }
+
+    /**
+     * Since 1.14: creates, persists and flushes a row from user ids.
+     *
+     * @param array<string, mixed> $context
+     */
+    public function recordIdsAndFlush(
+        string|BackedEnum $action,
+        mixed $actorId = null,
+        mixed $subjectId = null,
+        array $context = [],
+        ?string $scope = null,
+    ): ActionLogEntryInterface {
+        $entry = $this->recordIds($action, $actorId, $subjectId, $context, $scope);
+        $this->entityManager()->flush();
+
+        return $entry;
+    }
+
+    /** @return class-string<AbstractActionLog>|class-string<AbstractIdActionLog> */
     public function getEntityClass(): string
     {
         return $this->entityClass;
+    }
+
+    /**
+     * @template E of AbstractActionLog|AbstractIdActionLog
+     *
+     * @param E $entry
+     * @param array<string, mixed> $context
+     *
+     * @return E
+     */
+    private function persist(AbstractActionLog|AbstractIdActionLog $entry, string|BackedEnum $action, array $context, ?string $scope): AbstractActionLog|AbstractIdActionLog
+    {
+        $entry->setAction($action);
+        $entry->setContext($context);
+        $entry->setScope($scope ?? $this->scopeFromContext($context));
+
+        if ($this->captureIp) {
+            $request = $this->requestStack->getCurrentRequest();
+            if ($request instanceof Request) {
+                $entry->setIpAddress($request->getClientIp());
+            }
+        }
+
+        $this->entityManager()->persist($entry);
+
+        return $entry;
+    }
+
+    /** Doctrine reference to the target entity of the `actor` / `subject` association, or null for "no user". */
+    private function userReference(string $association, mixed $id): ?object
+    {
+        $id = ReferenceId::of($id);
+        if ($id === null) {
+            return null;
+        }
+
+        $manager = $this->entityManager();
+
+        return $manager->getReference($manager->getClassMetadata($this->entityClass)->getAssociationTargetClass($association), $id);
     }
 
     /**

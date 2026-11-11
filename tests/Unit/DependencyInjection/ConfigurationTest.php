@@ -21,6 +21,16 @@ final class ConfigurationTest extends TestCase
         $this->assertSame('datetime_immutable', $config['profiles']['default']['timestamp_type']);
     }
 
+    public function testBlameModeDefaultsToReferenceAndAcceptsId(): void
+    {
+        $this->assertSame('reference', (new Processor())->processConfiguration(new Configuration(), [[]])['blame_mode']);
+
+        $config = (new Processor())->processConfiguration(new Configuration(), [['blame_mode' => 'id', 'action_log' => ['mapping' => 'xml']]]);
+        $this->assertSame('id', $config['blame_mode']);
+        $this->assertSame('xml', $config['action_log']['mapping']);
+        $this->assertNull($config['profiles']['default']['user_class']);
+    }
+
     public function testActionLogDefaultsAreDisabled(): void
     {
         $config = (new Processor())->processConfiguration(new Configuration(), [[]]);
@@ -28,6 +38,7 @@ final class ConfigurationTest extends TestCase
         $this->assertSame([
             'entity_class'      => null,
             'register_mapping'  => true,
+            'mapping'           => 'attribute',
             'scope_context_key' => null,
             'capture_ip'        => true,
             'purge'             => ['older_than_days' => 90, 'batch_size' => 1000, 'actions' => []],

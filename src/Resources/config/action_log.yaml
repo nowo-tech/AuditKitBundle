@@ -26,3 +26,6 @@ services:
 
     # Since 1.12: port for hosts that type-hint the recorder (override the alias to swap it).
     Nowo\AuditKitBundle\ActionLog\ActionLogRecorderInterface: '@Nowo\AuditKitBundle\ActionLog\ActionLogRecorder'
+
+    # Since 1.14: records by user id (AbstractIdActionLog stores them; AbstractActionLog turns them into references).
+    Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface: '@Nowo\AuditKitBundle\ActionLog\ActionLogRecorder'

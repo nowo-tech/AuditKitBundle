@@ -5,6 +5,10 @@
 nowo_audit_kit:
     default_profile: default
 
+    # Since 1.14: "reference" (default) writes a Doctrine reference to user_class into the blame fields;
+    # "id" writes the current user's id string (DDD hosts with plain id columns; user_class then optional).
+    # blame_mode: reference
+
     profiles:
         default:
             # FQCN used for createdBy / updatedBy references.
@@ -32,9 +36,11 @@ nowo_audit_kit:
         #     blameable: true
         #     timestampable: true
 
-    # Opt-in action log (v1.5.0+). Uncomment and point entity_class to your AbstractActionLog subclass.
+    # Opt-in action log (v1.5.0+). Uncomment and point entity_class to your AbstractActionLog subclass
+    # (or, since 1.14, an AbstractIdActionLog subclass that stores user ids without a foreign key).
     # action_log:
     #     entity_class: App\Entity\UserAction
+    #     mapping: attribute          # since 1.14: or xml (superclass mapping from the shipped .orm.xml files)
     #     scope_context_key: ~        # e.g. project_uuid: copy context[project_uuid] into `scope`
     #     capture_ip: true
     #     purge:
