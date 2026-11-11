@@ -48,6 +48,69 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Next minor: 1.15.0. REQ-ARCH-001 rules 3 and 6: framework-free ports for `blame_mode: id` and an isolated action log
+flush. Standard hosts need no change; nothing changes until a host opts in. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **Framework-free ports for `blame_mode: id`:**
+  - `Security\CurrentActorProviderInterface::currentActor(): ?AuditActor` names who is acting by id and profile name.
+    `AuditActor` is a new value object.
+  - `Blame\BlameIdResolverInterface::resolveBlameId(ProfileSettings, ?AuditActor): ?string` gives the blame id.
+  - Neither port uses a Symfony or Doctrine type, so a DDD host can implement them without Symfony Security.
+  - The defaults (`SecurityCurrentActorProvider`, `ActorIdBlameIdResolver`) adapt the Symfony Security user. They
+    write exactly what 1.14 wrote; equivalence tests compare them with the 1.14 algorithm.
+  - In id mode the listener no longer needs `CurrentUserResolverInterface` or a Doctrine `ObjectManager` for blame.
+  - On both blame paths `CurrentActorProviderInterface` now selects the profile, with the same result by default.
+- **`action_log.flush_mode: isolated`** makes `recordAndFlush()` / `recordIdsAndFlush()` write only the new row:
+  - It goes through a short-lived entity manager of the bundle (same connection, configuration and event manager),
+    which is cleared and closed in the call.
+  - The application's pending inserts and updates are neither flushed nor cleared.
+  - The default, `host`, keeps the earlier behaviour (the whole entity manager is flushed).
+  - Actor / subject must be managed and already flushed: a new, detached or persisted-but-unflushed user (also one
+    with an assigned id) throws a `LogicException`.
+  - On DBAL 3 enable savepoints (`use_savepoints: true`): without them a failed isolated write inside a host
+    transaction marks it rollback-only.
+  - REQ-ARCH-001 rule 6 is therefore opt-in in 1.x; switching the default to `isolated` in 2.0 is planned, pending
+    the owner's decision.
+- `AuditableEntityListener` accepts `?CurrentUserResolverInterface` (null when an actor provider is given) and the new
+  optional `$currentActorProvider` / `$blameIdResolver` arguments.
+
+### Deprecated
+
+- With `blame_mode: id`, aliasing `CurrentUserResolverInterface` or `BlameValueResolverInterface` to your own service
+  is deprecated. Alias `CurrentActorProviderInterface` / `BlameIdResolverInterface` instead.
+  - The override keeps working in 1.x.
+  - A deprecation is triggered when the container is built.
+  - 2.0 no longer reads these ports in id mode.
+
+### Tests
+
+- `AuditableEntityListenerIdPortsTest` compares the 1.15 id ports with the 1.14 algorithm, user by user:
+  - users: guest, no `getId()`, UUID, int, unusable id, a profile without blame;
+  - the same profile, blame and timestamps for each;
+  - 700 alternating writes on one kept-alive listener.
+- `ActionLogFlushIsolationTest` (rule 6):
+  - `host` mode still flushes pending host changes;
+  - `isolated` mode leaves a pending insert and a pending update unflushed, keeps the identity map and keeps the
+    entity manager open;
+  - the row follows a host transaction rollback;
+  - unflushed (also with an assigned id), detached or wrong-class users throw;
+  - 550 isolated writes keep the unit of work and memory flat.
+- `DddPortsHostIntegrationTest` (`DddPortsTestKernel`) is a strict DDD host:
+  - no Symfony Security, so the security adapters are removed from the container;
+  - a dedicated `domain` entity manager on its own connection, with XML mapping and ids only;
+  - the host's `CurrentActorProviderInterface` is its only adapter;
+  - profile selection by actor;
+  - 200 alternating actors on one kernel;
+  - the isolated action log on the dedicated manager.
+- `BlamePortsPassTest`: BC fallback and deprecations.
+
+### Documentation
+
+- USAGE has "Standard host", "DDD host" and "Action log flush mode" sections, the framework-free ports and an adapter
+  example. CONFIGURATION documents `action_log.flush_mode`. The FrankenPHP worker audit is updated.
+
 ## [1.14.1] - 2026-11-11
 
 Next patch: 1.14.1.

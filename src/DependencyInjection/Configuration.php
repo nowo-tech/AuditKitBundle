@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuditKitBundle\DependencyInjection;
 
+use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -132,6 +133,11 @@ final class Configuration implements ConfigurationInterface
                         ->booleanNode('capture_ip')
                             ->info('Store the client IP of the current request.')
                             ->defaultTrue()
+                        ->end()
+                        ->enumNode('flush_mode')
+                            ->info('Since 1.15: what recordAndFlush() / recordIdsAndFlush() flush. "host" (default, the behaviour of earlier versions): the entity manager that maps the action log class, with every pending change of the application. "isolated": only the new row, through a short-lived entity manager of the bundle on the same connection; the application unit of work is neither flushed nor cleared.')
+                            ->values([ActionLogRecorder::FLUSH_HOST, ActionLogRecorder::FLUSH_ISOLATED])
+                            ->defaultValue(ActionLogRecorder::FLUSH_HOST)
                         ->end()
                         ->arrayNode('purge')
                             ->addDefaultsIfNotSet()

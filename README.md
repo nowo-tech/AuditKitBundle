@@ -82,7 +82,7 @@ make release-check
 
 - [Installation](docs/INSTALLATION.md)
 - [Configuration](docs/CONFIGURATION.md)
-- [Usage](docs/USAGE.md)
+- [Usage](docs/USAGE.md) ([Standard host](docs/USAGE.md#standard-host), [DDD host](docs/USAGE.md#ddd-host), [action log flush mode](docs/USAGE.md#action-log-flush-mode-since-115))
 - [Contributing](docs/CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](docs/CHANGELOG.md)

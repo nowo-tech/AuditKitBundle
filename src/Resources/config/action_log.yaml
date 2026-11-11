@@ -12,6 +12,7 @@ services:
             $entityClass: '%nowo_audit_kit.action_log.entity_class%'
             $scopeContextKey: '%nowo_audit_kit.action_log.scope_context_key%'
             $captureIp: '%nowo_audit_kit.action_log.capture_ip%'
+            $flushMode: '%nowo_audit_kit.action_log.flush_mode%'
 
     Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand:
         arguments:

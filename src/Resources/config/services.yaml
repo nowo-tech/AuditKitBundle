@@ -36,8 +36,15 @@ services:
     Nowo\AuditKitBundle\Security\CurrentUserResolverInterface: '@Nowo\AuditKitBundle\Security\CurrentUserResolver'
     Nowo\AuditKitBundle\Blame\BlameValueResolverInterface: '@Nowo\AuditKitBundle\Blame\EntityReferenceBlameValueResolver'
 
+    # Since 1.15: framework-free ports (actor by id + profile name; blame id with blame_mode "id").
+    Nowo\AuditKitBundle\Security\CurrentActorProviderInterface: '@Nowo\AuditKitBundle\Security\SecurityCurrentActorProvider'
+    Nowo\AuditKitBundle\Blame\BlameIdResolverInterface: '@Nowo\AuditKitBundle\Blame\ActorIdBlameIdResolver'
+
     # Kept registered in the entity listener resolver for entities mapping it via #[ORM\EntityListeners].
+    # $blameIdResolver is wired by the extension with blame_mode "id" only.
     Nowo\AuditKitBundle\Doctrine\AuditableEntityListener:
+        arguments:
+            $blameIdResolver: null
         tags:
             - { name: doctrine.orm.entity_listener, lazy: true }
 
