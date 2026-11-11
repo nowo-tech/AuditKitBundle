@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuditKitBundle\Tests\Integration\Kernel;
 
+use Closure;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
@@ -16,7 +17,10 @@ final class TwigKernel extends Kernel
 {
     use MicroKernelTrait;
 
-    public function __construct(private readonly string $projectDir, private readonly string $cacheKey)
+    /**
+     * @param (Closure(ContainerBuilder): void)|null $configure extra container configuration
+     */
+    public function __construct(private readonly string $projectDir, private readonly string $cacheKey, private readonly ?Closure $configure = null)
     {
         parent::__construct('test', false);
     }
@@ -55,5 +59,8 @@ final class TwigKernel extends Kernel
         $container->loadFromExtension('nowo_audit_kit', [
             'user_class' => Entity\KernelUser::class,
         ]);
+        if ($this->configure instanceof Closure) {
+            ($this->configure)($container);
+        }
     }
 }

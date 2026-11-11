@@ -11,6 +11,7 @@ use Throwable;
 
 use function array_column;
 use function array_key_exists;
+use function count;
 use function is_string;
 
 /**
@@ -18,7 +19,13 @@ use function is_string;
  * seen yet in ONE {@see ActionLogAvatarResolverInterface::urlsFor()} call; {@see urlOf()} returns the memoised,
  * sanitised URL (a miss primes that one user). Every URL goes through {@see AvatarUrlPolicy}; a rejected one becomes
  * null (a debug line names the key, never the URL). A resolver that throws gives null for the whole batch and a
- * warning: a broken picture service never breaks the timeline. Reset by `kernel.reset` (long-running workers).
+ * warning: a broken picture service never breaks the timeline.
+ *
+ * Long-running workers (kernel reset false): the memo belongs to one unit of work. Since 1.14.1
+ * {@see ActionLogAvatarsResetSubscriber} empties it at the start and end of every main request, of every Messenger
+ * message and at `console.terminate`; `kernel.reset` still empties it too. Within one unit it holds at most
+ * {@see self::MAX_MEMOISED} users (plus the users of the batch being primed): when a new batch would go over, the memo
+ * starts again, so a long command rendering many timelines does not grow without bound.
  *
  * @internal used by the Twig functions `nowo_audit_kit_prime_avatars()` / `nowo_audit_kit_avatar_url()`
  */
@@ -26,6 +33,9 @@ final class ActionLogAvatars implements ResetInterface
 {
     /** CSS px of the timeline avatar (UiKit size `sm`). */
     public const SIZE = 24;
+
+    /** Since 1.14.1: most users memoised at once; a batch that would go over starts the memo again. */
+    public const MAX_MEMOISED = 1000;
 
     /** @var array<array-key, string|null> key => sanitised URL (numeric keys are ints) */
     private array $urls = [];
@@ -80,6 +90,10 @@ final class ActionLogAvatars implements ResetInterface
         } catch (Throwable $e) {
             $this->logger?->warning('AuditKit avatar resolver failed; the timeline shows no pictures.', ['exception' => $e]);
             $resolved = [];
+        }
+
+        if (count($this->urls) + count($batch) > self::MAX_MEMOISED) {
+            $this->urls = [];
         }
 
         // The key is read from the pair: an array key would be an int for numeric ids.

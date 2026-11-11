@@ -83,6 +83,40 @@ final class ActionLogAvatarsTest extends TestCase
         $this->assertNull($silent->urlOf($this->user(1)));
     }
 
+    public function testTheMemoIsBoundedAndStartsAgainWhenABatchWouldGoOver(): void
+    {
+        $resolver = new CountingAvatarResolver();
+        $avatars  = new ActionLogAvatars($resolver);
+
+        $first = [];
+        for ($id = 1; $id <= ActionLogAvatars::MAX_MEMOISED; ++$id) {
+            $first[] = $this->user($id);
+        }
+        $avatars->prime($first);
+        $avatars->prime([$this->user(1)]);
+        $this->assertSame(1, $this->callCount($resolver), 'Full memo, every user known: no new call.');
+
+        // One more user would go over the bound: the memo starts again with that batch only.
+        $avatars->prime([$this->user(ActionLogAvatars::MAX_MEMOISED + 1)]);
+        $this->assertSame(2, $this->callCount($resolver));
+        $avatars->prime([$this->user(ActionLogAvatars::MAX_MEMOISED + 1)]);
+        $this->assertSame(2, $this->callCount($resolver), 'The new batch is memoised.');
+        $avatars->prime([$this->user(1)]);
+        $this->assertSame(3, $this->callCount($resolver), 'Users of the dropped memo are resolved again.');
+    }
+
+    public function testResetEmptiesTheMemo(): void
+    {
+        $resolver = new CountingAvatarResolver(['1' => '/files/1/s64']);
+        $avatars  = new ActionLogAvatars($resolver);
+        $this->assertSame('/files/1/s64', $avatars->urlOf($this->user(1)));
+
+        $avatars->reset();
+
+        $this->assertSame('/files/1/s64', $avatars->urlOf($this->user(1)));
+        $this->assertSame(2, $this->callCount($resolver), 'After reset() the user is resolved again.');
+    }
+
     private function user(?int $id): KernelUser
     {
         $user     = new KernelUser('user' . $id . '@example.com');
