@@ -5,7 +5,6 @@
 - [Unreleased](#unreleased)
 - [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
-- [To 1.13.0](#to-1130-1)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.0](#to-1100)
@@ -66,14 +65,6 @@ the 1.13 behaviour (blame relations to `user_class`, `AbstractActionLog` with re
   `ActionLogIdRecorderInterface::recordIds()`, and `action_log.mapping: xml`. See USAGE, "Using it from a DDD /
   hexagonal application". Moving an existing action log table from relations to ids needs your own migration (drop
   the foreign keys and widen `actor_id` / `subject_id` to strings).
-
-## To 1.13.0
-
-From **1.12.0**:
-
-```bash
-composer update nowo-tech/audit-kit-bundle
-```
 
 ## To 1.13.0
 
