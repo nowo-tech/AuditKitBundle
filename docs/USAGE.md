@@ -603,6 +603,10 @@ final class DoctrineAuditTrail implements AuditTrail   // your own port
   user without `getId()` such as `InMemoryUser`, means "no user": an object's own `__toString()` is never used, so
   the user identifier (often an e-mail address) is never written. `null`, `''`, `'0'`, zero and negative ints also
   mean "no user". Values are stored verbatim (no trim, no case folding).
+- A `Stringable` id value object passed **directly** (`setActorId(new UserId('u-42'))`, `recordIds($userId)`, a
+  criteria filter) also means "no actor", silently: pass `$userId->toString()` (or the user object whose `getId()`
+  returns it). The same value object returned by a user's `getId()` is accepted, for the action log and for
+  `blame_mode: id`.
 - `recordIds()` also works on the standard path: the ids become Doctrine references to the actor / subject target
   entity. `record()` with an `AbstractIdActionLog` class throws a `LogicException` pointing to `recordIds()`.
 - `ActionLogRepository` (`new ActionLogRepository($registry, AuditEntry::class)` or a subclass) filters by the stored

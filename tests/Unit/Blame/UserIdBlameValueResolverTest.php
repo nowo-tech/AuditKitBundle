@@ -11,6 +11,7 @@ use Nowo\AuditKitBundle\Security\CurrentUserResolverInterface;
 use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\SecurityUser;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use PHPUnit\Framework\TestCase;
+use Stringable;
 use Symfony\Component\Security\Core\User\InMemoryUser;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
@@ -39,6 +40,38 @@ final class UserIdBlameValueResolverTest extends TestCase
         $this->assertNull($this->resolver(null)->resolve($this->profile(UserInterface::class), $this->createStub(ObjectManager::class)));
         // InMemoryUser has no getId(): its identifier (an e-mail address here) is never used.
         $this->assertNull($this->resolver(new InMemoryUser('bob@example.com', null))->resolve($this->profile(UserInterface::class), $this->createStub(ObjectManager::class)));
+    }
+
+    /** LQ-A-D-L1: a DDD security user whose getId() returns a Stringable UserId value object is blamed. */
+    public function testValueObjectIdReturnedByGetIdIsBlamed(): void
+    {
+        $user = new class implements UserInterface {
+            public function getId(): Stringable
+            {
+                return new class implements Stringable {
+                    public function __toString(): string
+                    {
+                        return 'u-42';
+                    }
+                };
+            }
+
+            public function getRoles(): array
+            {
+                return [];
+            }
+
+            public function eraseCredentials(): void
+            {
+            }
+
+            public function getUserIdentifier(): string
+            {
+                return 'dora@example.com';
+            }
+        };
+
+        $this->assertSame('u-42', $this->resolver($user)->resolve($this->profile(UserInterface::class), $this->createStub(ObjectManager::class)));
     }
 
     private function resolver(?UserInterface $user): UserIdBlameValueResolver

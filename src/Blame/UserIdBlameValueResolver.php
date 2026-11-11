@@ -35,6 +35,7 @@ final readonly class UserIdBlameValueResolver implements BlameValueResolverInter
         }
 
         // Only getId(): a user's __toString() is often its e-mail address.
-        return method_exists($user, 'getId') ? ReferenceId::of($user->getId()) : null;
+        // The object path: getId() may return a scalar, a Uid or a Stringable id value object (DDD UserId).
+        return method_exists($user, 'getId') ? ReferenceId::of($user) : null;
     }
 }
