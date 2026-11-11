@@ -146,6 +146,48 @@ final class ActionLogFlushIsolationTest extends TestCase
         $this->assertTrue($this->em->getUnitOfWork()->isScheduledForInsert($carol));
     }
 
+    /**
+     * MK-B-L5: a persisted, not yet flushed actor whose id is already set (an assigned id such as a UUID) is not
+     * stored either; a detached one is not known to exist. Both throw and nothing is written.
+     */
+    public function testIsolatedModeRejectsAssignedIdActorsNotFlushedYetAndDetachedOnes(): void
+    {
+        $this->boot(ActionLogRecorder::FLUSH_ISOLATED);
+        $dave     = new KernelUser('dave@example.com');
+        $dave->id = 999;   // assigned before flush, like a UUID set in the constructor
+        $this->em->persist($dave);
+
+        try {
+            $this->recorder->recordAndFlush('item.viewed', $dave);
+            $this->fail('A persisted but unflushed actor with an assigned id must not be referenced.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('must already be stored', $e->getMessage());
+        }
+
+        try {
+            $this->recorder->recordAndFlush('item.viewed', null, new KernelUser('erin@example.com'));
+            $this->fail('A new, unpersisted subject must not be referenced.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('must already be stored', $e->getMessage());
+        }
+
+        $this->em->detach($this->bob);
+        try {
+            $this->recorder->recordAndFlush('item.viewed', $this->bob);
+            $this->fail('A detached actor must not be referenced.');
+        } catch (LogicException $e) {
+            $this->assertStringContainsString('must already be stored', $e->getMessage());
+        }
+
+        $this->assertSame(0, $this->actionLogCount());
+        $this->assertSame(0, (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM kernel_user WHERE id = 999'));
+        $this->assertTrue($this->em->getUnitOfWork()->isScheduledForInsert($dave));
+
+        // A managed, stored actor still works.
+        $this->recorder->recordAndFlush('item.viewed', $this->alice);
+        $this->assertSame(1, $this->actionLogCount());
+    }
+
     /** Kept-alive kernel (REQ-RUNTIME-002): repeated isolated writes keep the host unit of work and memory flat. */
     public function testRepeatedIsolatedWritesKeepTheHostUnitOfWorkAndMemoryFlat(): void
     {

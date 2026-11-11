@@ -8,6 +8,7 @@ use BackedEnum;
 use Doctrine\Common\EventManager;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\UnitOfWork;
 use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
 use LogicException;
@@ -210,7 +211,11 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
     /**
      * Since 1.15 ({@see FLUSH_ISOLATED}): a reference of the bundle entity manager to the stored actor / subject entity.
      *
-     * @throws LogicException when the entity is not an instance of the association target or has no identifier yet
+     * Only an entity the host entity manager manages and has already written (not scheduled for insertion) counts as
+     * stored: a persisted entity with an assigned id (UUID) may not exist in the database yet, and a detached or new
+     * one is not known to exist.
+     *
+     * @throws LogicException when the entity is not an instance of the association target or is not stored yet
      */
     private function isolatedReference(EntityManagerInterface $own, EntityManagerInterface $host, string $association, ?object $user): ?object
     {
@@ -223,9 +228,12 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             throw new LogicException(sprintf('The action log %s must be an instance of "%s", "%s" given.', $association, $target, $user::class));
         }
 
-        $id = $host->getClassMetadata($target)->getIdentifierValues($user);
-        if ($id === [] || in_array(null, $id, true)) {
-            throw new LogicException(sprintf('With "nowo_audit_kit.action_log.flush_mode: isolated" the action log %s must already be stored (it has no identifier yet): flush it first, or call record() and flush yourself.', $association));
+        $uow = $host->getUnitOfWork();
+        $id  = $host->getClassMetadata($target)->getIdentifierValues($user);
+        if ($id === [] || in_array(null, $id, true)
+            || $uow->getEntityState($user, UnitOfWork::STATE_NEW) !== UnitOfWork::STATE_MANAGED
+            || $uow->isScheduledForInsert($user)) {
+            throw new LogicException(sprintf('With "nowo_audit_kit.action_log.flush_mode: isolated" the action log %s must already be stored and managed by the entity manager (it is new, detached or not flushed yet): flush it first, or call record() and flush yourself.', $association));
         }
 
         return $own->getReference($target, $id);

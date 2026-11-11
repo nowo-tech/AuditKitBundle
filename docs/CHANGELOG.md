@@ -67,6 +67,12 @@ flush. Standard hosts need no change; nothing changes until a host opts in. See 
     which is cleared and closed in the call.
   - The application's pending inserts and updates are neither flushed nor cleared.
   - The default, `host`, keeps the earlier behaviour (the whole entity manager is flushed).
+  - Actor / subject must be managed and already flushed: a new, detached or persisted-but-unflushed user (also one
+    with an assigned id) throws a `LogicException`.
+  - On DBAL 3 enable savepoints (`use_savepoints: true`): without them a failed isolated write inside a host
+    transaction marks it rollback-only.
+  - REQ-ARCH-001 rule 6 is therefore opt-in in 1.x; switching the default to `isolated` in 2.0 is planned, pending
+    the owner's decision.
 - `AuditableEntityListener` accepts `?CurrentUserResolverInterface` (null when an actor provider is given) and the new
   optional `$currentActorProvider` / `$blameIdResolver` arguments.
 
@@ -89,7 +95,7 @@ flush. Standard hosts need no change; nothing changes until a host opts in. See 
   - `isolated` mode leaves a pending insert and a pending update unflushed, keeps the identity map and keeps the
     entity manager open;
   - the row follows a host transaction rollback;
-  - unflushed or wrong-class users throw;
+  - unflushed (also with an assigned id), detached or wrong-class users throw;
   - 550 isolated writes keep the unit of work and memory flat.
 - `DddPortsHostIntegrationTest` (`DddPortsTestKernel`) is a strict DDD host:
   - no Symfony Security, so the security adapters are removed from the container;

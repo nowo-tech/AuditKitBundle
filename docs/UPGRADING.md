@@ -98,6 +98,16 @@ action log class by default, with every pending change of your unit of work. Set
   call `flush()` itself.
 - Actor / subject entities must already be stored.
 - The returned row is detached.
+- Actor / subject must be managed by your entity manager and already flushed (a persisted user with an assigned id
+  that is not flushed yet, or a detached one, throws).
+- On DBAL 3, enable `use_savepoints: true` on the connection: otherwise a failed isolated write inside your own
+  transaction marks it rollback-only.
+- REQ-ARCH-001 rule 6 is opt-in in 1.x. Switching the default to `isolated` in 2.0 is planned, pending the owner's
+  decision.
+
+**Reference mode with your own actor port:** if you alias only `CurrentActorProviderInterface` while keeping
+`blame_mode: reference`, it selects the profile but blame still comes from `CurrentUserResolverInterface`. Keep the
+two in agreement, or alias the blame ports too.
 
 **Constructor change (direct instantiation only):** `AuditableEntityListener::__construct()` now takes
 `?CurrentUserResolverInterface` and two new optional trailing arguments, `$currentActorProvider` and `$blameIdResolver`.

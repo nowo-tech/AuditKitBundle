@@ -674,6 +674,11 @@ services:
 - `AuditActor::$id` follows the `ReferenceId` rules (`''` and `'0'` mean "not blamed").
 - Read the actor per call: the listener is a shared service in FrankenPHP worker mode.
 - Without your alias, the defaults write exactly what 1.14 wrote (tested for equivalence).
+- With `blame_mode: reference` (the standard path) your `CurrentActorProviderInterface` selects the profile, but the
+  blame reference is still built from `CurrentUserResolverInterface` (the security user). If you alias only the actor
+  port, keep the two in agreement (same person, a profile whose `user_class` that user is an instance of), or alias
+  `CurrentUserResolverInterface` / `BlameValueResolverInterface` as well. With `blame_mode: id` the actor port alone
+  is enough.
 - In id mode, an alias of `CurrentUserResolverInterface` or `BlameValueResolverInterface` still works but is
   deprecated (see [UPGRADING](UPGRADING.md#unreleased)).
 
@@ -707,9 +712,17 @@ nowo_audit_kit:
   manager), which is flushed, cleared and closed in the call. Your pending inserts and updates are neither flushed nor
   cleared; your entity manager stays open.
 - Inside a transaction you opened on the same connection, the row commits or rolls back with it.
-- Actor / subject entities must already be stored (they are referenced by id); a new, unflushed user throws a
+- Actor / subject entities must already be stored and managed by your entity manager (they are referenced by id). A
+  new user, a persisted user not flushed yet (also with an assigned id such as a UUID) or a detached one throws a
   `LogicException`. The returned row is detached.
+- **Transactions and savepoints.** If the isolated flush fails while a transaction you opened on the same connection
+  is active, the nested transaction is rolled back. On DBAL 3 without savepoints this marks your outer transaction
+  rollback-only: its commit then fails. Enable savepoints (`doctrine.dbal.connections.<name>.use_savepoints: true`;
+  always on with DBAL 4) so only the action log write is rolled back. The bundle does not change your connection
+  settings.
 - `record()` / `recordIds()` never flush: persist the row and flush with your own changes.
+- **REQ-ARCH-001 rule 6 is opt-in in 1.x.** The default `host` mode flushes your entity manager, as before, for
+  backward compatibility. Switching the default to `isolated` in 2.0 is planned, pending the owner's decision.
 
 **Your security user is not the Doctrine user entity (since 1.12)**
 
@@ -769,7 +782,8 @@ services:
 - The reference path (`blame_mode: reference`) still uses `CurrentUserResolverInterface` and
   `BlameValueResolverInterface` (Symfony `UserInterface`, Doctrine `ObjectManager`) for blame; the framework-free
   ports drive the id path. `CurrentActorProviderInterface` selects the profile on both paths.
-- `action_log.flush_mode` defaults to `host` (flushes your pending changes) for backward compatibility.
+- `action_log.flush_mode` defaults to `host` (flushes your pending changes) for backward compatibility: REQ-ARCH-001
+  rule 6 is opt-in in 1.x; switching the default to `isolated` in 2.0 is planned, pending the owner's decision.
 - No events are dispatched when audit fields are written or an action is recorded.
 - `#[Auditable]` alone opts a class in only with `attribute_opt_in: true` (default `false` until 2.0); use
   `auditable_entities` meanwhile.
