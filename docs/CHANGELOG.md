@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.0] - 2026-11-11](#1150---2026-11-11)
 - [[1.14.1] - 2026-11-11](#1141---2026-11-11)
 - [[1.14.0] - 2026-11-11](#1140---2026-11-11)
 - [[1.13.0] - 2026-11-10](#1130---2026-11-10)
@@ -47,6 +48,8 @@ All notable changes to this project will be documented in this file.
 - [[1.0.0] - 2026-07-14](#100---2026-07-14)
 
 ## [Unreleased]
+
+## [1.15.0] - 2026-11-11
 
 Next minor: 1.15.0. REQ-ARCH-001 rules 3 and 6: framework-free ports for `blame_mode: id` and an isolated action log
 flush. Standard hosts need no change; nothing changes until a host opts in. See [UPGRADING](UPGRADING.md#unreleased).
@@ -110,6 +113,8 @@ flush. Standard hosts need no change; nothing changes until a host opts in. See 
 
 - USAGE has "Standard host", "DDD host" and "Action log flush mode" sections, the framework-free ports and an adapter
   example. CONFIGURATION documents `action_log.flush_mode`. The FrankenPHP worker audit is updated.
+
+[1.15.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.15.0
 
 ## [1.14.1] - 2026-11-11
 

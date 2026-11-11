@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.15.0](#to-1150)
 - [To 1.14.1](#to-1141)
 - [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
@@ -46,6 +47,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.15.0
+
+From **1.14.1**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 Target **1.15.0**, from **1.14.x**:
 
