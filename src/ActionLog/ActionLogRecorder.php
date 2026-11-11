@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\ActionLog;
 
 use BackedEnum;
+use Doctrine\Common\EventManager;
+use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
+use InvalidArgumentException;
 use LogicException;
 use Nowo\AuditKitBundle\Model\ReferenceId;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
+use function in_array;
 use function is_int;
 use function is_string;
 use function sprintf;
@@ -26,12 +30,25 @@ use function strlen;
  *
  * Since 1.14 {@see recordIds()} records by user id, with an {@see AbstractIdActionLog} (ids stored as they are) or an
  * {@see AbstractActionLog} (ids turned into references). {@see record()} needs an {@see AbstractActionLog} class.
+ *
+ * Since 1.15, with `action_log.flush_mode: isolated` ({@see FLUSH_ISOLATED}), the two `*AndFlush()` methods write
+ * only the new row, through a short-lived entity manager of the bundle on the same connection, configuration and
+ * event manager: the application's unit of work is neither flushed nor cleared, and the returned row is detached.
+ * Actor and subject entities must then already be stored (they are referenced by id). The default
+ * ({@see FLUSH_HOST}) keeps the behaviour of earlier versions.
  */
 final readonly class ActionLogRecorder implements ActionLogRecorderInterface, ActionLogIdRecorderInterface
 {
+    /** `*AndFlush()` flush the entity manager that maps the action log class (every pending change). */
+    public const FLUSH_HOST = 'host';
+
+    /** Since 1.15: `*AndFlush()` write only the new row through a bundle-owned entity manager. */
+    public const FLUSH_ISOLATED = 'isolated';
+
     /**
      * @param class-string<AbstractActionLog>|class-string<AbstractIdActionLog> $entityClass
      * @param string|null $scopeContextKey context key copied into `scope` when no scope is given
+     * @param string $flushMode since 1.15: {@see FLUSH_HOST} or {@see FLUSH_ISOLATED}
      */
     public function __construct(
         private ManagerRegistry $registry,
@@ -39,7 +56,11 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         private string $entityClass,
         private ?string $scopeContextKey = null,
         private bool $captureIp = true,
+        private string $flushMode = self::FLUSH_HOST,
     ) {
+        if ($flushMode !== self::FLUSH_HOST && $flushMode !== self::FLUSH_ISOLATED) {
+            throw new InvalidArgumentException(sprintf('Unknown action log flush mode "%s" (expected "%s" or "%s").', $flushMode, self::FLUSH_HOST, self::FLUSH_ISOLATED));
+        }
     }
 
     /**
@@ -54,15 +75,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         array $context = [],
         ?string $scope = null,
     ): AbstractActionLog {
-        $entry = new ($this->entityClass)();
-        if (!$entry instanceof AbstractActionLog) {
-            throw new LogicException(sprintf('The action log class "%s" references users by id: record rows with %s::recordIds().', $this->entityClass, ActionLogIdRecorderInterface::class));
-        }
-
-        $entry->setActor($actor);
-        $entry->setSubject($subject);
-
-        return $this->persist($entry, $action, $context, $scope);
+        return $this->persist($this->entityManager(), $this->newObjectEntry($actor, $subject), $action, $context, $scope);
     }
 
     /**
@@ -77,6 +90,14 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         array $context = [],
         ?string $scope = null,
     ): AbstractActionLog {
+        if ($this->flushMode === self::FLUSH_ISOLATED) {
+            return $this->isolated(function (EntityManagerInterface $own, EntityManagerInterface $host) use ($action, $actor, $subject, $context, $scope): AbstractActionLog {
+                $entry = $this->newObjectEntry($this->isolatedReference($own, $host, 'actor', $actor), $this->isolatedReference($own, $host, 'subject', $subject));
+
+                return $this->persist($own, $entry, $action, $context, $scope);
+            });
+        }
+
         $entry = $this->record($action, $actor, $subject, $context, $scope);
         $this->entityManager()->flush();
 
@@ -95,16 +116,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         array $context = [],
         ?string $scope = null,
     ): ActionLogEntryInterface {
-        $entry = new ($this->entityClass)();
-        if ($entry instanceof AbstractIdActionLog) {
-            $entry->setActorId($actorId);
-            $entry->setSubjectId($subjectId);
-        } else {
-            $entry->setActor($this->userReference('actor', $actorId));
-            $entry->setSubject($this->userReference('subject', $subjectId));
-        }
-
-        return $this->persist($entry, $action, $context, $scope);
+        return $this->persistIds($this->entityManager(), $action, $actorId, $subjectId, $context, $scope);
     }
 
     /**
@@ -119,6 +131,10 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         array $context = [],
         ?string $scope = null,
     ): ActionLogEntryInterface {
+        if ($this->flushMode === self::FLUSH_ISOLATED) {
+            return $this->isolated(fn (EntityManagerInterface $own): ActionLogEntryInterface => $this->persistIds($own, $action, $actorId, $subjectId, $context, $scope));
+        }
+
         $entry = $this->recordIds($action, $actorId, $subjectId, $context, $scope);
         $this->entityManager()->flush();
 
@@ -131,6 +147,90 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         return $this->entityClass;
     }
 
+    private function newObjectEntry(?object $actor, ?object $subject): AbstractActionLog
+    {
+        $entry = new ($this->entityClass)();
+        if (!$entry instanceof AbstractActionLog) {
+            throw new LogicException(sprintf('The action log class "%s" references users by id: record rows with %s::recordIds().', $this->entityClass, ActionLogIdRecorderInterface::class));
+        }
+
+        $entry->setActor($actor);
+        $entry->setSubject($subject);
+
+        return $entry;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function persistIds(EntityManagerInterface $manager, string|BackedEnum $action, mixed $actorId, mixed $subjectId, array $context, ?string $scope): ActionLogEntryInterface
+    {
+        $entry = new ($this->entityClass)();
+        if ($entry instanceof AbstractIdActionLog) {
+            $entry->setActorId($actorId);
+            $entry->setSubjectId($subjectId);
+        } else {
+            $entry->setActor($this->userReference($manager, 'actor', $actorId));
+            $entry->setSubject($this->userReference($manager, 'subject', $subjectId));
+        }
+
+        return $this->persist($manager, $entry, $action, $context, $scope);
+    }
+
+    /**
+     * Since 1.15 ({@see FLUSH_ISOLATED}): runs $write on a new entity manager sharing the connection, configuration and
+     * event manager of the one that maps the action log class, flushes it, then clears and closes it. The application
+     * entity manager is never flushed nor cleared. Inside an open transaction of the connection the row commits or
+     * rolls back with it.
+     *
+     * @template E of ActionLogEntryInterface
+     *
+     * @param callable(EntityManagerInterface, EntityManagerInterface): E $write
+     *
+     * @return E
+     */
+    private function isolated(callable $write): ActionLogEntryInterface
+    {
+        $host   = $this->entityManager();
+        $events = $host->getEventManager();
+        $own    = new EntityManager($host->getConnection(), $host->getConfiguration(), $events instanceof EventManager ? $events : null);
+
+        try {
+            $entry = $write($own, $host);
+            $own->flush();
+
+            return $entry;
+        } finally {
+            // Never keep managed entities across calls (worker mode, REQ-RUNTIME-002 rule 4).
+            $own->clear();
+            $own->close();
+        }
+    }
+
+    /**
+     * Since 1.15 ({@see FLUSH_ISOLATED}): a reference of the bundle entity manager to the stored actor / subject entity.
+     *
+     * @throws LogicException when the entity is not an instance of the association target or has no identifier yet
+     */
+    private function isolatedReference(EntityManagerInterface $own, EntityManagerInterface $host, string $association, ?object $user): ?object
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $target = $own->getClassMetadata($this->entityClass)->getAssociationTargetClass($association);
+        if (!$user instanceof $target) {
+            throw new LogicException(sprintf('The action log %s must be an instance of "%s", "%s" given.', $association, $target, $user::class));
+        }
+
+        $id = $host->getClassMetadata($target)->getIdentifierValues($user);
+        if ($id === [] || in_array(null, $id, true)) {
+            throw new LogicException(sprintf('With "nowo_audit_kit.action_log.flush_mode: isolated" the action log %s must already be stored (it has no identifier yet): flush it first, or call record() and flush yourself.', $association));
+        }
+
+        return $own->getReference($target, $id);
+    }
+
     /**
      * @template E of AbstractActionLog|AbstractIdActionLog
      *
@@ -139,7 +239,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      *
      * @return E
      */
-    private function persist(AbstractActionLog|AbstractIdActionLog $entry, string|BackedEnum $action, array $context, ?string $scope): AbstractActionLog|AbstractIdActionLog
+    private function persist(EntityManagerInterface $manager, AbstractActionLog|AbstractIdActionLog $entry, string|BackedEnum $action, array $context, ?string $scope): AbstractActionLog|AbstractIdActionLog
     {
         $entry->setAction($action);
         $entry->setContext($context);
@@ -152,20 +252,18 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             }
         }
 
-        $this->entityManager()->persist($entry);
+        $manager->persist($entry);
 
         return $entry;
     }
 
     /** Doctrine reference to the target entity of the `actor` / `subject` association, or null for "no user". */
-    private function userReference(string $association, mixed $id): ?object
+    private function userReference(EntityManagerInterface $manager, string $association, mixed $id): ?object
     {
         $id = ReferenceId::of($id);
         if ($id === null) {
             return null;
         }
-
-        $manager = $this->entityManager();
 
         return $manager->getReference($manager->getClassMetadata($this->entityClass)->getAssociationTargetClass($association), $id);
     }

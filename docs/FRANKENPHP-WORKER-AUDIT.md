@@ -7,6 +7,7 @@
 | Audit date | 2026-11-11 (first audit 2026-09-24) |
 | Method | Manual review of every file under `src/` (Doctrine entity listener, property resolver, profile registry, user resolver, DI extension, config) + PHPStan FrankenPHP classic/worker rulesets |
 | **Verdict** | ✅ **Compatible with scenario B, kernel reset false (REQ-RUNTIME-002)** — services are effectively request-safe; the timeline avatar memo is emptied by the bundle at every unit-of-work boundary (W-04, since 1.14.1); blame ignores leftover tokens unless the current main request passed a firewall with security enabled; blame references use the event `ObjectManager` |
+| 1.15 additions | Framework-free ports (`SecurityCurrentActorProvider`, `ActorIdBlameIdResolver`: stateless, read per event) and the isolated action log flush (per-call entity manager, cleared and closed). Tests: `AuditableEntityListenerIdPortsTest::testAlternatingUsersOnOneListenerNeverLeak` (700 alternating writes, one listener), `DddPortsHostIntegrationTest::testAlternatingActorsOnOneKernelNeverLeak` (200 alternating actors, one kernel), `ActionLogFlushIsolationTest::testRepeatedIsolatedWritesKeepTheHostUnitOfWorkAndMemoryFlat` (550 writes, host unit of work unchanged, < 2 MiB growth) |
 | Remediation | W-01: `CurrentUserResolver` firewall guard (`RequestStack` + `@?security.firewall.map`). W-02: prefer `$event->getObjectManager()` for `getReference()`. Tests: `CurrentUserResolverWorkerTest`, `AuditableEntityListenerTest::testSecondRequestOutsideFirewallIsNotBlamedOnPreviousUser`. W-04 (1.14.1): `ActionLogAvatarsResetSubscriber` + bound; test `ActionLogAvatarsWorkerTest` |
 
 ## Table of contents
@@ -61,6 +62,8 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 | `Nowo\AuditKitBundle\Profile\ProfileRegistry` | yes | `$resolveCache` (class-string → profile), bounded | ✅ | ✅ |
 | `Nowo\AuditKitBundle\Doctrine\AuditablePropertyResolver` (decisions) | yes | `$decisions` / `$warned` (class-keyed, bounded by mapped classes, no user data) | ✅ | ✅ |
 | `Nowo\AuditKitBundle\ActionLog\ActionLogRecorder`, blame value resolvers, `PublicUuidListener` | yes | none (`readonly`) | ✅ | ✅ |
+| `Nowo\AuditKitBundle\Security\SecurityCurrentActorProvider`, `Nowo\AuditKitBundle\Blame\ActorIdBlameIdResolver` (since 1.15) | yes | none (`readonly`; the actor is read per Doctrine event) | ✅ | ✅ |
+| `ActionLogRecorder` with `action_log.flush_mode: isolated` (since 1.15) | yes | none: the bundle entity manager is created per call, then flushed, cleared and closed in a `finally` (REQ-RUNTIME-002 rule 4); no managed entity outlives the call | ✅ | ✅ |
 | `Nowo\AuditKitBundle\Avatar\ActionLogAvatars` (Twig `nowo_audit_kit_avatar_url()` / `nowo_audit_kit_prime_avatars()`) | yes | `$urls` (user key → sanitised URL), per unit of work, ≤ 1,000 users | ✅ `kernel.reset` | ✅ since 1.14.1 (W-04) |
 | `Nowo\AuditKitBundle\Avatar\ActionLogAvatarsResetSubscriber` | yes | none (`readonly`) | ✅ | ✅ |
 | `Nowo\AuditKitBundle\Twig\ActionLogAvatarExtension` | yes | none (`readonly`) | ✅ | ✅ |

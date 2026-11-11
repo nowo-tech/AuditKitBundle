@@ -41,6 +41,7 @@ final class ConfigurationTest extends TestCase
             'mapping'           => 'attribute',
             'scope_context_key' => null,
             'capture_ip'        => true,
+            'flush_mode'        => 'host',
             'purge'             => ['older_than_days' => 90, 'batch_size' => 1000, 'actions' => []],
         ], $config['action_log']);
     }

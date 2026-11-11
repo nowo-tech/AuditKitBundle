@@ -15,14 +15,17 @@ use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
 
-/** Real kernel (FrameworkBundle + DoctrineBundle on in-memory SQLite) for end-to-end persistence tests. */
+/**
+ * Real kernel (FrameworkBundle + DoctrineBundle on in-memory SQLite) for end-to-end persistence tests.
+ * Since 1.15 `$flushMode` sets `action_log.flush_mode` (one container per mode).
+ */
 final class AuditKitTestKernel extends Kernel
 {
     use MicroKernelTrait;
 
-    public function __construct()
+    public function __construct(private readonly string $flushMode = ActionLogRecorder::FLUSH_HOST)
     {
-        parent::__construct('test', false);
+        parent::__construct($flushMode === ActionLogRecorder::FLUSH_HOST ? 'test' : 'test' . $flushMode, false);
     }
 
     public function registerBundles(): iterable
@@ -39,7 +42,7 @@ final class AuditKitTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-audit-kit-test-kernel/cache';
+        return sys_get_temp_dir() . '/nowo-audit-kit-test-kernel/cache/' . $this->environment;
     }
 
     public function getLogDir(): string
@@ -74,6 +77,7 @@ final class AuditKitTestKernel extends Kernel
             'action_log'         => [
                 'entity_class'      => Entity\KernelActionLog::class,
                 'scope_context_key' => 'project_uuid',
+                'flush_mode'        => $this->flushMode,
                 'purge'             => ['older_than_days' => 30, 'batch_size' => 2, 'actions' => ['item.viewed']],
             ],
         ]);

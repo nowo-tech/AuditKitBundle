@@ -7,6 +7,7 @@ namespace Nowo\AuditKitBundle\DependencyInjection;
 use InvalidArgumentException;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
+use Nowo\AuditKitBundle\Blame\BlameIdResolverInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
@@ -18,6 +19,7 @@ use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_keys;
@@ -96,8 +98,16 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $loader->load('services.yaml');
 
         if ($config['blame_mode'] === 'id') {
-            // The host can still alias the port to its own resolver in its services configuration.
+            // Kept for hosts that type-hint the 1.14 port; the listener uses the id-only ports below (since 1.15).
             $container->setAlias(BlameValueResolverInterface::class, UserIdBlameValueResolver::class);
+
+            // Since 1.15: the framework-free ports drive id mode. No security user, no ObjectManager; the host can
+            // alias CurrentActorProviderInterface / BlameIdResolverInterface to its own services.
+            // BlamePortsPass falls back to a host BlameValueResolverInterface override (deprecated).
+            $container->getDefinition(AuditableEntityListener::class)
+                ->setArgument('$currentUserResolver', null)
+                ->setArgument('$blameValueResolver', null)
+                ->setArgument('$blameIdResolver', new Reference(BlameIdResolverInterface::class));
         }
 
         $this->loadActionLog($config['action_log'], $container);
@@ -188,7 +198,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
     /**
      * Registers the action log recorder and purge command when `action_log.entity_class` is set.
      *
-     * @param array{entity_class: ?string, register_mapping: bool, scope_context_key: ?string, capture_ip: bool, purge: array{older_than_days: int, batch_size: int, actions: list<string>}} $config
+     * @param array{entity_class: ?string, register_mapping: bool, scope_context_key: ?string, capture_ip: bool, flush_mode: string, purge: array{older_than_days: int, batch_size: int, actions: list<string>}} $config
      */
     private function loadActionLog(array $config, ContainerBuilder $container): void
     {
@@ -206,6 +216,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         $container->setParameter('nowo_audit_kit.action_log.entity_class', $entityClass);
         $container->setParameter('nowo_audit_kit.action_log.scope_context_key', $config['scope_context_key']);
         $container->setParameter('nowo_audit_kit.action_log.capture_ip', $config['capture_ip']);
+        $container->setParameter('nowo_audit_kit.action_log.flush_mode', $config['flush_mode']);
         $container->setParameter('nowo_audit_kit.action_log.purge.older_than_days', $config['purge']['older_than_days']);
         $container->setParameter('nowo_audit_kit.action_log.purge.batch_size', $config['purge']['batch_size']);
         $container->setParameter('nowo_audit_kit.action_log.purge.actions', $config['purge']['actions']);

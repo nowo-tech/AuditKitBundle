@@ -26,6 +26,9 @@
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
 - [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
+  - [Standard host](#standard-host)
+  - [DDD host](#ddd-host)
+  - [Action log flush mode (since 1.15)](#action-log-flush-mode-since-115)
 - [Related bundles](#related-bundles)
 
 ## Configuration profiles
@@ -528,14 +531,24 @@ no bundle type, no Doctrine attribute and no user entity in your domain.
 | Action log entity | extends `AbstractActionLog` (actor / subject relations) | extends `AbstractIdActionLog` (`actor_id` / `subject_id` id columns, no foreign key) |
 | Superclass mapping | attributes (`action_log.mapping: attribute`) | shipped XML (`action_log.mapping: xml`) |
 | Recording | `ActionLogRecorderInterface::record($action, $user, $subject)` | `ActionLogIdRecorderInterface::recordIds($action, $actorId, $subjectId)` |
+| Who is acting | Symfony Security token (`CurrentUserResolverInterface`, default) | your `CurrentActorProviderInterface` returning an `AuditActor` (id + profile name), since 1.15; no Symfony Security needed |
+| Blame port | `BlameValueResolverInterface` (Doctrine reference) | `BlameIdResolverInterface` (id string, no `ObjectManager`), since 1.15 |
+| Entity managers | the default one | any (a dedicated one: `register_mapping: false`) |
+| `recordAndFlush()` | flushes the entity manager (`action_log.flush_mode: host`, default) | `action_log.flush_mode: isolated` writes only the row |
 
-**Standard path (unchanged)**
+### Standard host
+
+Zero config beyond `user_class`, and unchanged by 1.15:
 
 - Apply the traits (`TimestampableTrait`, `BlameableTrait`, `PublicUuidTrait`, `CreatedAtImmutableTrait`) to your
-  Doctrine entities, extend `AbstractActionLog`, and record with user entities. Nothing to configure beyond
-  `user_class`.
+  Doctrine entities, extend `AbstractActionLog`, and record with user entities.
+- The current user comes from the Symfony Security token; blame is a Doctrine reference to `user_class`.
+- `recordAndFlush()` flushes the entity manager of the action log class, as before (see
+  [the flush mode](#action-log-flush-mode-since-115) to write only the row).
 
-**DDD path (since 1.14)**
+### DDD host
+
+Opt-in (since 1.14; framework-free ports since 1.15):
 
 ```yaml
 # config/packages/nowo_audit_kit.yaml
@@ -622,6 +635,48 @@ final class DoctrineAuditTrail implements AuditTrail   // your own port
   `vendor/nowo-tech/audit-kit-bundle/src/Resources/config/doctrine/action_log`, prefix
   `Nowo\AuditKitBundle\ActionLog`).
 
+**Framework-free ports (since 1.15)**
+
+With `blame_mode: id` the audit listener reads two ports that use no Symfony or Doctrine type. Your domain supplies
+the actor; Symfony Security is not required.
+
+| Port | Default | What it decides |
+| --- | --- | --- |
+| `Nowo\AuditKitBundle\Security\CurrentActorProviderInterface` | `SecurityCurrentActorProvider` (adapts the Symfony Security user, same rules as 1.14) | who is acting: `currentActor(): ?AuditActor` (id + profile name; null = guest) |
+| `Nowo\AuditKitBundle\Blame\BlameIdResolverInterface` | `ActorIdBlameIdResolver` (the actor id) | the id written into `created_by` / `updated_by`: `resolveBlameId(ProfileSettings, ?AuditActor): ?string` |
+
+```php
+use Nowo\AuditKitBundle\Security\AuditActor;
+use Nowo\AuditKitBundle\Security\CurrentActorProviderInterface;
+
+final class AuditActorAdapter implements CurrentActorProviderInterface   // infrastructure
+{
+    public function __construct(private CurrentUserContext $context) {}   // your own application port
+
+    public function currentActor(): ?AuditActor
+    {
+        $user = $this->context->currentUserId();                          // ?UserId
+
+        return $user === null ? null : new AuditActor($user->toString()); // profile: null = default_profile
+    }
+}
+```
+
+```yaml
+# config/services.yaml
+services:
+    Nowo\AuditKitBundle\Security\CurrentActorProviderInterface: '@App\Infrastructure\Audit\AuditActorAdapter'
+```
+
+- `AuditActor::$profile` names a `nowo_audit_kit.profiles` entry (for example an `import` profile with
+  `blameable: false` for batch jobs); null selects `default_profile`; an unknown name throws
+  `UnknownProfileException`.
+- `AuditActor::$id` follows the `ReferenceId` rules (`''` and `'0'` mean "not blamed").
+- Read the actor per call: the listener is a shared service in FrankenPHP worker mode.
+- Without your alias, the defaults write exactly what 1.14 wrote (tested for equivalence).
+- In id mode, an alias of `CurrentUserResolverInterface` or `BlameValueResolverInterface` still works but is
+  deprecated (see [UPGRADING](UPGRADING.md#unreleased)).
+
 **Mapping the traits in XML**
 
 A trait cannot carry its own XML mapping. If you keep a trait on an XML-mapped entity, map its private properties in
@@ -635,6 +690,26 @@ the entity's `.orm.xml` (columns as the default `underscore_number_aware` naming
 | `BlameableTrait` | `<many-to-one field="createdBy" target-entity="Nowo\AuditKitBundle\Model\AuditUserInterface"><join-column name="created_by_id" referenced-column-name="id" on-delete="SET NULL"/></many-to-one>` and the same for `updatedBy` / `updated_by_id` |
 
 With `blame_mode: id`, skip `BlameableTrait` (its properties are typed `?object`) and declare `?string` id columns.
+
+### Action log flush mode (since 1.15)
+
+`recordAndFlush()` / `recordIdsAndFlush()` flush the entity manager that maps the action log class: every pending
+change of your unit of work is written with the row (the behaviour of earlier versions, kept as the default). To write
+only the row, set:
+
+```yaml
+nowo_audit_kit:
+    action_log:
+        flush_mode: isolated
+```
+
+- The row is written through a short-lived entity manager of the bundle (same connection, configuration and event
+  manager), which is flushed, cleared and closed in the call. Your pending inserts and updates are neither flushed nor
+  cleared; your entity manager stays open.
+- Inside a transaction you opened on the same connection, the row commits or rolls back with it.
+- Actor / subject entities must already be stored (they are referenced by id); a new, unflushed user throws a
+  `LogicException`. The returned row is detached.
+- `record()` / `recordIds()` never flush: persist the row and flush with your own changes.
 
 **Your security user is not the Doctrine user entity (since 1.12)**
 
@@ -677,17 +752,24 @@ services:
 
 **Integration points**
 
-- Ports: `CurrentUserResolverInterface`, `BlameValueResolverInterface`, `ActionLogRecorderInterface` (since 1.12),
+- Ports: `CurrentActorProviderInterface`, `BlameIdResolverInterface` (since 1.15, framework-free),
+  `CurrentUserResolverInterface`, `BlameValueResolverInterface`, `ActionLogRecorderInterface` (since 1.12),
   `ActionLogIdRecorderInterface` (since 1.14), `ActionLogAvatarResolverInterface` (avatar URLs for the timeline).
+- Value object: `AuditActor` (since 1.15).
 - Contracts: `TimestampableInterface`, `BlameableInterface`, `AuditableInterface`, `PublicUuidInterface`.
 - Query object: `ActionLogCriteria`. It accepts user entities or ids for `actor`, `subject` and `involving`.
 - Config: `blame_mode` (since 1.14), `profiles.*` (`user_class`, `fields`, `blameable`, `timestampable`,
-  `timestamp_type`), `action_log.*` (`mapping: xml` since 1.14, `register_mapping: false` to map the superclass yourself), `auditable_entities` (since 1.13) and `#[Auditable]` with
+  `timestamp_type`), `action_log.*` (`mapping: xml` since 1.14, `register_mapping: false` to map the superclass yourself,
+  `flush_mode: isolated` since 1.15), `auditable_entities` (since 1.13) and `#[Auditable]` with
   `attribute_opt_in: true` to opt a class in without a bundle interface or trait, `#[Auditable(enabled: false)]` to opt out.
 
 **Known limitations**
 
 - `blame_mode` is global: every profile writes either entity references or ids.
+- The reference path (`blame_mode: reference`) still uses `CurrentUserResolverInterface` and
+  `BlameValueResolverInterface` (Symfony `UserInterface`, Doctrine `ObjectManager`) for blame; the framework-free
+  ports drive the id path. `CurrentActorProviderInterface` selects the profile on both paths.
+- `action_log.flush_mode` defaults to `host` (flushes your pending changes) for backward compatibility.
 - No events are dispatched when audit fields are written or an action is recorded.
 - `#[Auditable]` alone opts a class in only with `attribute_opt_in: true` (default `false` until 2.0); use
   `auditable_entities` meanwhile.

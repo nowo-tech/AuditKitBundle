@@ -47,6 +47,62 @@
 
 ## Unreleased
 
+Target **1.15.0**, from **1.14.x**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+**Standard host (`blame_mode: reference`, the default):** nothing to change. The profile is now selected through
+`CurrentActorProviderInterface`, whose default gives the same result as before.
+
+**DDD host (`blame_mode: id`):** nothing to change. The id path now runs on the framework-free ports, and the
+defaults write the same ids as 1.14. To drop the Symfony Security dependency of the audit, alias the new port:
+
+```yaml
+# config/services.yaml
+services:
+    Nowo\AuditKitBundle\Security\CurrentActorProviderInterface: '@App\Infrastructure\Audit\AuditActorAdapter'
+```
+
+**Deprecations (removal in 2.0), `blame_mode: id` only**
+
+| Deprecated (in id mode) | Replacement |
+| --- | --- |
+| alias of `Security\CurrentUserResolverInterface` (`resolve(): ?UserInterface`) | alias of `Security\CurrentActorProviderInterface` (`currentActor(): ?AuditActor`) |
+| alias of `Blame\BlameValueResolverInterface` (`resolve(ProfileSettings, ObjectManager): mixed`) | alias of `Blame\BlameIdResolverInterface` (`resolveBlameId(ProfileSettings, ?AuditActor): ?string`) |
+
+- Your override still works in 1.x; the container build triggers a deprecation.
+- 2.0 reads only the new ports in id mode.
+- Migration:
+
+```php
+// Before (1.14)
+final class MyBlame implements BlameValueResolverInterface
+{
+    public function resolve(ProfileSettings $profile, ObjectManager $objectManager): ?string { /* ... */ }
+}
+
+// After (1.15)
+final class MyBlame implements BlameIdResolverInterface
+{
+    public function resolveBlameId(ProfileSettings $profile, ?AuditActor $actor): ?string { /* ... */ }
+}
+```
+
+**Action log flush (optional):** `recordAndFlush()` / `recordIdsAndFlush()` still flush the entity manager of the
+action log class by default, with every pending change of your unit of work. Set
+`nowo_audit_kit.action_log.flush_mode: isolated` to write only the row.
+
+- Before switching, check your callers: code that changes entities and relies on `recordAndFlush()` to save them must
+  call `flush()` itself.
+- Actor / subject entities must already be stored.
+- The returned row is detached.
+
+**Constructor change (direct instantiation only):** `AuditableEntityListener::__construct()` now takes
+`?CurrentUserResolverInterface` and two new optional trailing arguments, `$currentActorProvider` and `$blameIdResolver`.
+Existing calls keep working.
+
 ## To 1.14.1
 
 From **1.14.0**:

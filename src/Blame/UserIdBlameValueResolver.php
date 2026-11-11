@@ -19,6 +19,9 @@ use function method_exists;
  * e-mail address) is never written. A user that is not an instance of the profile `user_class` (a class or an
  * interface; Symfony `UserInterface` when the profile sets none), or has no usable id, is not blamed.
  *
+ * Since 1.15 the id-mode listener uses {@see BlameIdResolverInterface} ({@see ActorIdBlameIdResolver}) instead; this
+ * class stays the `BlameValueResolverInterface` alias in id mode for hosts that type-hint it.
+ *
  * @since 1.14.0
  */
 final readonly class UserIdBlameValueResolver implements BlameValueResolverInterface

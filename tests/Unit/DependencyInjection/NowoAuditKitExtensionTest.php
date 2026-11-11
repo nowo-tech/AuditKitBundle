@@ -14,6 +14,8 @@ use Nowo\AuditKitBundle\Avatar\ActionLogAvatars;
 use Nowo\AuditKitBundle\Avatar\AuditAvatarKey;
 use Nowo\AuditKitBundle\Avatar\AvatarUrlPolicy;
 use Nowo\AuditKitBundle\Avatar\NullActionLogAvatarResolver;
+use Nowo\AuditKitBundle\Blame\ActorIdBlameIdResolver;
+use Nowo\AuditKitBundle\Blame\BlameIdResolverInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Blame\EntityReferenceBlameValueResolver;
 use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
@@ -24,8 +26,10 @@ use Nowo\AuditKitBundle\Doctrine\PublicUuidListener;
 use Nowo\AuditKitBundle\Doctrine\SqlLike;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
+use Nowo\AuditKitBundle\Security\CurrentActorProviderInterface;
 use Nowo\AuditKitBundle\Security\CurrentUserResolver;
 use Nowo\AuditKitBundle\Security\CurrentUserResolverInterface;
+use Nowo\AuditKitBundle\Security\SecurityCurrentActorProvider;
 use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\AuditEntry;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
@@ -34,6 +38,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\ExtensionInterface;
+use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 final class NowoAuditKitExtensionTest extends TestCase
@@ -238,6 +243,11 @@ final class NowoAuditKitExtensionTest extends TestCase
 
         $this->assertSame(CurrentUserResolver::class, (string) $container->getAlias(CurrentUserResolverInterface::class));
         $this->assertSame(EntityReferenceBlameValueResolver::class, (string) $container->getAlias(BlameValueResolverInterface::class));
+
+        // Since 1.15: the framework-free ports have defaults; the reference path keeps the legacy blame port.
+        $this->assertSame(SecurityCurrentActorProvider::class, (string) $container->getAlias(CurrentActorProviderInterface::class));
+        $this->assertSame(ActorIdBlameIdResolver::class, (string) $container->getAlias(BlameIdResolverInterface::class));
+        $this->assertNull($container->getDefinition(AuditableEntityListener::class)->getArgument('$blameIdResolver'));
     }
 
     public function testActionLogServicesAreOptIn(): void
@@ -267,6 +277,8 @@ final class NowoAuditKitExtensionTest extends TestCase
         $this->assertSame(KernelActionLog::class, $container->getParameter('nowo_audit_kit.action_log.entity_class'));
         $this->assertSame('project_uuid', $container->getParameter('nowo_audit_kit.action_log.scope_context_key'));
         $this->assertTrue($container->getParameter('nowo_audit_kit.action_log.capture_ip'));
+        $this->assertSame(ActionLogRecorder::FLUSH_HOST, $container->getParameter('nowo_audit_kit.action_log.flush_mode'));
+        $this->assertSame('%nowo_audit_kit.action_log.flush_mode%', $container->getDefinition(ActionLogRecorder::class)->getArgument('$flushMode'));
         $this->assertSame(['item.viewed'], $container->getParameter('nowo_audit_kit.action_log.purge.actions'));
         $this->assertSame(90, $container->getParameter('nowo_audit_kit.action_log.purge.older_than_days'));
         $this->assertSame(1000, $container->getParameter('nowo_audit_kit.action_log.purge.batch_size'));
@@ -413,6 +425,12 @@ final class NowoAuditKitExtensionTest extends TestCase
         $this->assertSame(UserInterface::class, $container->getParameter('nowo_audit_kit.user_class'));
         $this->assertSame(UserIdBlameValueResolver::class, (string) $container->getAlias(BlameValueResolverInterface::class));
         $this->assertTrue($container->hasDefinition(UserIdBlameValueResolver::class));
+
+        // Since 1.15: id mode runs on the framework-free ports only.
+        $listener = $container->getDefinition(AuditableEntityListener::class);
+        $this->assertNull($listener->getArgument('$currentUserResolver'));
+        $this->assertNull($listener->getArgument('$blameValueResolver'));
+        $this->assertEquals(new Reference(BlameIdResolverInterface::class), $listener->getArgument('$blameIdResolver'));
     }
 
     public function testBlameModeIdKeepsAnExplicitUserClassOrInterface(): void

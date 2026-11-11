@@ -24,7 +24,7 @@ Each **profile** maps a `user_class` to its own audit field mapping and feature 
 | `profiles` | map | `default` | Named profile definitions (at least one required). |
 | `auditable_entities` | list | `[]` | Since 1.13: classes audited without any AuditKit interface or trait (the class, a parent class or an interface of your own). Each must exist. Only the fields that exist and accept the value are written (others are skipped with a warning). `#[Auditable(enabled: false)]` opts out. |
 | `attribute_opt_in` | bool | `false` | Since 1.13: `#[Auditable]` alone (no interface or trait) opts a class in. `false` keeps the 1.12 behaviour; the default becomes `true` in 2.0. |
-| `blame_mode` | `reference`\|`id` | `reference` | Since 1.14: what the blame fields receive. `reference`: a Doctrine reference to the profile `user_class` entity (`BlameableTrait` relations, unchanged). `id`: the current security user's `getId()` as a string (never the user identifier), for plain id columns; `user_class` becomes optional and may be an interface. |
+| `blame_mode` | `reference`\|`id` | `reference` | Since 1.14: what the blame fields receive. `reference`: a Doctrine reference to the profile `user_class` entity (`BlameableTrait` relations, unchanged). `id`: the current security user's `getId()` as a string (never the user identifier), for plain id columns; `user_class` becomes optional and may be an interface. Since 1.15 `id` runs on the framework-free ports `CurrentActorProviderInterface` / `BlameIdResolverInterface` (defaults keep the 1.14 values; see [Usage — DDD host](USAGE.md#ddd-host)). |
 
 Each profile supports:
 
@@ -127,6 +127,7 @@ Since **1.5.0**, opt-in: nothing is registered (services, Doctrine mapping, comm
 | `action_log.mapping` | `attribute`\|`xml` | `attribute` | Since 1.14: driver of the prepended superclass mapping. `xml` uses the shipped `*.orm.xml` files (same columns), for hosts that map everything in XML. |
 | `action_log.scope_context_key` | string\|null | `null` | Context key copied into `scope` by the recorder when no scope is passed (e.g. `project_uuid`). |
 | `action_log.capture_ip` | bool | `true` | Store the client IP of the current request. |
+| `action_log.flush_mode` | `host`\|`isolated` | `host` | Since 1.15: what `recordAndFlush()` / `recordIdsAndFlush()` flush. `host`: the entity manager that maps the action log class, with every pending change of the application (earlier behaviour). `isolated`: only the new row, through a short-lived entity manager of the bundle on the same connection; the application unit of work is neither flushed nor cleared. See [Usage — Action log flush mode](USAGE.md#action-log-flush-mode-since-115). |
 | `action_log.purge.older_than_days` | int ≥ 1 | `90` | Default `--older-than-days`. |
 | `action_log.purge.batch_size` | int ≥ 1 | `1000` | Default `--batch-size` (rows per keyset batch). |
 | `action_log.purge.actions` | list of strings | `[]` | Actions purged when the command gets no `--action` (e.g. page views). Empty: `--action` or `--all-actions` is required. |
@@ -144,7 +145,7 @@ nowo_audit_kit:
             actions: [project.opened, issue.opened]
 ```
 
-Container parameters: `nowo_audit_kit.action_log.enabled`, and when enabled `nowo_audit_kit.action_log.entity_class`, `.scope_context_key`, `.capture_ip`, `.purge.older_than_days`, `.purge.batch_size`, `.purge.actions`.
+Container parameters: `nowo_audit_kit.action_log.enabled`, and when enabled `nowo_audit_kit.action_log.entity_class`, `.scope_context_key`, `.capture_ip`, `.flush_mode` (since 1.15), `.purge.older_than_days`, `.purge.batch_size`, `.purge.actions`.
 
 ### DDD host: ids instead of relations (since 1.14)
 

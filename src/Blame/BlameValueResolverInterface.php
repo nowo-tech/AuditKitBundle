@@ -16,6 +16,10 @@ use Nowo\AuditKitBundle\Profile\ProfileSettings;
  * `getId()`), through `getReference($userClass, $id)`. Alias this interface to either, or to your own
  * implementation; a value other than an object needs blame fields (`fields.*`) whose setters accept it.
  *
+ * Doctrine-typed port of the reference path (`blame_mode: reference`). With `blame_mode: id`, since 1.15 the listener
+ * reads the framework-free {@see BlameIdResolverInterface}; aliasing this interface there is deprecated (still read in
+ * 1.x, removed in 2.0).
+ *
  * @since 1.12.0
  */
 interface BlameValueResolverInterface
