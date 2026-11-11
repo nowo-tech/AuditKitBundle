@@ -61,6 +61,7 @@
         "phpunit/phpunit": "^11.0",
         "rector/rector": "^2.0",
         "symfony/clock": "^7.4 || ^8.0",
+        "symfony/messenger": "^7.4 || ^8.0",
         "symfony/yaml": "^7.4 || ^8.0",
         "twig/twig": "^3.12"
     },

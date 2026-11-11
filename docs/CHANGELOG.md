@@ -47,6 +47,38 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Next patch: 1.14.1.
+
+### Security
+
+- **Timeline avatar memo kept across requests and messages (REQ-RUNTIME-002, Low):** `ActionLogAvatars`, the
+  per-user memo behind `nowo_audit_kit_avatar_url()` / `nowo_audit_kit_prime_avatars()`, was emptied only by
+  `kernel.reset`. With the kernel kept alive and no services resetter (FrankenPHP worker mode with kernel reset false,
+  Messenger consumers), a user's avatar URL stayed for the life of the worker: a changed or removed picture was still
+  shown, a multi-tenant host whose tenants share user ids could show tenant A's picture URL for tenant B's user, and
+  the memo grew with every user seen. The new `ActionLogAvatarsResetSubscriber` (registered by the bundle) empties it at
+  the start (`kernel.request`) and end (`kernel.finish_request`) of every main request, at
+  `WorkerMessageReceivedEvent` / `WorkerMessageHandledEvent` / `WorkerMessageFailedEvent` (event names as strings,
+  Messenger stays optional) and at `console.terminate`. Within one unit of work the memo now holds at most
+  `ActionLogAvatars::MAX_MEMOISED` (1,000) users, and it is keyed by user class + id (one resolver call per user
+  class; Doctrine proxies map to their entity class), so two user classes with the same id never share a picture.
+  The bundle cannot see tenants: one unit of work that renders timelines for several tenants whose users share ids
+  (a digest loop, for example) must call `ActionLogAvatars::reset()` between tenants. Affected: **1.11.0 to 1.14.0** (hosts that render the timeline
+  avatars, i.e. bind `ActionLogAvatarResolverInterface`; the default null resolver memoises only nulls).
+
+### Tests
+
+- `tests/Integration/ActionLogAvatarsWorkerTest.php`: one kernel, no services resetter, 1,000 HTTP requests and 1,000
+  Messenger messages (one in five failing) for two tenants whose users share ids, rendering
+  `nowo_audit_kit_avatar_url()`; each unit gets its own tenant's URL, the memo is empty after every boundary (also
+  `console.terminate`), memory margin 1 MiB. Unit tests for the subscriber, `reset()` and the bound.
+- `symfony/messenger` added to `require-dev` (tests only).
+
+### Documentation
+
+- `docs/FRANKENPHP-WORKER-AUDIT.md` refreshed for 1.14.1 (was at 1.1.16): avatar memo (W-04), boundary events,
+  worker tests. USAGE: the memo lifetime.
+
 ## [1.14.0] - 2026-11-11
 
 DDD host path: user ids instead of entity relations (blame_mode: id) and XML mapping; an object's __toString() is never stored as a user id. See [UPGRADING](https://github.com/nowo-tech/AuditKitBundle/blob/v1.14.0/docs/UPGRADING.md#to-1140).

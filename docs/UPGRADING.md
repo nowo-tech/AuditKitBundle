@@ -46,6 +46,10 @@
 
 ## Unreleased
 
+Next patch: 1.14.1. No API or configuration change. The timeline avatar memo is now emptied at every unit-of-work
+boundary (main request start and finish, each Messenger message, `console.terminate`), so the resolver is called again
+on the next request. Keep `ActionLogAvatarResolverInterface::urlsFor()` one query per call, as before.
+
 ## To 1.14.0
 
 Target **1.14.0**, from **1.13.x**:
