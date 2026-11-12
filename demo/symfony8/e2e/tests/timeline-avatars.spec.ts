@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 /**
  * AuditKit 1.11 (/timeline): actor and subject avatars in the action log timeline from one resolver call. The demo
  * resolver gives Ada a picture, Grace a broken URL, the anonymised account none and Alan an http: URL the policy drops.
- * The demo does not install UiKit, so this checks the bundle's own markup and its no-UiKit degradation: the initials
+ * The demo runs on UiKit (REQ-DEMO-014); this checks the bundle markup: the initials
  * stay in the DOM next to the picture, a broken picture (alt="") paints nothing, and axe stays clean.
  */
 test.describe('action log timeline avatars (1.11)', () => {

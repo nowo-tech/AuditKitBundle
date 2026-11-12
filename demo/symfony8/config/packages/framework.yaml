@@ -4,6 +4,7 @@ framework:
     session: true
     default_locale: en
     enabled_locales: ['en', 'es']
+    assets: ~
     translator:
         default_path: '%kernel.project_dir%/translations'
         fallbacks: ['en']
