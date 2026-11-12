@@ -2,23 +2,20 @@
 
 {% block title %}Action log timeline · Audit Kit Demo{% endblock %}
 
+{% block nowo_ui_page_header %}
+    {{ include(nowo_ui_partial('page_header'), {
+        title: 'Action log timeline with avatars',
+        intro: 'The demo resolver (App\\Demo\\DemoAvatarResolver) gives Ada a picture, Grace a broken URL, the anonymised account no picture and Alan an http: URL the policy rejects. The last entry has no actor (a deleted account or the system). All avatars of the page come from one resolver call.',
+    }) }}
+{% endblock %}
+
 {% block body %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h1 class="h3 mb-3">Action log timeline with avatars</h1>
-                <p class="text-muted">
-                    The demo resolver (<code>App\Demo\DemoAvatarResolver</code>) gives Ada a picture, Grace a broken URL,
-                    the anonymised account no picture and Alan an <code>http:</code> URL the policy rejects. The last
-                    entry has no actor (a deleted account or the system). All avatars of the page come from one resolver call.
-                </p>
-                {{ include('@NowoAuditKitBundle/action_log/_timeline.html.twig', {entries: entries}, with_context = false) }}
-                {% if resolver %}
-                    <p class="small text-muted mt-3" data-testid="resolver-calls">Resolver calls for this timeline: {{ resolver.calls - calls_before }}</p>
-                {% endif %}
-            </div>
+    <section class="nowo-ui-card">
+        <div class="nowo-ui-card__body">
+            {{ include('@NowoAuditKitBundle/action_log/_timeline.html.twig', {entries: entries}, with_context = false) }}
+            {% if resolver %}
+                <p class="nowo-ui-muted" data-testid="resolver-calls">Resolver calls for this timeline: {{ resolver.calls - calls_before }}</p>
+            {% endif %}
         </div>
-    </div>
-</div>
+    </section>
 {% endblock %}

@@ -2,59 +2,61 @@
 
 {% block title %}Audit Kit Demo{% endblock %}
 
+{% block nowo_ui_page_header %}
+    {{ include(nowo_ui_partial('page_header'), {
+        title: 'Automatic audit fields',
+        intro: 'Each refresh persists a new audited Article and a LegacyRecord with #[Auditable(enabled: false)] while simulating an authenticated user (' ~ user.email ~ ').',
+    }) }}
+{% endblock %}
+
 {% block body %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h1 class="h3 mb-3">Automatic audit fields</h1>
-                <p class="text-muted">
-                    Each refresh persists a new audited <code>Article</code> and a
-                    <code>LegacyRecord</code> with <code>#[Auditable(enabled: false)]</code>
-                    while simulating an authenticated user
-                    (<strong>{{ user.email }}</strong>).
-                </p>
-                <p><a class="btn btn-primary" href="{{ path('demo_home') }}">Persist another row</a></p>
-            </div>
-        </div>
+    <p><a class="nowo-ui-btn nowo-ui-btn--primary" href="{{ path('demo_home') }}">Persist another row</a></p>
 
-        <div class="card shadow-sm mt-4">
-            <div class="card-header">Latest articles <span class="badge text-bg-success">audited</span></div>
-            <ul class="list-group list-group-flush">
+    <section class="nowo-ui-card">
+        <div class="nowo-ui-card__header">
+            <h2 class="nowo-ui-card__title">Latest articles <span class="nowo-ui-badge nowo-ui-badge--success">audited</span></h2>
+        </div>
+        <div class="nowo-ui-card__body">
+            <table class="nowo-ui-data-table">
+                <thead><tr><th scope="col">Title</th><th scope="col">createdAt</th><th scope="col">updatedAt</th><th scope="col">createdBy</th><th scope="col">updatedBy</th></tr></thead>
+                <tbody>
                 {% for article in articles %}
-                    <li class="list-group-item">
-                        <strong>{{ article.title }}</strong>
-                        <div class="small text-muted mt-1">
-                            createdAt: {{ article.createdAt ? article.createdAt|date('Y-m-d H:i:s') : '—' }} ·
-                            updatedAt: {{ article.updatedAt ? article.updatedAt|date('Y-m-d H:i:s') : '—' }} ·
-                            createdBy: {{ article.createdBy ? article.createdBy.email : 'null' }} ·
-                            updatedBy: {{ article.updatedBy ? article.updatedBy.email : 'null' }}
-                        </div>
-                    </li>
+                    <tr>
+                        <th scope="row">{{ article.title }}</th>
+                        <td>{{ article.createdAt ? article.createdAt|date('Y-m-d H:i:s') : '—' }}</td>
+                        <td>{{ article.updatedAt ? article.updatedAt|date('Y-m-d H:i:s') : '—' }}</td>
+                        <td>{{ article.createdBy ? article.createdBy.email : 'null' }}</td>
+                        <td>{{ article.updatedBy ? article.updatedBy.email : 'null' }}</td>
+                    </tr>
                 {% else %}
-                    <li class="list-group-item text-muted">No articles yet.</li>
+                    <tr><td colspan="5">No articles yet.</td></tr>
                 {% endfor %}
-            </ul>
+                </tbody>
+            </table>
         </div>
+    </section>
 
-        <div class="card shadow-sm mt-4">
-            <div class="card-header">Latest legacy records <span class="badge text-bg-secondary">#[Auditable(enabled: false)]</span></div>
-            <ul class="list-group list-group-flush">
-                {% for record in legacyRecords %}
-                    <li class="list-group-item">
-                        <strong>{{ record.label }}</strong>
-                        <div class="small text-muted mt-1">
-                            createdAt: {{ record.createdAt ? record.createdAt|date('Y-m-d H:i:s') : '—' }} ·
-                            updatedAt: {{ record.updatedAt ? record.updatedAt|date('Y-m-d H:i:s') : '—' }} ·
-                            createdBy: {{ record.createdBy ? record.createdBy.email : 'null' }} ·
-                            updatedBy: {{ record.updatedBy ? record.updatedBy.email : 'null' }}
-                        </div>
-                    </li>
-                {% else %}
-                    <li class="list-group-item text-muted">No legacy records yet.</li>
-                {% endfor %}
-            </ul>
+    <section class="nowo-ui-card">
+        <div class="nowo-ui-card__header">
+            <h2 class="nowo-ui-card__title">Latest legacy records <span class="nowo-ui-badge nowo-ui-badge--neutral">#[Auditable(enabled: false)]</span></h2>
         </div>
-    </div>
-</div>
+        <div class="nowo-ui-card__body">
+            <table class="nowo-ui-data-table">
+                <thead><tr><th scope="col">Label</th><th scope="col">createdAt</th><th scope="col">updatedAt</th><th scope="col">createdBy</th><th scope="col">updatedBy</th></tr></thead>
+                <tbody>
+                {% for record in legacyRecords %}
+                    <tr>
+                        <th scope="row">{{ record.label }}</th>
+                        <td>{{ record.createdAt ? record.createdAt|date('Y-m-d H:i:s') : '—' }}</td>
+                        <td>{{ record.updatedAt ? record.updatedAt|date('Y-m-d H:i:s') : '—' }}</td>
+                        <td>{{ record.createdBy ? record.createdBy.email : 'null' }}</td>
+                        <td>{{ record.updatedBy ? record.updatedBy.email : 'null' }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5">No legacy records yet.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endblock %}

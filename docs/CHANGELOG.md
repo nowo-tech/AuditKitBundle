@@ -49,6 +49,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- Demo uses the UiKit base style (REQ-DEMO-014)
+
 ## [1.15.0] - 2026-11-11
 
 Next minor: 1.15.0. REQ-ARCH-001 rules 3 and 6: framework-free ports for `blame_mode: id` and an isolated action log
