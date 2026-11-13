@@ -91,7 +91,8 @@ and column names.
 
    Do not use `TRIM`, `DISTINCT`, `LOWER` alone or `COLLATE …_ai_ci` to compare ids: they fold too.
 
-2. The `ALTER` (keep your column length and nullability):
+2. The `ALTER`. `MODIFY` redefines the column: restate every existing attribute (length, nullability, `DEFAULT`,
+   `COMMENT` ...):
 
    ```sql
    -- MySQL 8.0.17+
