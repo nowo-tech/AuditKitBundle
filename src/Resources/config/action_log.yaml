@@ -13,6 +13,7 @@ services:
             $scopeContextKey: '%nowo_audit_kit.action_log.scope_context_key%'
             $captureIp: '%nowo_audit_kit.action_log.capture_ip%'
             $flushMode: '%nowo_audit_kit.action_log.flush_mode%'
+            $logger: '@?logger'
 
     Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand:
         arguments:
@@ -30,3 +31,11 @@ services:
 
     # Since 1.14: records by user id (AbstractIdActionLog stores them; AbstractActionLog turns them into references).
     Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface: '@Nowo\AuditKitBundle\ActionLog\ActionLogRecorder'
+
+    # Since 1.15.1 (REQ-SEC-006): binary NO PAD collation on actor_id / subject_id of an id-mode log (MySQL / MariaDB).
+    Nowo\AuditKitBundle\Doctrine\ReferenceCollationListener:
+        arguments:
+            $doctrine: '@doctrine'
+            $logger: '@?logger'
+        tags:
+            - { name: doctrine.event_listener, event: postGenerateSchemaTable }

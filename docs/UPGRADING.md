@@ -48,6 +48,61 @@
 
 ## Unreleased
 
+Target **1.15.1** (patch), from **1.15.0**. Only id-mode action logs (`AbstractIdActionLog`) on MySQL / MariaDB need
+an action; relation-mode logs (`AbstractActionLog`), PostgreSQL and SQLite need none.
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
+
+**What changes (REQ-SEC-006, look-alike ids)**
+
+- The `actor` / `subject` / `involving` filters of `ActionLogRepository` return and count only rows whose id is
+  byte-identical to the filter id. With a folding collation, rows of `Bob`, `bób` or `bob ` no longer show up for
+  `bob`.
+- `ReferenceId::of()` returns `null` for ids with edge whitespace, control or format characters, invalid UTF-8 or
+  more than 255 characters. Such ids were stored as given before; now they are stored as `null` (with a warning) and
+  match nothing in filters. If your user ids can hold such characters, fix them at the source.
+- New schemas get a binary NO PAD collation on `actor_id` / `subject_id`. Configure the full server version
+  (`server_version: '8.4.3'`, not `'8.0'`), or the listener falls back to the PAD SPACE `utf8mb4_bin` and logs a
+  warning.
+
+**Existing tables (MySQL / MariaDB).** Recommended: the repository is exact without it, but the collation lets SQL
+pre-select exact rows only, so look-alike rows no longer cost extra reads. Replace `user_action` with your table
+and column names.
+
+1. Detection, before the `ALTER`. Ids that collide under the current collation but are different bytes (these are
+   the rows the re-check now separates):
+
+   ```sql
+   SELECT LOWER(actor_id) AS folded, COUNT(DISTINCT HEX(actor_id)) AS variants
+   FROM user_action WHERE actor_id IS NOT NULL
+   GROUP BY actor_id HAVING COUNT(DISTINCT HEX(actor_id)) > 1;
+   -- repeat with subject_id
+   ```
+
+   Stored ids that the bundle now refuses (they stay in the table but no filter reaches them):
+
+   ```sql
+   SELECT id, HEX(actor_id), HEX(subject_id) FROM user_action
+   WHERE actor_id   REGEXP '^[[:space:]\\x{00A0}]|[[:space:]\\x{00A0}]$|[[:cntrl:]]|[\\x{200B}-\\x{200F}\\x{2028}-\\x{202E}\\x{2060}\\x{FEFF}]'
+      OR subject_id REGEXP '^[[:space:]\\x{00A0}]|[[:space:]\\x{00A0}]$|[[:cntrl:]]|[\\x{200B}-\\x{200F}\\x{2028}-\\x{202E}\\x{2060}\\x{FEFF}]';
+   ```
+
+   Do not use `TRIM`, `DISTINCT`, `LOWER` alone or `COLLATE …_ai_ci` to compare ids: they fold too.
+
+2. The `ALTER` (keep your column length and nullability):
+
+   ```sql
+   -- MySQL 8.0.17+
+   ALTER TABLE user_action
+     MODIFY actor_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin DEFAULT NULL,
+     MODIFY subject_id VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin DEFAULT NULL;
+   -- MariaDB: COLLATE utf8mb4_nopad_bin; MySQL 5.7: COLLATE utf8mb4_bin
+   ```
+
+   `doctrine:migrations:diff` generates the same `ALTER` once the bundle is updated.
+
 ## To 1.15.0
 
 From **1.14.1**:
