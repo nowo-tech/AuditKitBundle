@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.15.1](#to-1151)
 - [To 1.15.0](#to-1150)
 - [To 1.14.1](#to-1141)
 - [To 1.14.0](#to-1140)
@@ -47,6 +48,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.15.1
+
+From **1.15.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 Target **1.15.1** (patch), from **1.15.0**. Only id-mode action logs (`AbstractIdActionLog`) on MySQL / MariaDB need
 an action; relation-mode logs (`AbstractActionLog`), PostgreSQL and SQLite need none.

@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.15.1] - 2026-11-13](#1151---2026-11-13)
 - [[1.15.0] - 2026-11-11](#1150---2026-11-11)
 - [[1.14.1] - 2026-11-11](#1141---2026-11-11)
 - [[1.14.0] - 2026-11-11](#1140---2026-11-11)
@@ -49,6 +50,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.15.1] - 2026-11-13
+
 Next patch: 1.15.1. REQ-SEC-006 (look-alike ids) for the id-mode action log. See
 [UPGRADING](UPGRADING.md#unreleased).
 
@@ -76,6 +79,8 @@ Next patch: 1.15.1. REQ-SEC-006 (look-alike ids) for the id-mode action log. See
 ### Changed
 
 - Demo uses the UiKit base style (REQ-DEMO-014)
+
+[1.15.1]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.15.1
 
 ## [1.15.0] - 2026-11-11
 
