@@ -8,6 +8,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Mapping\ClassMetadataFactory;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\ObjectManager;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Nowo\AuditKitBundle\Collation\ActionLogExactKeyColumns;
 use Nowo\MigrationsKitContracts\Collation\ExactKeyColumn;
@@ -87,6 +88,25 @@ final class ActionLogExactKeyColumnsTest extends TestCase
     public function testABrokenHostMappingIsNotThisChecksBusiness(): void
     {
         self::assertSame([], $this->describe($this->registry([], true)));
+    }
+
+    public function testAManagerThatIsNotAnOrmEntityManagerIsSkipped(): void
+    {
+        // A host may run a non-ORM manager (MongoDB ODM, a custom one) alongside the ORM: it maps no action log.
+        $registry = $this->createMock(ManagerRegistry::class);
+        $registry->method('getManagers')->willReturn(['odm' => $this->createMock(ObjectManager::class)]);
+
+        self::assertSame([], $this->describe($registry));
+    }
+
+    public function testOnlyTheFieldsTheHostActuallyMapsAreDeclared(): void
+    {
+        // A host entity may map one of the two id fields and leave the other out of its mapping.
+        $metadata = new ClassMetadata(HostActionLog::class);
+        $metadata->setPrimaryTable(['name' => 'app_action_log']);
+        $metadata->mapField(['fieldName' => 'actorId', 'columnName' => 'actor_id', 'type' => 'string', 'length' => 64, 'nullable' => true]);
+
+        self::assertSame(['app_action_log.actor_id'], $this->describe($this->registry([$metadata])));
     }
 
     public function testEveryDeclaredColumnCarriesItsOwnerAndPurpose(): void
