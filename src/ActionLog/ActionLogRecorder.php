@@ -13,12 +13,14 @@ use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\AuditKitBundle\Model\ReferenceId;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 use function in_array;
 use function is_int;
 use function is_string;
+use function mb_strlen;
 use function sprintf;
 use function strlen;
 
@@ -50,6 +52,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      * @param class-string<AbstractActionLog>|class-string<AbstractIdActionLog> $entityClass
      * @param string|null $scopeContextKey context key copied into `scope` when no scope is given
      * @param string $flushMode since 1.15: {@see FLUSH_HOST} or {@see FLUSH_ISOLATED}
+     * @param LoggerInterface|null $logger since 1.15.1: warned when an unusable user id is stored as `null`
      */
     public function __construct(
         private ManagerRegistry $registry,
@@ -58,6 +61,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         private ?string $scopeContextKey = null,
         private bool $captureIp = true,
         private string $flushMode = self::FLUSH_HOST,
+        private ?LoggerInterface $logger = null,
     ) {
         if ($flushMode !== self::FLUSH_HOST && $flushMode !== self::FLUSH_ISOLATED) {
             throw new InvalidArgumentException(sprintf('Unknown action log flush mode "%s" (expected "%s" or "%s").', $flushMode, self::FLUSH_HOST, self::FLUSH_ISOLATED));
@@ -168,8 +172,8 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
     {
         $entry = new ($this->entityClass)();
         if ($entry instanceof AbstractIdActionLog) {
-            $entry->setActorId($actorId);
-            $entry->setSubjectId($subjectId);
+            $entry->setActorId($this->storableId($manager, 'actorId', $actorId));
+            $entry->setSubjectId($this->storableId($manager, 'subjectId', $subjectId));
         } else {
             $entry->setActor($this->userReference($manager, 'actor', $actorId));
             $entry->setSubject($this->userReference($manager, 'subject', $subjectId));
@@ -263,6 +267,25 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         $manager->persist($entry);
 
         return $entry;
+    }
+
+    /**
+     * Since 1.15.1 (REQ-SEC-006): the id to store in an id-mode column, or null (with a warning) when the given id is
+     * refused by {@see ReferenceId} (edge whitespace, control or format characters, invalid UTF-8) or longer than the
+     * column. Never trimmed or truncated: a look-alike of another user's id must not be stored as theirs.
+     */
+    private function storableId(EntityManagerInterface $manager, string $field, mixed $reference): ?string
+    {
+        $id     = ReferenceId::of($reference);
+        $length = $manager->getClassMetadata($this->entityClass)->getFieldMapping($field)['length'] ?? null;
+        if ($id !== null && is_int($length) && mb_strlen($id, 'UTF-8') > $length) {
+            $id = null;
+        }
+        if ($id === null && is_string($reference) && $reference !== '' && $reference !== '0') {
+            $this->logger?->warning('Action log {field} not stored: the id is not usable (whitespace at an edge, control or format characters, invalid UTF-8 or longer than the column).', ['bundle' => 'NowoAuditKitBundle', 'field' => $field]);
+        }
+
+        return $id;
     }
 
     /** Doctrine reference to the target entity of the `actor` / `subject` association, or null for "no user". */

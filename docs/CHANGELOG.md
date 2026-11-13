@@ -49,6 +49,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Next patch: 1.15.1. REQ-SEC-006 (look-alike ids) for the id-mode action log. See
+[UPGRADING](UPGRADING.md#unreleased).
+
+### Security
+
+- **Id-mode action log filters match ids byte for byte.** With an `AbstractIdActionLog` entity, the `actor`,
+  `subject` and `involving` filters of `ActionLogRepository` (`findByCriteria()`, `countByCriteria()`,
+  `findInvolving()`) compared `actor_id` / `subject_id` in SQL only. On the default MySQL / MariaDB collations
+  `Bob`, `bób` and `bob ` matched `bob`, so a host listing one user's activity could also list a look-alike user's
+  rows, and those rows could fill the page before the user's own.
+  - SQL now only pre-selects. Every row is re-checked with `===` before the offset and the limit are applied, and
+    the loop reads on until the page is full. `countByCriteria()` counts exact rows only.
+  - A filter id that `ReferenceId` refuses matches nothing.
+- **`ReferenceId` refuses unusable string ids** instead of storing them: leading or trailing whitespace (NBSP and
+  other Unicode spaces included), control or format characters anywhere (newline, zero-width space, BOM, bidi
+  marks), invalid UTF-8, more than 255 characters. They are never trimmed. Case, accents and normalisation forms stay
+  significant.
+  - `recordIds()` / `recordIdsAndFlush()` store such an id, or one longer than the mapped column, as `null` and log
+    a warning (the id itself is not logged).
+- **Binary NO PAD collation on `actor_id` / `subject_id`** of id-mode entities (new `ReferenceCollationListener`,
+  applied to generated schemas on MySQL / MariaDB): `utf8mb4_nopad_bin` on MariaDB, `utf8mb4_0900_bin` on MySQL
+  8.0.17+, `utf8mb4_bin` on older MySQL. When `doctrine.dbal.server_version` has no patch number (`8`, `8.0`) the
+  listener falls back to `utf8mb4_bin` and logs a warning. Existing tables need the `ALTER` in UPGRADING.
+
 ### Changed
 
 - Demo uses the UiKit base style (REQ-DEMO-014)

@@ -14,6 +14,10 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\Doctrine\KeysetDelete;
 use Nowo\AuditKitBundle\Model\ReferenceId;
 
+use function count;
+use function max;
+use function min;
+
 /**
  * Queries and keyset purge for an {@see AbstractActionLog} or (since 1.14) {@see AbstractIdActionLog} entity.
  *
@@ -22,6 +26,12 @@ use Nowo\AuditKitBundle\Model\ReferenceId;
  * Every query goes through the entity metadata, so renamed columns (attribute / association overrides) work. With an
  * id-mode entity, `actor` / `subject` / `involving` filters compare the stored ids (entities are turned into their id).
  *
+ * Since 1.15.1 (REQ-SEC-006, look-alike ids) id-mode filters match byte for byte: SQL only pre-selects (the column
+ * collation may fold case, accents and trailing spaces), every row is re-checked with `===` before paging and
+ * counting, and a filter id refused by {@see ReferenceId} matches nothing. Give `actor_id` / `subject_id` a binary NO
+ * PAD collation on MySQL / MariaDB (the bundle's listener does it for generated schemas; see UPGRADING) so SQL
+ * pre-selects the exact rows only.
+ *
  * @template T of ActionLogEntryInterface
  *
  * @extends ServiceEntityRepository<T>
@@ -29,6 +39,9 @@ use Nowo\AuditKitBundle\Model\ReferenceId;
 class ActionLogRepository extends ServiceEntityRepository
 {
     public const DEFAULT_BATCH_SIZE = KeysetDelete::DEFAULT_BATCH_SIZE;
+
+    /** Since 1.15.1: smallest batch of the exact-match loop of {@see findByCriteria()} in id mode. */
+    private const EXACT_BATCH_SIZE = 50;
 
     /**
      * @param class-string<T> $entityClass
@@ -49,6 +62,11 @@ class ActionLogRepository extends ServiceEntityRepository
             return [];
         }
 
+        $references = $this->exactReferences($criteria);
+        if ($references === false) {
+            return [];
+        }
+
         $qb = $this->createCriteriaQueryBuilder($criteria);
         if ($this->referencesByAssociation()) {
             $qb->leftJoin('a.actor', 'actor')->addSelect('actor')
@@ -56,14 +74,19 @@ class ActionLogRepository extends ServiceEntityRepository
         }
 
         $qb->orderBy('a.createdAt', 'DESC')
-            ->addOrderBy('a.id', 'DESC')
-            ->setMaxResults(max(1, $criteria->limit))
-            ->setFirstResult(max(0, $criteria->offset));
+            ->addOrderBy('a.id', 'DESC');
 
-        /** @var list<T> $rows */
-        $rows = $qb->getQuery()->getResult();
+        if ($references === null) {
+            $qb->setMaxResults(max(1, $criteria->limit))
+                ->setFirstResult(max(0, $criteria->offset));
 
-        return $rows;
+            /** @var list<T> $rows */
+            $rows = $qb->getQuery()->getResult();
+
+            return $rows;
+        }
+
+        return $this->findExact($qb, $references, max(1, $criteria->limit), max(0, $criteria->offset));
     }
 
     /** Number of rows matching the criteria (limit / offset ignored). */
@@ -73,10 +96,19 @@ class ActionLogRepository extends ServiceEntityRepository
             return 0;
         }
 
-        return (int) $this->createCriteriaQueryBuilder($criteria)
-            ->select('COUNT(a.id)')
-            ->getQuery()
-            ->getSingleScalarResult();
+        $references = $this->exactReferences($criteria);
+        if ($references === false) {
+            return 0;
+        }
+
+        if ($references === null) {
+            return (int) $this->createCriteriaQueryBuilder($criteria)
+                ->select('COUNT(a.id)')
+                ->getQuery()
+                ->getSingleScalarResult();
+        }
+
+        return $this->countExact($this->createCriteriaQueryBuilder($criteria), $references);
     }
 
     /**
@@ -188,5 +220,122 @@ class ActionLogRepository extends ServiceEntityRepository
     private function referenceValue(object|int|string $reference): object|int|string
     {
         return $this->referencesByAssociation() ? $reference : (ReferenceId::of($reference) ?? '');
+    }
+
+    /**
+     * Since 1.15.1 (REQ-SEC-006): the ids an id-mode row must hold byte for byte, `null` when the criteria filter no
+     * id column (relation mode, or no actor / subject / involving filter), `false` when a filter id is refused by
+     * {@see ReferenceId} (no row can match).
+     *
+     * @return array{actor: string|null, subject: string|null, involving: string|null}|false|null
+     */
+    private function exactReferences(ActionLogCriteria $criteria): array|false|null
+    {
+        if ($this->referencesByAssociation() || ($criteria->actor === null && $criteria->subject === null && $criteria->involving === null)) {
+            return null;
+        }
+
+        $references = [];
+        foreach (['actor' => $criteria->actor, 'subject' => $criteria->subject, 'involving' => $criteria->involving] as $role => $reference) {
+            $id = $reference === null ? null : ReferenceId::of($reference);
+            if ($reference !== null && $id === null) {
+                return false;
+            }
+            $references[$role] = $id;
+        }
+
+        return $references;
+    }
+
+    /**
+     * Whether an id-mode row holds the filter ids byte for byte (`===`). The SQL filter compares with the column
+     * collation, which on MySQL / MariaDB folds case, accents and (PAD SPACE) trailing spaces: `Bob`, `bób` and `bob `
+     * would otherwise match `bob`.
+     *
+     * @param array{actor: string|null, subject: string|null, involving: string|null} $references
+     */
+    private static function holdsExactly(mixed $actorId, mixed $subjectId, array $references): bool
+    {
+        return ($references['actor'] === null || $actorId === $references['actor'])
+            && ($references['subject'] === null || $subjectId === $references['subject'])
+            && ($references['involving'] === null || $actorId === $references['involving'] || $subjectId === $references['involving']);
+    }
+
+    /**
+     * Keyset loop over the SQL candidates (newest first): keeps the exact rows only, skips `$offset` of them and reads
+     * on until `$limit` are found, so look-alike rows never take the place of a legitimate one in a page.
+     *
+     * @param array{actor: string|null, subject: string|null, involving: string|null} $references
+     *
+     * @return list<T>
+     */
+    private function findExact(QueryBuilder $qb, array $references, int $limit, int $offset): array
+    {
+        $batch = min(max($limit + $offset, self::EXACT_BATCH_SIZE), self::DEFAULT_BATCH_SIZE);
+        $qb->setMaxResults($batch);
+        $rows  = [];
+        $after = null;
+
+        do {
+            $page = clone $qb;
+            if ($after !== null) {
+                $page->andWhere('a.createdAt < :exactAt OR (a.createdAt = :exactAt AND a.id < :exactId)')
+                    ->setParameter('exactAt', $after[0], Types::DATETIME_IMMUTABLE)
+                    ->setParameter('exactId', $after[1]);
+            }
+
+            /** @var list<AbstractIdActionLog&T> $chunk */
+            $chunk = $page->getQuery()->getResult();
+            foreach ($chunk as $row) {
+                $after = [$row->getCreatedAt(), $row->getId()];
+                if (!self::holdsExactly($row->getActorId(), $row->getSubjectId(), $references)) {
+                    continue;
+                }
+                if ($offset > 0) {
+                    --$offset;
+
+                    continue;
+                }
+
+                $rows[] = $row;
+                if (count($rows) === $limit) {
+                    return $rows;
+                }
+            }
+        } while (count($chunk) === $batch);
+
+        return $rows;
+    }
+
+    /**
+     * Counts the exact rows among the SQL candidates, reading only their id columns in keyset batches over the id.
+     *
+     * @param array{actor: string|null, subject: string|null, involving: string|null} $references
+     */
+    private function countExact(QueryBuilder $qb, array $references): int
+    {
+        $qb->select('a.id AS id, a.actorId AS actorId, a.subjectId AS subjectId')
+            ->orderBy('a.id', 'DESC')
+            ->setMaxResults(self::DEFAULT_BATCH_SIZE);
+        $count = 0;
+        $after = null;
+
+        do {
+            $page = clone $qb;
+            if ($after !== null) {
+                $page->andWhere('a.id < :exactId')->setParameter('exactId', $after);
+            }
+
+            /** @var list<array{id: int|string, actorId: string|null, subjectId: string|null}> $chunk */
+            $chunk = $page->getQuery()->getScalarResult();
+            foreach ($chunk as $row) {
+                $after = $row['id'];
+                if (self::holdsExactly($row['actorId'], $row['subjectId'], $references)) {
+                    ++$count;
+                }
+            }
+        } while (count($chunk) === self::DEFAULT_BATCH_SIZE);
+
+        return $count;
     }
 }

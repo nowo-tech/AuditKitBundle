@@ -26,6 +26,28 @@ final class ReferenceIdTest extends TestCase
         yield 'string' => ['abc', 'abc'];
         yield 'empty string' => ['', null];
         yield 'zero string' => ['0', null];
+        // REQ-SEC-006 (look-alike ids): refused, never trimmed; case and accents stay significant.
+        yield 'upper-case look-alike' => ['Bob', 'Bob'];
+        yield 'accented look-alike' => ["b\u{00F3}b", "b\u{00F3}b"];
+        yield 'NFD look-alike' => ["bo\u{0301}b", "bo\u{0301}b"];
+        yield 'inner space' => ['bob smith', 'bob smith'];
+        yield 'trailing space' => ['bob ', null];
+        yield 'leading space' => [' bob', null];
+        yield 'trailing newline' => ["bob\n", null];
+        yield 'tab inside' => ["bo\tb", null];
+        yield 'trailing NBSP' => ["bob\u{00A0}", null];
+        yield 'leading ideographic space' => ["\u{3000}bob", null];
+        yield 'zero-width space inside' => ["bo\u{200B}b", null];
+        yield 'BOM' => ["\u{FEFF}bob", null];
+        yield 'bidi mark' => ["bob\u{200E}", null];
+        yield 'line separator' => ["bo\u{2028}b", null];
+        yield 'NUL byte' => ["bob\0", null];
+        yield 'invalid UTF-8' => ["bob\xC3", null];
+        yield 'longest usable' => [str_repeat('x', ReferenceId::MAX_LENGTH), str_repeat('x', ReferenceId::MAX_LENGTH)];
+        yield 'too long' => [str_repeat('x', ReferenceId::MAX_LENGTH + 1), null];
+        yield 'id object with padded id' => [new class {
+            public string $id = 'u-1 ';
+        }, null];
         yield 'null' => [null, null];
         yield 'float' => [1.5, null];
         yield 'uuid object' => [Uuid::fromString($uuid), $uuid];
