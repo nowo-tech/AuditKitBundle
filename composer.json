@@ -22,7 +22,7 @@
     },
     "authors": [
         {
-            "name": "H\u00e9ctor Franco Aceituno",
+            "name": "Héctor Franco Aceituno",
             "email": "hectorfranco@nowo.tech",
             "homepage": "https://github.com/HecFranco",
             "role": "Developer"
@@ -54,6 +54,7 @@
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.0",
         "igor-php/igor-php": "^0.10.0",
+        "nowo-tech/migrations-kit-bundle": "^2.4",
         "nowo-tech/phpstan-frankenphp": "^1.0",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2.0",
@@ -67,6 +68,7 @@
         "twig/twig": "^3.12"
     },
     "suggest": {
+        "nowo-tech/migrations-kit-bundle": "Declares the id-mode action log actor_id / subject_id as identity keys so nowo:migrations:check-key-collations asserts their binary NO PAD collation against the real schema (REQ-SEC-006)",
         "nowo-tech/ui-kit-bundle": "Styles the action log timeline partial (nowo-ui-* classes)."
     },
     "autoload": {

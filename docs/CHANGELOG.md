@@ -50,6 +50,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`actor_id` / `subject_id` declared as identity keys for the REQ-SEC-006 gate.**
+  `Collation\ActionLogExactKeyColumns` declares the two id-mode columns of every action log so
+  `nowo:migrations:check-key-collations` asserts their binary NO PAD collation against the real schema — including a
+  table created before 1.15.1, converted by hand, or restored from a dump, which `ReferenceCollationListener` cannot
+  see. This bundle owns no table (`AbstractIdActionLog` is a mapped superclass), so the declaration is built from the
+  **host's Doctrine mapping**: whatever the host called its log table and its two columns is what gets declared. In
+  entity blame mode the actor and subject are relations, so nothing is declared. MigrationsKitBundle stays
+  **optional**: the service is registered only when it is installed, and the bundle requires nothing new at runtime.
+
 ## [1.15.1] - 2026-11-13
 
 Next patch: 1.15.1. REQ-SEC-006 (look-alike ids) for the id-mode action log. See

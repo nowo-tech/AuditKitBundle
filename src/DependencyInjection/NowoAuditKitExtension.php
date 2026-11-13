@@ -10,10 +10,12 @@ use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Nowo\AuditKitBundle\Blame\BlameIdResolverInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
+use Nowo\AuditKitBundle\Collation\ActionLogExactKeyColumns;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
+use Nowo\MigrationsKitBundle\Collation\ExactKeyColumnsInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -66,6 +68,22 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
     }
 
     /** Registers parameters and loads service definitions from YAML. */
+    /**
+     * REQ-SEC-006: declare actor_id / subject_id of every id-mode action log when MigrationsKitBundle is installed,
+     * so nowo:migrations:check-key-collations asserts their binary NO PAD collation against the host's real schema.
+     * Optional: nothing is registered when the interface is absent, and the bundle requires nothing new at runtime.
+     */
+    private function registerExactKeyColumns(ContainerBuilder $container): void
+    {
+        if (!interface_exists(ExactKeyColumnsInterface::class)) {
+            return;
+        }
+
+        $container->register(ActionLogExactKeyColumns::class, ActionLogExactKeyColumns::class)
+            ->setArguments([new Reference('doctrine')])
+            ->addTag('nowo_migrations_kit.exact_key_columns');
+    }
+
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
@@ -111,6 +129,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         }
 
         $this->loadActionLog($config['action_log'], $container);
+        $this->registerExactKeyColumns($container);
 
         $registry = new ProfileRegistry($profiles, $defaultProfileName);
 
