@@ -10,6 +10,7 @@ use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Nowo\AuditKitBundle\Blame\BlameIdResolverInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
+use Nowo\AuditKitBundle\Collation\ActionLogExactKeyColumns;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
@@ -24,7 +25,6 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_keys;
 use function class_exists;
-use function interface_exists;
 use function is_array;
 use function is_string;
 use function ltrim;
@@ -66,6 +66,20 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
     }
 
     /** Registers parameters and loads service definitions from YAML. */
+    /**
+     * REQ-SEC-006: declare actor_id / subject_id of every id-mode action log, so a host's
+     * nowo:migrations:check-key-collations asserts their binary NO PAD collation against its real schema. The
+     * contract comes from nowo-tech/migrations-kit-contracts (interfaces and value objects, no dependencies beyond
+     * PHP); the check itself lives in MigrationsKitBundle, which only the host needs. A host without it simply never
+     * reads the tag.
+     */
+    private function registerExactKeyColumns(ContainerBuilder $container): void
+    {
+        $container->register(ActionLogExactKeyColumns::class, ActionLogExactKeyColumns::class)
+            ->setArguments([new Reference('doctrine')])
+            ->addTag('nowo_migrations_kit.exact_key_columns');
+    }
+
     public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
@@ -111,6 +125,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
         }
 
         $this->loadActionLog($config['action_log'], $container);
+        $this->registerExactKeyColumns($container);
 
         $registry = new ProfileRegistry($profiles, $defaultProfileName);
 

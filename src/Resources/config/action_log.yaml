@@ -39,3 +39,8 @@ services:
             $logger: '@?logger'
         tags:
             - { name: doctrine.event_listener, event: postGenerateSchemaTable }
+
+    # REQ-SEC-006: the same two columns, declared so a host's nowo:migrations:check-key-collations asserts the
+    # collation the database really has. The table and column names come from the host's mapping (the log is a mapped
+    # superclass), never from a literal. Registered by NowoAuditKitExtension only when MigrationsKitBundle is
+    # installed: this bundle does not require it.

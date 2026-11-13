@@ -22,7 +22,7 @@
     },
     "authors": [
         {
-            "name": "H\u00e9ctor Franco Aceituno",
+            "name": "Héctor Franco Aceituno",
             "email": "hectorfranco@nowo.tech",
             "homepage": "https://github.com/HecFranco",
             "role": "Developer"
@@ -33,9 +33,10 @@
         }
     ],
     "require": {
-        "php": ">=8.2 <8.6",
         "doctrine/doctrine-bundle": "^2.10 || ^3.0",
         "doctrine/orm": "^2.15 || ^3.0",
+        "nowo-tech/migrations-kit-contracts": "^1.0",
+        "php": ">=8.2 <8.6",
         "psr/clock": "^1.0",
         "psr/log": "^1 || ^2 || ^3",
         "symfony/config": "^7.4 || ^8.0",
@@ -67,6 +68,7 @@
         "twig/twig": "^3.12"
     },
     "suggest": {
+        "nowo-tech/migrations-kit-bundle": "Runs nowo:migrations:check-key-collations, which asserts the declared action log id columns against the live schema (REQ-SEC-006)",
         "nowo-tech/ui-kit-bundle": "Styles the action log timeline partial (nowo-ui-* classes)."
     },
     "autoload": {
