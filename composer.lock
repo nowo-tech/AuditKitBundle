@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "7f52b050b26fcb00cb2ec11c02908e8e",
+    "content-hash": "c45af275e51ecbea2678d3fc1b7a2d95",
     "packages": [
         {
             "name": "doctrine/collections",
@@ -934,6 +934,72 @@
                 "source": "https://github.com/doctrine/sql-formatter/tree/1.5.4"
             },
             "time": "2026-02-08T16:21:46+00:00"
+        },
+        {
+            "name": "nowo-tech/migrations-kit-contracts",
+            "version": "v1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nowo-tech/MigrationsKitContracts.git",
+                "reference": "4e8bac5d985aa177c38b72b80ebf9d87dbb3eb8e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/nowo-tech/MigrationsKitContracts/zipball/4e8bac5d985aa177c38b72b80ebf9d87dbb3eb8e",
+                "reference": "4e8bac5d985aa177c38b72b80ebf9d87dbb3eb8e",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2 <8.6"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.0",
+                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^10.0 || ^11.0",
+                "rector/rector": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Nowo\\MigrationsKitContracts\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Héctor Franco Aceituno",
+                    "email": "hectorfranco@nowo.tech",
+                    "homepage": "https://github.com/HecFranco",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Nowo.tech",
+                    "homepage": "https://nowo.tech"
+                }
+            ],
+            "description": "Contracts a bundle implements to declare its identity and access-key columns, so a host can assert they are in a binary NO PAD collation (REQ-SEC-006). Interfaces and value objects only, no dependencies beyond PHP.",
+            "homepage": "https://github.com/nowo-tech/MigrationsKitContracts",
+            "keywords": [
+                "collation",
+                "contracts",
+                "database",
+                "identity",
+                "mariadb",
+                "mysql",
+                "no-pad",
+                "security",
+                "utf8mb4"
+            ],
+            "support": {
+                "issues": "https://github.com/nowo-tech/MigrationsKitContracts/issues",
+                "source": "https://github.com/nowo-tech/MigrationsKitContracts"
+            },
+            "time": "2026-11-13T16:29:59+00:00",
+            "published-time": "2026-11-13T16:41:39+00:00"
         },
         {
             "name": "psr/cache",
