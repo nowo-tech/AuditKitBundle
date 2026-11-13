@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.16.0] - 2026-11-13](#1160---2026-11-13)
 - [[1.15.1] - 2026-11-13](#1151---2026-11-13)
 - [[1.15.0] - 2026-11-11](#1150---2026-11-11)
 - [[1.14.1] - 2026-11-11](#1141---2026-11-11)
@@ -50,6 +51,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-11-13
+
 ### Added
 
 - **`actor_id` / `subject_id` declared as identity keys for the REQ-SEC-006 gate.**
@@ -61,6 +64,8 @@ All notable changes to this project will be documented in this file.
   entity blame mode the actor and subject are relations, so nothing is declared. The contract comes from the
   dependency-free `nowo-tech/migrations-kit-contracts`; the service is tagged by autoconfiguration, and a host
   without MigrationsKitBundle simply never reads the tag.
+
+[1.16.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.16.0
 
 ## [1.15.1] - 2026-11-13
 
