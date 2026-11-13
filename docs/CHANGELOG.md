@@ -58,8 +58,9 @@ All notable changes to this project will be documented in this file.
   table created before 1.15.1, converted by hand, or restored from a dump, which `ReferenceCollationListener` cannot
   see. This bundle owns no table (`AbstractIdActionLog` is a mapped superclass), so the declaration is built from the
   **host's Doctrine mapping**: whatever the host called its log table and its two columns is what gets declared. In
-  entity blame mode the actor and subject are relations, so nothing is declared. MigrationsKitBundle stays
-  **optional**: the service is registered only when it is installed, and the bundle requires nothing new at runtime.
+  entity blame mode the actor and subject are relations, so nothing is declared. The contract comes from the
+  dependency-free `nowo-tech/migrations-kit-contracts`; the service is tagged by autoconfiguration, and a host
+  without MigrationsKitBundle simply never reads the tag.
 
 ## [1.15.1] - 2026-11-13
 

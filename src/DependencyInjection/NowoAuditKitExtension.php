@@ -15,7 +15,6 @@ use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
-use Nowo\MigrationsKitBundle\Collation\ExactKeyColumnsInterface;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -26,7 +25,6 @@ use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_keys;
 use function class_exists;
-use function interface_exists;
 use function is_array;
 use function is_string;
 use function ltrim;
@@ -69,16 +67,14 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
 
     /** Registers parameters and loads service definitions from YAML. */
     /**
-     * REQ-SEC-006: declare actor_id / subject_id of every id-mode action log when MigrationsKitBundle is installed,
-     * so nowo:migrations:check-key-collations asserts their binary NO PAD collation against the host's real schema.
-     * Optional: nothing is registered when the interface is absent, and the bundle requires nothing new at runtime.
+     * REQ-SEC-006: declare actor_id / subject_id of every id-mode action log, so a host's
+     * nowo:migrations:check-key-collations asserts their binary NO PAD collation against its real schema. The
+     * contract comes from nowo-tech/migrations-kit-contracts (interfaces and value objects, no dependencies beyond
+     * PHP); the check itself lives in MigrationsKitBundle, which only the host needs. A host without it simply never
+     * reads the tag.
      */
     private function registerExactKeyColumns(ContainerBuilder $container): void
     {
-        if (!interface_exists(ExactKeyColumnsInterface::class)) {
-            return;
-        }
-
         $container->register(ActionLogExactKeyColumns::class, ActionLogExactKeyColumns::class)
             ->setArguments([new Reference('doctrine')])
             ->addTag('nowo_migrations_kit.exact_key_columns');
