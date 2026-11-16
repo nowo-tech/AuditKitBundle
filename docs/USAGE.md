@@ -680,7 +680,7 @@ services:
   `CurrentUserResolverInterface` / `BlameValueResolverInterface` as well. With `blame_mode: id` the actor port alone
   is enough.
 - In id mode, an alias of `CurrentUserResolverInterface` or `BlameValueResolverInterface` still works but is
-  deprecated (see [UPGRADING](UPGRADING.md#unreleased)).
+  deprecated (see [UPGRADING](UPGRADING.md#to-1161)).
 
 **Mapping the traits in XML**
 

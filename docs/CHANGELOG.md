@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.16.1] - 2026-11-16](#1161---2026-11-16)
 - [[1.16.0] - 2026-11-13](#1160---2026-11-13)
 - [[1.15.1] - 2026-11-13](#1151---2026-11-13)
 - [[1.15.0] - 2026-11-11](#1150---2026-11-11)
@@ -51,6 +52,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.16.1] - 2026-11-16
+
 ### Fixed
 
 - `ActionLogExactKeyColumns` no longer declares columns for the mapped superclass `abstract_id_action_log` (or any other mapped superclass / embeddable): it has no table, so MigrationsKit's `key_collation_check` reported a missing table. Only concrete entity tables are declared. No BC break; stateless, safe in FrankenPHP worker mode.
@@ -58,6 +61,8 @@ All notable changes to this project will be documented in this file.
 ### Documentation
 
 - Spec Kit baseline: the code inventory maps all 70 files under `src/` again (1.11 avatars, 1.14 id-mode action log, 1.15 blame ports, 1.15.1/1.16 key collation), with `FR-BLAME-001`, `FR-BLAME-ID-001`, `FR-ID-001`, `FR-KEY-001` and `FR-AVATAR-001` in the spec (REQ-SPECKIT-001/003).
+
+[1.16.1]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.16.1
 
 ## [1.16.0] - 2026-11-13
 
