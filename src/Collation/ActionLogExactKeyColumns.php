@@ -67,6 +67,12 @@ final readonly class ActionLogExactKeyColumns implements ExactKeyColumnsInterfac
             }
 
             foreach ($all as $metadata) {
+                // getAllMetadata() also returns the mapped superclass itself (and any host intermediate one): it has no
+                // table, so declaring its columns would make the key collation check look for a table that is not there.
+                if ($metadata->isMappedSuperclass || $metadata->isEmbeddedClass) {
+                    continue;
+                }
+
                 if (is_a($metadata->getName(), AbstractIdActionLog::class, true)) {
                     $columns = [...$columns, ...$this->columnsOf($metadata)];
                 }
