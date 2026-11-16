@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-10-28 (specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
+**Last audited**: 2026-11-16 (1.11–1.16 sources added; 2026-10-28: specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
 **Status**: Implemented
 
 ## Symfony config, views and translations (`src/Resources/`)
@@ -13,6 +13,9 @@
 | `Resources/config/packages/nowo_audit_kit.yaml` | Default config template | FR-CFG-002 | Mapped |
 | `Resources/config/action_log.yaml` | Action log services (opt-in) | 003 FR-AL-004, FR-AL-006 | Mapped |
 | `Resources/views/action_log/_timeline.html.twig` | Timeline partial | 003 FR-AL-008 | Mapped |
+| `Resources/views/action_log/_avatar.html.twig` | Actor/subject picture partial | FR-AVATAR-001 | Mapped |
+| `Resources/config/doctrine/action_log/AbstractActionLog.orm.xml` | XML mapping (DDD hosts) | 003 FR-AL-001, FR-ID-001 | Mapped |
+| `Resources/config/doctrine/action_log/AbstractIdActionLog.orm.xml` | XML mapping (DDD hosts) | FR-ID-001 | Mapped |
 | `Resources/translations/NowoAuditKitBundle.en.yaml` | Timeline strings (English) | 003 FR-AL-008 | Mapped |
 | `Resources/translations/NowoAuditKitBundle.es.yaml` | Timeline strings (Spanish) | 003 FR-AL-008 | Mapped |
 | `Resources/translations/NowoAuditKitBundle.it.yaml` | Timeline strings (Italian) | 003 FR-AL-008 | Mapped |
@@ -29,6 +32,7 @@
 | `DependencyInjection/Configuration.php` | Config tree | FR-CFG-001, FR-CFG-003 | Mapped |
 | `DependencyInjection/NowoAuditKitExtension.php` | DI extension | FR-CFG-002, FR-CFG-003 | Mapped |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | `@NowoAuditKitBundle` Twig namespace, app override first | FR-TWIG-001 | Mapped |
+| `DependencyInjection/Compiler/BlamePortsPass.php` | BC for 1.14 port overrides in id mode | FR-BLAME-ID-001 | Mapped |
 
 ## PHP — contracts & traits
 
@@ -44,6 +48,7 @@
 | `Model/PublicUuidInterface.php` | Public UUID contract | 002 FR-UUID-001 | Mapped |
 | `Model/PublicUuidTrait.php` | Public UUID column | 002 FR-UUID-002 | Mapped |
 | `Model/CreatedAtImmutableTrait.php` | Append-only created-at | 002 FR-CREATED-001 | Mapped |
+| `Model/ReferenceId.php` | User reference to id string | FR-ID-001, FR-KEY-001 | Mapped |
 
 ## PHP — profiles
 
@@ -65,6 +70,18 @@
 | `Doctrine/SqlFulltext.php` | FULLTEXT / LIKE search condition, snippets | 005 FR-FT-001 | Mapped |
 | `Doctrine/KeysetDelete.php` | Keyset batch delete (DBAL) | 004 FR-KD-001 | Mapped |
 | `Security/CurrentUserResolver.php` | Current user | FR-SEC-001, FR-SEC-002, FR-SEC-003 | Mapped |
+| `Security/CurrentUserResolverInterface.php` | Current user port | FR-BLAME-001 | Mapped |
+| `Security/CurrentActorProviderInterface.php` | Framework-free actor port | FR-BLAME-ID-001 | Mapped |
+| `Security/SecurityCurrentActorProvider.php` | Default actor provider | FR-BLAME-ID-001, FR-SEC-003 | Mapped |
+| `Security/AuditActor.php` | Actor value object | FR-BLAME-ID-001 | Mapped |
+| `Blame/BlameValueResolverInterface.php` | Blame value port | FR-BLAME-001 | Mapped |
+| `Blame/EntityReferenceBlameValueResolver.php` | Default: Doctrine reference | FR-BLAME-001, FR-ORM-006 | Mapped |
+| `Blame/UserIdBlameValueResolver.php` | Identifier, no reference | FR-BLAME-001 | Mapped |
+| `Blame/SecurityUserIdBlameValueResolver.php` | Identifier of a non-entity firewall user | FR-BLAME-001 | Mapped |
+| `Blame/BlameIdResolverInterface.php` | Id-mode blame port | FR-BLAME-ID-001 | Mapped |
+| `Blame/ActorIdBlameIdResolver.php` | Default id-mode blame | FR-BLAME-ID-001 | Mapped |
+| `Doctrine/ReferenceCollationListener.php` | Binary NO PAD on id columns | FR-KEY-001 | Mapped |
+| `Collation/ActionLogExactKeyColumns.php` | Identity-key declaration | FR-KEY-001 | Mapped |
 
 ## PHP — action log
 
@@ -75,6 +92,22 @@
 | `ActionLog/ActionLogRepository.php` | Filters, keyset purge | 003 FR-AL-005, 004 FR-KD-006 | Mapped |
 | `ActionLog/ActionLogCriteria.php` | Filter value object | 003 FR-AL-005 | Mapped |
 | `ActionLog/Command/PurgeActionLogCommand.php` | Purge command | 003 FR-AL-006 | Mapped |
+| `ActionLog/AbstractIdActionLog.php` | Id-mode mapped superclass | FR-ID-001 | Mapped |
+| `ActionLog/ActionLogEntryInterface.php` | Shared read model | FR-ID-001 | Mapped |
+| `ActionLog/ActionLogRecorderInterface.php` | Recording port | FR-ID-001, 003 FR-AL-004 | Mapped |
+| `ActionLog/ActionLogIdRecorderInterface.php` | Id recording port | FR-ID-001 | Mapped |
+
+## PHP — avatars and Twig
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `Avatar/ActionLogAvatarResolverInterface.php` | Avatar URL port | FR-AVATAR-001 | Mapped |
+| `Avatar/NullActionLogAvatarResolver.php` | Default: no picture | FR-AVATAR-001 | Mapped |
+| `Avatar/ActionLogAvatars.php` | Per-request batch + memo | FR-AVATAR-001, FR-SEC-003 | Mapped |
+| `Avatar/ActionLogAvatarsResetSubscriber.php` | Memo cleared at boundaries | FR-AVATAR-001 | Mapped |
+| `Avatar/AuditAvatarKey.php` | Resolver key | FR-AVATAR-001 | Mapped |
+| `Avatar/AvatarUrlPolicy.php` | Safe URL policy | FR-AVATAR-001 | Mapped |
+| `Twig/ActionLogAvatarExtension.php` | `nowo_audit_kit_prime_avatars` | FR-AVATAR-001 | Mapped |
 
 ## PHP — attributes
 
@@ -86,13 +119,14 @@
 
 | Category | Files | Mapped |
 | --- | ---: | ---: |
-| Symfony config, views and translations | 11 | 11 |
-| PHP — bundle core | 4 | 4 |
-| PHP — contracts & traits | 10 | 10 |
+| Symfony config, views and translations | 14 | 14 |
+| PHP — bundle core | 5 | 5 |
+| PHP — contracts & traits | 11 | 11 |
 | PHP — profiles | 3 | 3 |
-| PHP — Doctrine & security | 8 | 8 |
-| PHP — action log | 5 | 5 |
+| PHP — Doctrine & security | 20 | 20 |
+| PHP — action log | 9 | 9 |
+| PHP — avatars and Twig | 7 | 7 |
 | PHP — attributes | 1 | 1 |
-| **Total production sources** | **42** | **42** |
+| **Total production sources** | **70** | **70** |
 
-Audit command (production count): `git ls-files src | wc -l` → **42** (2026-10-28).
+Audit command (production count): `git ls-files src | wc -l` → **70** (2026-11-16).
