@@ -77,6 +77,29 @@ final class ActionLogExactKeyColumnsTest extends TestCase
         self::assertSame(['app_action_log.who_id', 'app_action_log.about_id'], $this->describe($registry));
     }
 
+    public function testMappedSuperclassesAreSkippedAndConcreteEntitiesStillDeclared(): void
+    {
+        // getAllMetadata() returns the mapped superclass too; it has no table, so it must declare nothing.
+        $superclass                       = $this->metadataFor(AbstractIdActionLog::class, 'abstract_id_action_log');
+        $superclass->isMappedSuperclass   = true;
+        $intermediate                     = $this->metadataFor(HostIntermediateActionLog::class, 'intermediate_log');
+        $intermediate->isMappedSuperclass = true;
+
+        $registry = $this->registry([$superclass, $intermediate, $this->metadataFor(HostActionLog::class, 'app_action_log')]);
+
+        self::assertSame(['app_action_log.actor_id', 'app_action_log.subject_id'], $this->describe($registry));
+        // Same answer on a second call: no state is kept between calls (worker mode, kernel reset false).
+        self::assertSame(['app_action_log.actor_id', 'app_action_log.subject_id'], $this->describe($registry));
+    }
+
+    public function testEmbeddablesAreSkipped(): void
+    {
+        $embedded                  = $this->metadataFor(HostActionLog::class, 'embedded');
+        $embedded->isEmbeddedClass = true;
+
+        self::assertSame([], $this->describe($this->registry([$embedded])));
+    }
+
     public function testEntityModeDeclaresNothing(): void
     {
         // Entity blame mode maps actor / subject as relations to the host user entity: no string key, nothing to check.
@@ -124,6 +147,13 @@ final class ActionLogExactKeyColumnsTest extends TestCase
  * Host entity extending the id-mode mapped superclass.
  */
 class HostActionLog extends AbstractIdActionLog
+{
+}
+
+/**
+ * Host mapped superclass sitting between the bundle's one and a concrete entity.
+ */
+abstract class HostIntermediateActionLog extends AbstractIdActionLog
 {
 }
 

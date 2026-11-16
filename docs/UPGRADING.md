@@ -50,6 +50,9 @@
 
 ## Unreleased
 
+Patch fix (1.16.1), no action required. Hosts that worked around the phantom `abstract_id_action_log` table with
+`key_collation_check.ignore_columns` can drop that entry: the provider now declares only the host's concrete action log tables.
+
 ## To 1.16.0
 
 From **1.15.1**:
