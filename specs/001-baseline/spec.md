@@ -126,6 +126,14 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 - **FR-SEC-002**: No hard dependency on AuthKitBundle; only `symfony/security-core` (or equivalent). Optional `RequestStack` + SecurityBundle `security.firewall.map` for HTTP trust checks.
 - **FR-SEC-003**: FrankenPHP worker / no kernel reset — during an HTTP request, trust the token only when the main request passed a firewall with security enabled (`_firewall_context` + firewall config); without a main request (CLI, Messenger) use the token set by the caller.
 
+### Blame resolvers, ports and id mode (1.11–1.16)
+
+- **FR-BLAME-001**: `BlameValueResolverInterface` is the port for the value written into `created_by` / `updated_by`; the default `EntityReferenceBlameValueResolver` stores a Doctrine reference to the security user, `UserIdBlameValueResolver` / `SecurityUserIdBlameValueResolver` store the user identifier without a reference (opt-in). `CurrentUserResolverInterface` is the port of `CurrentUserResolver`.
+- **FR-BLAME-ID-001** (1.15, `blame_mode: id`): framework-free ports `CurrentActorProviderInterface` (returns the `AuditActor` value object; default `SecurityCurrentActorProvider`) and `BlameIdResolverInterface` (default `ActorIdBlameIdResolver`); `BlamePortsPass` keeps a host override of the 1.14 ports working and reports it as deprecated.
+- **FR-ID-001** (1.14): id-mode action log — `AbstractIdActionLog` references users by id (`actor_id` / `subject_id`), `ReferenceId` normalises and refuses unusable ids (1.15.1), `ActionLogEntryInterface` is the shared read model and `ActionLogRecorderInterface` / `ActionLogIdRecorderInterface` are the recording ports; both superclasses ship XML mapping for DDD hosts (`Resources/config/doctrine/action_log/*.orm.xml`).
+- **FR-KEY-001** (1.15.1/1.16.0, REQ-SEC-006): `ReferenceCollationListener` puts a binary NO PAD collation on `actor_id` / `subject_id` of id-mode entities and `ActionLogExactKeyColumns` declares them as identity keys for the MigrationsKit key-collation gate.
+- **FR-AVATAR-001** (1.11): the timeline shows actor/subject pictures through `ActionLogAvatarResolverInterface` (default `NullActionLogAvatarResolver`), keyed by `AuditAvatarKey`; `ActionLogAvatars` batches and memoises URLs per request (`nowo_audit_kit_prime_avatars` in `ActionLogAvatarExtension`), `ActionLogAvatarsResetSubscriber` empties the memo at every unit-of-work boundary (worker mode), `AvatarUrlPolicy` filters unsafe URLs and `_avatar.html.twig` renders the picture or initials.
+
 ### Documentation
 
 - **FR-DOC-001**: Migration examples for adding audit columns to existing entities.
@@ -135,7 +143,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 
 ## Success Criteria
 
-- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**42/42** units under `src/` as of 2026-10-28; `git ls-files src | wc -l`).
+- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**70/70** units under `src/` as of 2026-11-16; `git ls-files src | wc -l`).
 - **SC-002**: Persist with authenticated user sets all four fields (functional test).
 - **SC-003**: Update changes only `updatedAt` / `updatedBy` (functional test).
 - **SC-004**: CLI persist leaves blame null, sets timestamps (functional test).
