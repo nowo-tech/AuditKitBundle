@@ -13,7 +13,7 @@ endif
 COMPOSE     := $(COMPOSE_BIN) -f $(COMPOSE_FILE)
 SERVICE_PHP := php
 
-.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan igor qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form strip-cursor-coauthor-from-history demo-smoke validate-translations
+.PHONY: help up down down-dev build shell install test test-coverage test-coverage-100 coverage-php-percent cs-check cs-fix rector rector-dry phpstan igor qa release-check release-check-demos composer-sync clean update validate assets setup-hooks check-no-cursor-coauthor check-open-prs check-twig-extra check-no-raw-html-form strip-cursor-coauthor-from-history demo-smoke validate-translations test-e2e demo-screenshots
 
 # Default target
 help:
@@ -49,6 +49,8 @@ help:
 	@echo "Bundle-specific:"
 	@echo "  validate-translations Check translation YAML key parity (REQ-MAKE-004)"
 	@echo "  demo-smoke    Boot demo/symfony8 and assert HTTP 200 (REQ-TEST-011)"
+	@echo "  test-e2e      Playwright e2e against demo/symfony8 (REQ-DEMO-013)"
+	@echo "  demo-screenshots Refresh README screenshots docs/images/demo/*.webp (REQ-DEMO-013)"
 	@echo "  check-open-prs Fail if unresolved open GitHub PRs remain (REQ-REL-003)"
 	@echo "  check-twig-extra Fail when Twig Extra is not wired (REQ-TWIG-004)"
 	@echo "  check-no-raw-html-form Fail on raw <form>/<input>/<textarea>/<select> in Twig (REQ-TWIG-005)"
@@ -155,6 +157,13 @@ demo-smoke:
 	done; \
 	if [ "$$code" != "200" ]; then echo "demo-smoke failed: HTTP $$code"; (cd demo/symfony8 && docker compose logs --tail 80 php) || true; exit 1; fi; \
 	echo "demo-smoke OK (HTTP 200)"
+
+# REQ-DEMO-013 — Playwright e2e + WebP README screenshots (demo/symfony8/e2e, Playwright Docker image)
+test-e2e:
+	@$(MAKE) -C demo/symfony8 test-e2e
+
+demo-screenshots:
+	@$(MAKE) -C demo/symfony8 demo-screenshots
 
 release-check-demos:
 	@if [ -f demo/Makefile ]; then $(MAKE) -C demo release-check; fi
