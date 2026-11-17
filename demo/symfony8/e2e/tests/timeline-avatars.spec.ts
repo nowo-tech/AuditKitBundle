@@ -28,7 +28,10 @@ test.describe('action log timeline avatars (1.11)', () => {
     await expect(ada).toHaveAttribute('width', '24');
     await expect.poll(() => ada.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     const grace = first.nth(1).locator('img');
-    await expect.poll(() => grace.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 0)).toBe(true);
+    // UiKit's avatar script drops a picture that fails to load; before it runs the browser reports no pixels.
+    await expect
+      .poll(async () => (await grace.count()) === 0 || (await grace.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth === 0)))
+      .toBe(true);
     await expect(first.nth(1)).toContainText('GH');
 
     // Entry 2: Grace (broken) acts on Alan (http: rejected → no avatar at all).

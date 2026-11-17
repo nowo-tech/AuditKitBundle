@@ -11,6 +11,7 @@ Thank you for your interest in contributing to Audit Kit Bundle! This document p
   - [Contributing Code](#contributing-code)
 - [Project Structure](#project-structure)
 - [Demos](#demos)
+- [Demo e2e and screenshots (REQ-DEMO-013)](#demo-e2e-and-screenshots-req-demo-013)
 - [Questions](#questions)
 - [Acknowledgments](#acknowledgments)
 - [AI co-author trailers](#ai-co-author-trailers)
@@ -149,6 +150,18 @@ make -C demo/symfony8 test
 ```
 
 See [Demo with FrankenPHP](DEMO-FRANKENPHP.md).
+
+## Demo e2e and screenshots (REQ-DEMO-013)
+
+Playwright lives in `demo/symfony8/e2e` and runs in the official Playwright Docker image against the running demo
+(`PORT` from `demo/symfony8/.env`):
+
+```bash
+make test-e2e            # = make -C demo/symfony8 test-e2e: timeline avatars + axe
+make demo-screenshots    # captures PNGs, converts them to WebP (sharp) in docs/images/demo/
+```
+
+Screenshots keep the full demo frame (masthead, page, Symfony WebProfiler toolbar); look at them before committing.
 
 ## Questions
 

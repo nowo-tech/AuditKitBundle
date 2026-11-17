@@ -15,6 +15,19 @@ Complements [`nowo-tech/user-kit-bundle`](https://github.com/nowo-tech/UserKitBu
 
 This bundle is **FrankenPHP worker mode friendly**, including the strict case where the kernel is **not** reset between requests. See [docs/FRANKENPHP-WORKER-AUDIT.md](docs/FRANKENPHP-WORKER-AUDIT.md).
 
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="docs/images/demo/timeline.webp" alt="Action log timeline with actor and subject avatars, a broken picture falling back to initials" />
+      <br /><sub>Action log timeline — actor and subject avatars from one resolver call</sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="docs/images/demo/audit-fields.webp" alt="Demo entities with automatic created and updated audit columns" />
+      <br /><sub>Audit fields — blame and timestamps filled on persist</sub>
+    </td>
+  </tr>
+</table>
+
 ## Features
 
 - Optional traits: `TimestampableTrait`, `BlameableTrait`, `AuditableTrait`

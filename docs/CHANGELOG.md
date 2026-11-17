@@ -52,6 +52,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Demo: `make test-e2e` and `make demo-screenshots` (root and `demo/symfony8`), two committed WebP screenshots in the README (REQ-DEMO-013).
+
+### Fixed
+
+- Demo e2e: the broken-avatar assertion accepts UiKit's avatar script dropping the failed picture.
+
 ## [1.16.1] - 2026-11-16
 
 ### Fixed
