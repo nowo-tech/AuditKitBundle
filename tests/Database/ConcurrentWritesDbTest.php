@@ -64,7 +64,7 @@ final class ConcurrentWritesDbTest extends TestCase
     {
         $this->boot(ActionLogRecorder::FLUSH_ISOLATED);
         $this->other->beginTransaction();
-        $this->other->insert('kernel_action_log', [
+        $this->insertFromTheOtherConnection([
             'action'     => 'item.viewed',
             'actor_id'   => $this->alice->id,
             'context'    => '[]',
@@ -186,7 +186,7 @@ final class ConcurrentWritesDbTest extends TestCase
         $this->boot(ActionLogRecorder::FLUSH_ISOLATED);
         $this->seedOldRows(3);
         $this->other->beginTransaction();
-        $this->other->insert('kernel_action_log', ['action' => 'item.viewed', 'context' => '[]', 'created_at' => '2026-06-01 10:00:00']);
+        $this->insertFromTheOtherConnection(['action' => 'item.viewed', 'context' => '[]', 'created_at' => '2026-06-01 10:00:00']);
 
         $this->assertSame(3, $this->repository()->purgeBefore(new DateTimeImmutable('2026-01-01'), null, 2));
         $this->other->commit();
@@ -225,6 +225,23 @@ final class ConcurrentWritesDbTest extends TestCase
         $this->other = DriverManager::getConnection($connection->getParams());
         $this->shortLockTimeout($connection);
         $this->shortLockTimeout($this->other);
+    }
+
+    /**
+     * A row written by the other connection, as another worker would. With a sequence id generator (PostgreSQL on
+     * DBAL 3) the id comes from the sequence.
+     *
+     * @param array<string, mixed> $row
+     */
+    private function insertFromTheOtherConnection(array $row): void
+    {
+        $metadata = $this->em->getClassMetadata(KernelActionLog::class);
+        if ($metadata->isIdGeneratorSequence()) {
+            $platform  = $this->other->getDatabasePlatform();
+            $row['id'] = $this->other->fetchOne($platform->getSequenceNextValSQL($metadata->getSequenceName($platform)));
+        }
+
+        $this->other->insert('kernel_action_log', $row);
     }
 
     private function shortLockTimeout(Connection $connection): void
