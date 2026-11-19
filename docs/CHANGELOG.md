@@ -55,10 +55,41 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - Demo: `make test-e2e` and `make demo-screenshots` (root and `demo/symfony8`), two committed WebP screenshots in the README (REQ-DEMO-013).
+- Concurrency (REQ-RUNTIME-003), documented in [CONCURRENCY.md](CONCURRENCY.md):
+  - new runtime requirements `nowo-tech/transaction-contract` ^1.0 and `nowo-tech/transaction-doctrine` ^1.6;
+  - `flush_mode: isolated` writes the row through transaction-doctrine's runner, which rolls the connection back to
+    its entry level after a failure (savepoint-aware). Outside a transaction a deadlock or serialization failure is
+    replayed at most twice (`ActionLogRecorder::MAX_ISOLATED_REPLAYS`) on a new entity manager; a lock conflict that
+    remains is thrown as `ConcurrencyConflict` (`CONFLICT_001`); a `ConcurrencyConflict` thrown inside the write is
+    rethrown unchanged (its `CONFLICT_002` is kept). Host Doctrine listeners run once per attempt: their side effects
+    must be idempotent or happen after the commit;
+  - `KeysetDelete::run()` (and so `ActionLogRepository::purgeBefore()` and the purge command) replays a deadlocked or
+    serialization-failed batch at most twice outside a transaction (`KeysetDelete::MAX_BATCH_REPLAYS`), and throws
+    `ConcurrencyConflict` for a conflict that remains, with `committed` set when earlier batches were deleted
+    (`CONFLICT_002`);
+  - `nowo:audit-kit:action-log:purge` prints `CONFLICT_001` / `CONFLICT_002` and exits with 75
+    (`PurgeActionLogCommand::EXIT_CONFLICT`) on a lock conflict;
+  - CI job "Databases": two-connection lock and race tests on MySQL 8.4, MariaDB 11.4 and PostgreSQL 16, on DBAL 3
+    and 4 (`tests/Database`, phpunit suite `Database`, `AUDIT_KIT_TEST_DATABASE_URL`);
+  - CI job "Dependency floor (nowo-tech/transaction-* lowest, demo lock)" and `.scripts/check-demo-lock.py`.
+
+### Changed
+
+- A lock conflict of an isolated write, or of a keyset purge outside a transaction, is now thrown as
+  `Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict` (a `TransientStorageFailure`) with the DBAL error as
+  previous, instead of the DBAL exception itself. See [UPGRADING.md](UPGRADING.md#unreleased).
+- The demo lock installs the bundle's current requirements (`nowo-tech/migrations-kit-contracts`,
+  `nowo-tech/transaction-*`).
 
 ### Fixed
 
 - Demo e2e: the broken-avatar assertion accepts UiKit's avatar script dropping the failed picture.
+- `record()`, `recordIds()` and the host-mode `*AndFlush()` methods no longer fail with "EntityManager is closed"
+  after a failed flush of the host: a closed manager is replaced through the registry before the row is persisted
+  (an open one is never cleared or reset), and actor / subject entities loaded by the closed manager are referenced
+  through the new one by their identifier. The audit row of a failed action can now be written.
+- A lock conflict met by the avatar resolver while the timeline renders is rethrown instead of being logged and
+  swallowed (REQ-RUNTIME-003 rule 8).
 
 ## [1.16.1] - 2026-11-16
 

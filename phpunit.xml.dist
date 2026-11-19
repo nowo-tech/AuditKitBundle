@@ -8,13 +8,24 @@
          beStrictAboutOutputDuringTests="true"
          failOnRisky="true"
          failOnWarning="false"
-         displayDetailsOnTestsThatTriggerWarnings="true">
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         defaultTestSuite="Unit,Integration">
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
+        </testsuite>
+        <!-- REQ-RUNTIME-003: two-connection tests on a real database (AUDIT_KIT_TEST_DATABASE_URL); CI job "Databases" -->
+        <testsuite name="Database">
+            <directory>tests/Database</directory>
+        </testsuite>
+        <!-- REQ-RUNTIME-003: the injected-conflict tests (also part of Unit / Integration), run alone on the DBAL 3 legs -->
+        <testsuite name="Concurrency">
+            <file>tests/Integration/ActionLogConflictTest.php</file>
+            <file>tests/Unit/Doctrine/KeysetDeleteConflictTest.php</file>
+            <file>tests/Unit/ActionLog/Command/PurgeActionLogCommandConflictTest.php</file>
         </testsuite>
     </testsuites>
 

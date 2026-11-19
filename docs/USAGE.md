@@ -256,6 +256,7 @@ $deleted = KeysetDelete::run(
 - The name `:keysetDeleteAfterId` (`KeysetDelete::AFTER_ID_PARAMETER`) is reserved for named parameters.
 - Integer ids are bound as integers; string primary keys (UUID, …) work too, following the database order.
 - Returns the number of deleted rows. `ActionLogRepository::purgeBefore()` uses it.
+- Since 1.17, outside a transaction of the connection, a batch that meets a deadlock or a serialization failure is run again (at most twice). A lock conflict that remains, or a lock wait timeout, is thrown as `Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict` with `committed` true when earlier batches were deleted (`CONFLICT_002`). Inside your transaction the DBAL exception is rethrown unchanged. See [CONCURRENCY.md](CONCURRENCY.md).
 
 ## Action log
 
@@ -721,6 +722,10 @@ nowo_audit_kit:
   always on with DBAL 4) so only the action log write is rolled back. The bundle does not change your connection
   settings.
 - `record()` / `recordIds()` never flush: persist the row and flush with your own changes.
+- **Lock conflicts (since 1.17).** Outside a transaction a deadlock or serialization failure of the isolated write is
+  replayed at most twice; a conflict that remains is thrown as `ConcurrencyConflict` (`CONFLICT_001`). A failed audit
+  write is never swallowed: see
+  [A failed audit write and the host action](CONCURRENCY.md#a-failed-audit-write-and-the-host-action).
 - **REQ-ARCH-001 rule 6 is opt-in in 1.x.** The default `host` mode flushes your entity manager, as before, for
   backward compatibility. Switching the default to `isolated` in 2.0 is planned, pending the owner's decision.
 

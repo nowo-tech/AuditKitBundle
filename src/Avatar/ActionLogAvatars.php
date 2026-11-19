@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Avatar;
 
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
+use Nowo\TransactionDoctrine\TransientFailureClassifier;
 use Psr\Log\LoggerInterface;
 use Symfony\Contracts\Service\ResetInterface;
 use Throwable;
@@ -111,6 +112,11 @@ final class ActionLogAvatars implements ResetInterface
             try {
                 $resolved = $this->resolver->urlsFor(array_column($batch, 1), self::SIZE);
             } catch (Throwable $e) {
+                // REQ-RUNTIME-003 rule 8 (since 1.17): a lock conflict is never swallowed, so the host's unit can roll back or replay.
+                if ((new TransientFailureClassifier())->isTransient($e)) {
+                    throw $e;
+                }
+
                 $this->logger?->warning('AuditKit avatar resolver failed; the timeline shows no pictures.', ['exception' => $e]);
                 $resolved = [];
             }

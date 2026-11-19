@@ -260,6 +260,124 @@ jobs:
       - name: Igor worker-state audit (fails on any KO)
         run: composer igor
 
+  databases:
+    name: Databases (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'MySQL 8.4', url: 'mysql://root@127.0.0.1:3306/audit_test?serverVersion=8.4.0&charset=utf8mb4', dbal: '' }
+          - { name: 'MariaDB 11.4', url: 'mysql://root@127.0.0.1:3307/audit_test?serverVersion=11.4.0-MariaDB&charset=utf8mb4', dbal: '' }
+          - { name: 'PostgreSQL 16', url: 'postgresql://postgres@127.0.0.1:5432/audit_test?serverVersion=16&charset=utf8', dbal: '' }
+          - { name: 'MySQL 8.4, DBAL 3', url: 'mysql://root@127.0.0.1:3306/audit_test?serverVersion=8.4.0&charset=utf8mb4', dbal: '^3.8.2' }
+          - { name: 'MariaDB 11.4, DBAL 3', url: 'mysql://root@127.0.0.1:3307/audit_test?serverVersion=11.4.0-MariaDB&charset=utf8mb4', dbal: '^3.8.2' }
+          - { name: 'PostgreSQL 16, DBAL 3', url: 'postgresql://postgres@127.0.0.1:5432/audit_test?serverVersion=16&charset=utf8', dbal: '^3.8.2' }
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: audit_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h127.0.0.1 -uroot --silent"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: '1'
+          MARIADB_DATABASE: audit_test
+        ports: ['3307:3306']
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+          POSTGRES_DB: audit_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: json, pdo_mysql, pdo_pgsql
+          coverage: none
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: |
+          composer config platform.php 8.4.1
+          composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Use DBAL 3
+        if: ${{ matrix.dbal != '' }}
+        # doctrine/doctrine-bundle 3.x needs DBAL 4: DBAL 3 runs with DoctrineBundle 2 (and so Symfony 7.4), which does not
+        # turn on native lazy objects: the ORM then needs symfony/var-exporter 7 for its LazyGhost proxies.
+        run: |
+          composer require --no-update --no-interaction "doctrine/dbal:${{ matrix.dbal }}" "doctrine/doctrine-bundle:^2.10" "symfony/var-exporter:^7.4"
+          composer update --no-interaction --no-progress --with-all-dependencies
+          composer show | grep -E '^(doctrine/dbal|doctrine/doctrine-bundle|symfony/framework-bundle) '
+
+      - name: Two-connection lock and race tests (REQ-RUNTIME-003)
+        timeout-minutes: 10
+        env:
+          AUDIT_KIT_TEST_DATABASE_URL: ${{ matrix.url }}
+        run: vendor/bin/phpunit --no-coverage --fail-on-skipped --testsuite Database
+
+      # Several unit stubs use DBAL 4 API (SQLitePlatform, Connection::getServerVersion()): on DBAL 3 the job runs the
+      # concurrency tests only (suite Concurrency); on DBAL 4 every suite.
+      - name: Unit and integration suites on this doctrine/dbal
+        timeout-minutes: 10
+        run: vendor/bin/phpunit --no-coverage --testsuite ${{ matrix.dbal != '' && 'Concurrency' || 'Unit,Integration' }}
+
+  # Dependency floor: the code must work with the LOWEST nowo-tech/transaction-* versions composer.json allows (a host
+  # can run `composer update nowo-tech/audit-kit-bundle` without updating them), and the demo lock must install what
+  # the bundle requires (the demo installs from its lock, so a requirement added later is never installed and the demo
+  # fails with "class not found").
+  deps-floor:
+    name: Dependency floor (nowo-tech/transaction-* lowest, demo lock)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Demo lock satisfies the bundle's nowo-tech requirements
+        run: python3 .scripts/check-demo-lock.py . --only 'nowo-tech/*'
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer:v2
+
+      - name: Install dependencies
+        run: |
+          composer config platform.php 8.4.1
+          composer update --prefer-dist --no-progress --no-interaction
+
+      - name: Downgrade nowo-tech/transaction-* to the lowest allowed versions
+        run: |
+          composer update 'nowo-tech/transaction-*' --prefer-lowest --prefer-dist --no-progress --no-interaction
+          composer show 'nowo-tech/transaction-*'
+
+      - name: PHPStan at the floor
+        run: composer phpstan
+
+      - name: Unit and integration suites at the floor
+        timeout-minutes: 10
+        run: vendor/bin/phpunit --no-coverage --testsuite Unit,Integration
+
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest

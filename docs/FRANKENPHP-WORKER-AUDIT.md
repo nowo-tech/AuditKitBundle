@@ -135,6 +135,11 @@ Static checks: `composer igor` and the `nowo-tech/phpstan-frankenphp` classic + 
 - Under B, clearing the application identity map between requests remains the host app's responsibility (the listener never calls `clear()`).
 - Messenger / console code that impersonates users should clear or replace the token between messages.
 - Do not decorate `CurrentUserResolver` with a cache of the resolved user.
+- Since 1.17 the action log recorder replaces its entity manager through the registry when it is already closed (a
+  failed host flush), before it writes a row; an open manager is never cleared or reset. Other host services that
+  hold the closed instance itself are repaired only by a kernel reset or by transaction-doctrine's
+  `WorkerConnectionHygiene`. The isolated mode's own manager is cleared and closed after every call, replays
+  included. See [CONCURRENCY.md](CONCURRENCY.md).
 - Demo: `demo/symfony8/docker/frankenphp/Caddyfile` runs FrankenPHP in `worker` mode.
 
 ## Re-audit triggers
