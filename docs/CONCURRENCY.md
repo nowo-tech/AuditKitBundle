@@ -134,6 +134,8 @@ nowo_audit_kit:
   - a purge blocked on its second batch: `CONFLICT_002`, the first batch stays deleted, and a rerun completes;
   - a purge blocked on its first batch: `CONFLICT_001`, nothing deleted;
   - rows written by another transaction while a purge runs are kept.
+- On the DBAL 3 legs the job runs the suites `Database` and `Concurrency` (the injected-conflict tests below). Some
+  older unit stubs use DBAL 4 API, so the full `Unit` and `Integration` suites run on DBAL 4 only.
 - `tests/Integration/ActionLogConflictTest.php` injects deadlocks, serialization failures, lock wait timeouts and unique
   violations at the flush of the row (SQLite). It covers the replays (one row, never two), a conflict that remains,
   no replay inside the host's transaction, host mode unchanged, and the closed-manager replacement.

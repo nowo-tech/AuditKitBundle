@@ -334,10 +334,11 @@ jobs:
           AUDIT_KIT_TEST_DATABASE_URL: ${{ matrix.url }}
         run: vendor/bin/phpunit --no-coverage --fail-on-skipped --testsuite Database
 
+      # Several unit stubs use DBAL 4 API (SQLitePlatform, Connection::getServerVersion()): on DBAL 3 the job runs the
+      # concurrency tests only (suite Concurrency); on DBAL 4 every suite.
       - name: Unit and integration suites on this doctrine/dbal
         timeout-minutes: 10
-        # On DBAL 3, skip the tests whose stubs use DBAL 4 API (group dbal4-only).
-        run: vendor/bin/phpunit --no-coverage --testsuite Unit,Integration ${{ matrix.dbal != '' && '--exclude-group dbal4-only' || '' }}
+        run: vendor/bin/phpunit --no-coverage --testsuite ${{ matrix.dbal != '' && 'Concurrency' || 'Unit,Integration' }}
 
   # Dependency floor: the code must work with the LOWEST nowo-tech/transaction-* versions composer.json allows (a host
   # can run `composer update nowo-tech/audit-kit-bundle` without updating them), and the demo lock must install what
