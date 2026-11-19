@@ -20,6 +20,7 @@ use Nowo\TransactionDoctrine\ConflictCode;
 use Nowo\TransactionDoctrine\TransientFailureKind;
 use Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict;
 use PHPUnit\Framework\TestCase;
+use stdClass;
 use Symfony\Component\Filesystem\Filesystem;
 use Throwable;
 
@@ -188,6 +189,71 @@ final class ActionLogConflictTest extends TestCase
         self::assertInstanceOf(EntityManagerInterface::class, $em);
         $em->flush();
         $this->assertSame(2, (int) $em->getConnection()->fetchOne('SELECT COUNT(*) FROM kernel_action_log'));
+    }
+
+    /** UN-AK-1: users loaded by the closed manager are re-pointed at the new one (managed entity and proxy). */
+    public function testUsersOfTheReplacedManagerAreReferencedThroughTheNewOne(): void
+    {
+        $this->boot(ActionLogRecorder::FLUSH_HOST);
+        $bob = new KernelUser('bob@example.com');
+        $this->em->persist($bob);
+        $this->em->flush();
+        $bobId = $bob->id;
+        $this->em->clear();
+        $alice = $this->em->find(KernelUser::class, $this->alice->id);
+        $proxy = $this->em->getReference(KernelUser::class, $bobId);
+        self::assertInstanceOf(KernelUser::class, $alice);
+        self::assertInstanceOf(KernelUser::class, $proxy);
+        $this->em->close();
+
+        $entry = $this->recorder->recordAndFlush('item.failed', $alice, $proxy);
+
+        $row = $this->em->getConnection()->fetchAssociative('SELECT actor_id, subject_id FROM kernel_action_log');
+        $this->assertIsArray($row);
+        $this->assertSame([(int) $this->alice->id, (int) $bobId], [(int) $row['actor_id'], (int) $row['subject_id']]);
+        $this->assertNotSame($alice, $entry->getActor());
+
+        // record(): the host flushes the new manager itself.
+        $em = $this->kernel->getContainer()->get('doctrine.orm.entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        $stale = $em->find(KernelUser::class, $this->alice->id);
+        $em->close();
+        $this->recorder->record('item.failed', $stale);
+        $em->flush();
+        $this->assertSame(2, $this->actionLogCount());
+    }
+
+    /** UN-AK-1: a user without an identifier, or not a mapped entity, is kept as it is (the ORM decides, as before). */
+    public function testUsersWithoutIdentifierOrMappingAreKeptAsTheyAre(): void
+    {
+        $this->boot(ActionLogRecorder::FLUSH_HOST);
+        $this->em->close();
+        $carol = new KernelUser('carol@example.com');
+        $other = new stdClass();
+
+        $entry = $this->recorder->record('item.failed', $carol, $other);
+
+        $this->assertSame($carol, $entry->getActor());
+        $this->assertSame($other, $entry->getSubject());
+    }
+
+    /** UN-AK-3: a ConcurrencyConflict from an inner unit is rethrown unchanged (its CONFLICT_002 is kept), never replayed. */
+    public function testAnInnerConcurrencyConflictIsRethrownUnchanged(): void
+    {
+        $this->boot(ActionLogRecorder::FLUSH_ISOLATED);
+        $inner          = new ConcurrencyConflict(1, TransientFailureKind::Deadlock, 1, LockFailures::deadlock(), true);
+        $this->failures = [$inner];
+
+        try {
+            $this->recorder->recordAndFlush('item.viewed', $this->alice);
+            $this->fail('The inner conflict must be rethrown.');
+        } catch (ConcurrencyConflict $conflict) {
+            $this->assertSame($inner, $conflict);
+            $this->assertSame(ConflictCode::Committed, ConflictCode::forFailure($conflict));
+        }
+
+        $this->assertSame(1, $this->flushes);
+        $this->assertSame(0, $this->actionLogCount());
     }
 
     private function boot(string $flushMode): void

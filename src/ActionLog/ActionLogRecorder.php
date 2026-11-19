@@ -10,6 +10,7 @@ use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\UnitOfWork;
 use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\Persistence\Proxy;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\AuditKitBundle\Model\ReferenceId;
@@ -23,6 +24,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 use function array_keys;
+use function get_parent_class;
 use function in_array;
 use function is_int;
 use function is_string;
@@ -100,7 +102,15 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         array $context = [],
         ?string $scope = null,
     ): AbstractActionLog {
-        return $this->persist($this->writableEntityManager(), $this->newObjectEntry($actor, $subject), $action, $context, $scope);
+        $closed  = !$this->entityManager()->isOpen();
+        $manager = $this->writableEntityManager();
+        if ($closed && $manager->isOpen()) {
+            // Since 1.17: the closed manager was replaced; users it loaded are unknown to the new one.
+            $actor   = $this->reattached($manager, $actor);
+            $subject = $this->reattached($manager, $subject);
+        }
+
+        return $this->persist($manager, $this->newObjectEntry($actor, $subject), $action, $context, $scope);
     }
 
     /**
@@ -236,6 +246,11 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
                 return DoctrineTransactionRunner::forEntityManager($own, null, null, self::RETRY_AFTER_SECONDS, $this->logger)
                     ->run(static fn (): ActionLogEntryInterface => $write($own, $host));
             } catch (TransientStorageFailure $failure) {
+                // Already decided by an inner unit (it may carry committed = true, CONFLICT_002): never re-wrapped or replayed.
+                if ($failure instanceof ConcurrencyConflict) {
+                    throw $failure;
+                }
+
                 $kind = $classifier->classify($failure) ?? TransientFailureKind::Retryable;
                 if (!$replayable || $attempt > self::MAX_ISOLATED_REPLAYS || !in_array($kind, [TransientFailureKind::Deadlock, TransientFailureKind::SerializationFailure], true)) {
                     throw new ConcurrencyConflict($attempt, $kind, self::RETRY_AFTER_SECONDS, $failure->getPrevious() ?? $failure);
@@ -362,6 +377,32 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      * manager is returned as it is, never cleared or reset. A closed manager the registry does not list is returned
      * unchanged (persisting then throws as before).
      */
+    /**
+     * Since 1.17: a reference of $manager to a user entity loaded by the manager it replaced, so the new unit of work
+     * does not see it as a new entity through the actor / subject association. A user that is not a mapped entity, or
+     * has no identifier yet, is returned as it is (the ORM decides at flush, as before).
+     */
+    private function reattached(EntityManagerInterface $manager, ?object $user): ?object
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        $parent = get_parent_class($user);
+        $class  = $user instanceof Proxy && $parent !== false ? $parent : $user::class;
+        if ($manager->getMetadataFactory()->isTransient($class)) {
+            return $user;
+        }
+
+        $metadata = $manager->getClassMetadata($class);
+        $id       = $metadata->getIdentifierValues($user);
+        if ($id === [] || in_array(null, $id, true)) {
+            return $user;
+        }
+
+        return $manager->getReference($metadata->getName(), $id);
+    }
+
     private function writableEntityManager(): EntityManagerInterface
     {
         $manager = $this->entityManager();

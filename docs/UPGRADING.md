@@ -68,8 +68,11 @@ Concurrency (REQ-RUNTIME-003, see [CONCURRENCY.md](CONCURRENCY.md)). No configur
   connections are never wrapped.
 - **Replays.** Outside a transaction, a deadlock or serialization failure of one isolated write or one purge batch is
   replayed at most twice. A replay runs only after the attempt rolled back, so no row is written or deleted twice.
+  Your Doctrine listeners on the shared event manager run once per attempt: keep their side effects idempotent or
+  after the commit.
 - **Closed entity manager.** `record()`, `recordIds()` and the host-mode `*AndFlush()` methods replace the action log's
-  entity manager through the registry when it is already closed, before they persist. Before, they failed with
+  entity manager through the registry when it is already closed, before they persist. Actor and subject entities
+  loaded by the closed manager are then referenced through the new one by their identifier. Before, they failed with
   "EntityManager is closed". An open manager is never cleared or reset.
 - **Purge command exit code.** `nowo:audit-kit:action-log:purge` exits with 75 (`EX_TEMPFAIL`) and prints
   `CONFLICT_001` or `CONFLICT_002` on a lock conflict. Before, the exception ended the command with exit code 1. Rows

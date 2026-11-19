@@ -25,7 +25,12 @@ requirement REQ-RUNTIME-003). Applies from 1.17. Worker mode with the kernel res
   that manager because the host asked for it by name (rule 2). The row then commits or fails with the host's changes.
 - **The host's manager is never cleared or reset while open.** Before it persists a row, the recorder checks the
   manager. If it is already closed (a failed flush of the host closes it), the recorder replaces it through the
-  registry (`ManagerRegistry::resetManager()`), so the row can still be written. An open manager is used as it is.
+  registry (`ManagerRegistry::resetManager()`), so the row can still be written. Actor and subject entities loaded by
+  the closed manager are then referenced through the new one by their identifier (`getReference()`); a user without
+  an identifier, or not a mapped entity, is passed as it is. An open manager is used as it is.
+- **An inner conflict is kept.** A `ConcurrencyConflict` thrown inside the isolated write (for example by a host
+  listener running its own unit) is rethrown unchanged and never replayed, so its `committed` flag (`CONFLICT_002`)
+  is kept.
 - **The isolated mode writes through a runner.** With `flush_mode: isolated`, the row is written on a short-lived
   entity manager of the bundle (same connection), through nowo-tech/transaction-doctrine's
   `DoctrineTransactionRunner::forEntityManager()`. After a failure the runner rolls the connection back to the level
@@ -35,6 +40,9 @@ requirement REQ-RUNTIME-003). Applies from 1.17. Worker mode with the kernel res
   isolated write, or of a purge batch, rolled back on its own. That one write is replayed, at most twice. A lock wait
   timeout is never replayed, so no write waits twice. Inside a transaction of the connection nothing is replayed: the
   caller's transaction owns the failure.
+- **Listeners run once per attempt.** A replay flushes again, so Doctrine listeners of the host (`prePersist`,
+  `onFlush`, `postPersist`, `postFlush`) on the shared event manager can run up to three times for one row. Their
+  side effects (mail, HTTP, files, messages) must happen after the commit, or be idempotent (rule 7).
 - **Transient failures are never swallowed** (rule 8). They reach the caller. This includes a lock conflict met by an
   avatar resolver while the timeline renders.
 - **Bounded work** (rule 9). The purge deletes in short primary-key batches, each in auto-commit. No HTTP call, mail or
@@ -151,6 +159,8 @@ nowo_audit_kit:
   transaction. See [A failed audit write and the host action](#a-failed-audit-write-and-the-host-action).
 - **PostgreSQL waits without limit by default.** An insert or a purge batch may wait as long as the transaction that
   holds the lock. Set `lock_timeout` (see [Host options](#host-options)).
+- **Replayed listeners.** See "Listeners run once per attempt" above: a listener with a non-idempotent side effect
+  runs it again on each replay.
 - **Replacing a closed manager.** The bundle replaces the host's manager only when it is already closed, so the
   host's unit of work is already lost at that point. Services that hold the closed instance itself (not Doctrine's
   lazy proxy) keep it (see [Host options](#host-options)).

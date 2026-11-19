@@ -60,7 +60,9 @@ All notable changes to this project will be documented in this file.
   - `flush_mode: isolated` writes the row through transaction-doctrine's runner, which rolls the connection back to
     its entry level after a failure (savepoint-aware). Outside a transaction a deadlock or serialization failure is
     replayed at most twice (`ActionLogRecorder::MAX_ISOLATED_REPLAYS`) on a new entity manager; a lock conflict that
-    remains is thrown as `ConcurrencyConflict` (`CONFLICT_001`);
+    remains is thrown as `ConcurrencyConflict` (`CONFLICT_001`); a `ConcurrencyConflict` thrown inside the write is
+    rethrown unchanged (its `CONFLICT_002` is kept). Host Doctrine listeners run once per attempt: their side effects
+    must be idempotent or happen after the commit;
   - `KeysetDelete::run()` (and so `ActionLogRepository::purgeBefore()` and the purge command) replays a deadlocked or
     serialization-failed batch at most twice outside a transaction (`KeysetDelete::MAX_BATCH_REPLAYS`), and throws
     `ConcurrencyConflict` for a conflict that remains, with `committed` set when earlier batches were deleted
@@ -84,7 +86,8 @@ All notable changes to this project will be documented in this file.
 - Demo e2e: the broken-avatar assertion accepts UiKit's avatar script dropping the failed picture.
 - `record()`, `recordIds()` and the host-mode `*AndFlush()` methods no longer fail with "EntityManager is closed"
   after a failed flush of the host: a closed manager is replaced through the registry before the row is persisted
-  (an open one is never cleared or reset). The audit row of a failed action can now be written.
+  (an open one is never cleared or reset), and actor / subject entities loaded by the closed manager are referenced
+  through the new one by their identifier. The audit row of a failed action can now be written.
 - A lock conflict met by the avatar resolver while the timeline renders is rethrown instead of being logged and
   swallowed (REQ-RUNTIME-003 rule 8).
 
