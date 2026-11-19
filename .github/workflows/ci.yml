@@ -321,8 +321,11 @@ jobs:
 
       - name: Use DBAL 3
         if: ${{ matrix.dbal != '' }}
-        # doctrine/doctrine-bundle 3.x needs DBAL 4: DBAL 3 runs with DoctrineBundle 2.
-        run: composer require --no-interaction --no-progress --with-all-dependencies "doctrine/dbal:${{ matrix.dbal }}" "doctrine/doctrine-bundle:^2.10"
+        # doctrine/doctrine-bundle 3.x needs DBAL 4: DBAL 3 runs with DoctrineBundle 2 (and so Symfony 7.4).
+        run: |
+          composer require --no-update --no-interaction "doctrine/dbal:${{ matrix.dbal }}" "doctrine/doctrine-bundle:^2.10"
+          composer update --no-interaction --no-progress --with-all-dependencies
+          composer show doctrine/dbal doctrine/doctrine-bundle symfony/framework-bundle | grep -E '^(name|versions)'
 
       - name: Two-connection lock and race tests (REQ-RUNTIME-003)
         timeout-minutes: 10
