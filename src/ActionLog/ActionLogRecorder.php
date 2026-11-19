@@ -13,10 +13,16 @@ use Doctrine\Persistence\ManagerRegistry;
 use InvalidArgumentException;
 use LogicException;
 use Nowo\AuditKitBundle\Model\ReferenceId;
+use Nowo\TransactionContract\TransientStorageFailure;
+use Nowo\TransactionDoctrine\DoctrineTransactionRunner;
+use Nowo\TransactionDoctrine\TransientFailureClassifier;
+use Nowo\TransactionDoctrine\TransientFailureKind;
+use Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 
+use function array_keys;
 use function in_array;
 use function is_int;
 use function is_string;
@@ -39,6 +45,14 @@ use function strlen;
  * event manager: the application's unit of work is neither flushed nor cleared, and the returned row is detached.
  * Actor and subject entities must then already be stored (they are referenced by id). The default
  * ({@see FLUSH_HOST}) keeps the behaviour of earlier versions.
+ *
+ * Concurrency (since 1.17, REQ-RUNTIME-003, docs/CONCURRENCY.md): rows are append-only inserts. A failed write is never
+ * swallowed. In host mode the row belongs to the host's unit of work, so it commits or fails with the host's changes;
+ * a host entity manager that is already closed is replaced through the registry before the row is persisted (an open
+ * one is never cleared or reset). In isolated mode the row is written through nowo-tech/transaction-doctrine's runner
+ * (savepoint-aware repair of the connection); outside a transaction a deadlock or serialization failure is replayed at
+ * most {@see MAX_ISOLATED_REPLAYS} times on a new entity manager, and a lock conflict that remains is thrown as
+ * {@see ConcurrencyConflict} (`committed` false: the row itself was not written).
  */
 final readonly class ActionLogRecorder implements ActionLogRecorderInterface, ActionLogIdRecorderInterface
 {
@@ -47,6 +61,12 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
 
     /** Since 1.15: `*AndFlush()` write only the new row through a bundle-owned entity manager. */
     public const FLUSH_ISOLATED = 'isolated';
+
+    /** Since 1.17: replays of an isolated write after a deadlock or a serialization failure, outside a transaction. */
+    public const MAX_ISOLATED_REPLAYS = 2;
+
+    /** Since 1.17: `Retry-After` hint (seconds) carried by the {@see ConcurrencyConflict} of an isolated write. */
+    public const RETRY_AFTER_SECONDS = 1;
 
     /**
      * @param class-string<AbstractActionLog>|class-string<AbstractIdActionLog> $entityClass
@@ -80,7 +100,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         array $context = [],
         ?string $scope = null,
     ): AbstractActionLog {
-        return $this->persist($this->entityManager(), $this->newObjectEntry($actor, $subject), $action, $context, $scope);
+        return $this->persist($this->writableEntityManager(), $this->newObjectEntry($actor, $subject), $action, $context, $scope);
     }
 
     /**
@@ -121,7 +141,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         array $context = [],
         ?string $scope = null,
     ): ActionLogEntryInterface {
-        return $this->persistIds($this->entityManager(), $action, $actorId, $subjectId, $context, $scope);
+        return $this->persistIds($this->writableEntityManager(), $action, $actorId, $subjectId, $context, $scope);
     }
 
     /**
@@ -188,27 +208,43 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      * entity manager is never flushed nor cleared. Inside an open transaction of the connection the row commits or
      * rolls back with it.
      *
+     * Since 1.17 the write goes through transaction-doctrine's runner, and lock conflicts are replayed or thrown as
+     * {@see ConcurrencyConflict} (see the class description). Other failures are rethrown unchanged.
+     *
      * @template E of ActionLogEntryInterface
      *
      * @param callable(EntityManagerInterface, EntityManagerInterface): E $write
+     *
+     * @throws ConcurrencyConflict on a lock conflict that remains
      *
      * @return E
      */
     private function isolated(callable $write): ActionLogEntryInterface
     {
-        $host   = $this->entityManager();
-        $events = $host->getEventManager();
-        $own    = new EntityManager($host->getConnection(), $host->getConfiguration(), $events instanceof EventManager ? $events : null);
+        $host       = $this->entityManager();
+        $connection = $host->getConnection();
+        // Outside a transaction a failed attempt rolled back alone, so it may be replayed; inside one it belongs to the host.
+        $replayable = !$connection->isTransactionActive();
+        $classifier = new TransientFailureClassifier();
 
-        try {
-            $entry = $write($own, $host);
-            $own->flush();
+        for ($attempt = 1;; ++$attempt) {
+            $events = $host->getEventManager();
+            $own    = new EntityManager($connection, $host->getConfiguration(), $events instanceof EventManager ? $events : null);
 
-            return $entry;
-        } finally {
-            // Never keep managed entities across calls (worker mode, REQ-RUNTIME-002 rule 4).
-            $own->clear();
-            $own->close();
+            try {
+                // The runner flushes $own and commits; after a failure it rolls the connection back to its entry level.
+                return DoctrineTransactionRunner::forEntityManager($own, null, null, self::RETRY_AFTER_SECONDS, $this->logger)
+                    ->run(static fn (): ActionLogEntryInterface => $write($own, $host));
+            } catch (TransientStorageFailure $failure) {
+                $kind = $classifier->classify($failure) ?? TransientFailureKind::Retryable;
+                if (!$replayable || $attempt > self::MAX_ISOLATED_REPLAYS || !in_array($kind, [TransientFailureKind::Deadlock, TransientFailureKind::SerializationFailure], true)) {
+                    throw new ConcurrencyConflict($attempt, $kind, self::RETRY_AFTER_SECONDS, $failure->getPrevious() ?? $failure);
+                }
+            } finally {
+                // Never keep managed entities across calls (worker mode, REQ-RUNTIME-002 rule 4).
+                $own->clear();
+                $own->close();
+            }
         }
     }
 
@@ -318,6 +354,31 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         $length = $this->entityManager()->getClassMetadata($this->entityClass)->getFieldMapping('scope')['length'] ?? null;
 
         return is_int($length) && strlen($value) > $length ? null : $value;
+    }
+
+    /**
+     * Since 1.17 (REQ-RUNTIME-003 rule 2): the manager that maps the action log class, replaced through the registry
+     * when it is already closed (a failed flush of the host closes it; persisting into it would throw). An open
+     * manager is returned as it is, never cleared or reset. A closed manager the registry does not list is returned
+     * unchanged (persisting then throws as before).
+     */
+    private function writableEntityManager(): EntityManagerInterface
+    {
+        $manager = $this->entityManager();
+        if ($manager->isOpen()) {
+            return $manager;
+        }
+
+        foreach (array_keys($this->registry->getManagerNames()) as $name) {
+            if ($this->registry->getManager($name) === $manager) {
+                $this->logger?->notice('Action log: replacing the closed entity manager before writing.', ['bundle' => 'NowoAuditKitBundle', 'manager' => $name]);
+                $this->registry->resetManager($name);
+
+                return $this->entityManager();
+            }
+        }
+
+        return $manager;
     }
 
     private function entityManager(): EntityManagerInterface

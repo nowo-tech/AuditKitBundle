@@ -9,6 +9,8 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRepository;
+use Nowo\TransactionDoctrine\ConflictCode;
+use Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -30,6 +32,9 @@ use function sprintf;
 final class PurgeActionLogCommand extends Command
 {
     public const NAME = 'nowo:audit-kit:action-log:purge';
+
+    /** Since 1.17: exit code of a run stopped by a lock conflict (EX_TEMPFAIL: try again later). */
+    public const EXIT_CONFLICT = 75;
 
     /**
      * @param class-string<AbstractActionLog>|class-string<AbstractIdActionLog> $entityClass
@@ -83,8 +88,22 @@ final class PurgeActionLogCommand extends Command
         }
 
         // REQ-DI-001: the cutoff comes from the injected PSR-20 clock (the bundle wires the app clock service).
-        $now     = $this->clock?->now() ?? new DateTimeImmutable();
-        $deleted = $repository->purgeBefore($now->modify(sprintf('-%d days', $days)), $actions, $batchSize);
+        $now = $this->clock?->now() ?? new DateTimeImmutable();
+        try {
+            $deleted = $repository->purgeBefore($now->modify(sprintf('-%d days', $days)), $actions, $batchSize);
+        } catch (ConcurrencyConflict $conflict) {
+            $code = ConflictCode::forFailure($conflict);
+            $io->error(sprintf(
+                '%s: the action log purge met a database lock conflict (%s). %s',
+                $code->value,
+                $conflict->kind->value,
+                $code->retrySafe()
+                    ? sprintf('Nothing was deleted: run the command again in %d second(s) or later.', $conflict->retryAfterSeconds() ?? 1)
+                    : 'Some rows were already deleted and stay deleted: run the command again to delete the rest.',
+            ));
+
+            return self::EXIT_CONFLICT;
+        }
         $io->success(sprintf(
             'Action log: %d row(s) older than %d days purged (%s).',
             $deleted,

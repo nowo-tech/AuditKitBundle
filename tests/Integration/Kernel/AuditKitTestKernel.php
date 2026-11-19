@@ -17,15 +17,18 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 
 /**
  * Real kernel (FrameworkBundle + DoctrineBundle on in-memory SQLite) for end-to-end persistence tests.
- * Since 1.15 `$flushMode` sets `action_log.flush_mode` (one container per mode).
+ * Since 1.15 `$flushMode` sets `action_log.flush_mode` (one container per mode). Since 1.17 `$databaseUrl` points the
+ * kernel at a real database instead (tests/Database, REQ-RUNTIME-003).
  */
 final class AuditKitTestKernel extends Kernel
 {
     use MicroKernelTrait;
 
-    public function __construct(private readonly string $flushMode = ActionLogRecorder::FLUSH_HOST)
-    {
-        parent::__construct($flushMode === ActionLogRecorder::FLUSH_HOST ? 'test' : 'test' . $flushMode, false);
+    public function __construct(
+        private readonly string $flushMode = ActionLogRecorder::FLUSH_HOST,
+        private readonly ?string $databaseUrl = null,
+    ) {
+        parent::__construct(($flushMode === ActionLogRecorder::FLUSH_HOST ? 'test' : 'test' . $flushMode) . ($databaseUrl === null ? '' : 'db'), false);
     }
 
     public function registerBundles(): iterable
@@ -59,7 +62,7 @@ final class AuditKitTestKernel extends Kernel
             'php_errors'           => ['log' => true],
         ]);
         $container->loadFromExtension('doctrine', [
-            'dbal' => ['driver' => 'pdo_sqlite', 'memory' => true],
+            'dbal' => $this->databaseUrl === null ? ['driver' => 'pdo_sqlite', 'memory' => true] : ['url' => $this->databaseUrl],
             'orm'  => [
                 'mappings' => [
                     'AuditKitTest' => [

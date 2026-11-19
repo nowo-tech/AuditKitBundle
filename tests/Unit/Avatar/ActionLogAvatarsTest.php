@@ -12,8 +12,10 @@ use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Tests\Support\AvatarUser;
 use Nowo\AuditKitBundle\Tests\Support\CountingAvatarResolver;
+use Nowo\AuditKitBundle\Tests\Support\LockFailures;
 use Nowo\AuditKitBundle\Tests\Support\RecordingLogger;
 use PHPUnit\Framework\TestCase;
+use Throwable;
 
 use function count;
 use function get_object_vars;
@@ -87,6 +89,36 @@ final class ActionLogAvatarsTest extends TestCase
         $silent = new ActionLogAvatars(new CountingAvatarResolver(['1' => 'http://x.test/a.png'], throw: false));
         $silent->prime([$this->user(1)]);
         $this->assertNull($silent->urlOf($this->user(1)));
+    }
+
+    /** REQ-RUNTIME-003 rule 8 (since 1.17): a lock conflict met by the resolver is rethrown, never swallowed. */
+    public function testALockConflictOfTheResolverIsRethrown(): void
+    {
+        $deadlock = LockFailures::deadlock();
+        $resolver = new class($deadlock) implements ActionLogAvatarResolverInterface {
+            public function __construct(private readonly Throwable $failure)
+            {
+            }
+
+            public function urlFor(object $user, int $size): ?string
+            {
+                throw $this->failure;
+            }
+
+            public function urlsFor(array $users, int $size): array
+            {
+                throw $this->failure;
+            }
+        };
+        $logger = $this->logger();
+
+        try {
+            (new ActionLogAvatars($resolver, $logger))->prime([$this->user(1)]);
+            $this->fail('The lock conflict must be rethrown.');
+        } catch (Throwable $thrown) {
+            $this->assertSame($deadlock, $thrown);
+        }
+        $this->assertSame([], $logger->records);
     }
 
     public function testTheMemoIsBoundedAndStartsAgainWhenABatchWouldGoOver(): void

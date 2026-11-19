@@ -8,13 +8,18 @@
          beStrictAboutOutputDuringTests="true"
          failOnRisky="true"
          failOnWarning="false"
-         displayDetailsOnTestsThatTriggerWarnings="true">
+         displayDetailsOnTestsThatTriggerWarnings="true"
+         defaultTestSuite="Unit,Integration">
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
+        </testsuite>
+        <!-- REQ-RUNTIME-003: two-connection tests on a real database (AUDIT_KIT_TEST_DATABASE_URL); CI job "Databases" -->
+        <testsuite name="Database">
+            <directory>tests/Database</directory>
         </testsuite>
     </testsuites>
 

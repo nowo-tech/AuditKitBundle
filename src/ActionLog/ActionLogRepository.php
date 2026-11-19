@@ -254,7 +254,7 @@ class ActionLogRepository extends ServiceEntityRepository
      *
      * @param array{actor: string|null, subject: string|null, involving: string|null} $references
      */
-    private static function holdsExactly(mixed $actorId, mixed $subjectId, array $references): bool
+    private function holdsExactly(mixed $actorId, mixed $subjectId, array $references): bool
     {
         return ($references['actor'] === null || $actorId === $references['actor'])
             && ($references['subject'] === null || $subjectId === $references['subject'])
@@ -288,7 +288,7 @@ class ActionLogRepository extends ServiceEntityRepository
             $chunk = $page->getQuery()->getResult();
             foreach ($chunk as $row) {
                 $after = [$row->getCreatedAt(), $row->getId()];
-                if (!self::holdsExactly($row->getActorId(), $row->getSubjectId(), $references)) {
+                if (!$this->holdsExactly($row->getActorId(), $row->getSubjectId(), $references)) {
                     continue;
                 }
                 if ($offset > 0) {
@@ -330,7 +330,7 @@ class ActionLogRepository extends ServiceEntityRepository
             $chunk = $page->getQuery()->getScalarResult();
             foreach ($chunk as $row) {
                 $after = $row['id'];
-                if (self::holdsExactly($row['actorId'], $row['subjectId'], $references)) {
+                if ($this->holdsExactly($row['actorId'], $row['subjectId'], $references)) {
                     ++$count;
                 }
             }

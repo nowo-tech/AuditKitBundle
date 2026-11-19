@@ -9,10 +9,15 @@ use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\DBAL\Types\Type;
 use InvalidArgumentException;
+use Nowo\TransactionDoctrine\TransientFailureClassifier;
+use Nowo\TransactionDoctrine\TransientFailureKind;
+use Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict;
+use Throwable;
 
 use function array_is_list;
 use function array_key_exists;
 use function count;
+use function in_array;
 use function is_int;
 use function is_string;
 
@@ -26,6 +31,15 @@ use function is_string;
  *
  * `$where` may use positional (`?`) or named (`:name`) placeholders, including array parameters
  * (`ArrayParameterType`); express joins as `col IN (SELECT …)` / `EXISTS (…)`. An empty `$where` deletes every row.
+ *
+ * Since 1.17 (REQ-RUNTIME-003), outside a transaction of the connection, a batch that meets a deadlock or a
+ * serialization failure is run again (at most {@see self::MAX_BATCH_REPLAYS} times): it was rolled back on its own and
+ * deleting by id is idempotent. A lock wait timeout is never replayed (no batch waits twice). When the batch still
+ * fails, or the failure is a lock wait timeout, {@see ConcurrencyConflict} is thrown with the storage error as
+ * previous, and `committed` set when earlier batches were already deleted (`CONFLICT_002`: they stay deleted; running
+ * the same delete again only removes what is left). Inside a transaction of the connection a lock conflict is rethrown
+ * unchanged: the caller's transaction owns it. Other failures (a lost connection, a constraint violation) are always
+ * rethrown unchanged.
  *
  * `$table`, `$where` and `$idColumn` are SQL fragments inserted as is: quote reserved identifiers yourself and never
  * pass user input there (values go in `$params`).
@@ -43,12 +57,19 @@ final class KeysetDelete
     /** Placeholder name used for the keyset bound when `$params` are named. */
     public const AFTER_ID_PARAMETER = 'keysetDeleteAfterId';
 
+    /** Since 1.17: replays of one batch after a deadlock or a serialization failure, outside a transaction. */
+    public const MAX_BATCH_REPLAYS = 2;
+
+    /** Since 1.17: `Retry-After` hint (seconds) carried by the {@see ConcurrencyConflict} thrown on a lock conflict. */
+    public const RETRY_AFTER_SECONDS = 1;
+
     /**
      * @param array<int|string, mixed> $params values for `$where` (a list for `?`, a map for `:name`)
      * @param array<int<0, max>|string, ArrayParameterType|ParameterType|string|Type> $types DBAL types keyed like
      *                                                                                       `$params` (or type names)
      *
      * @throws InvalidArgumentException when `$params` / `$types` use the reserved name {@see self::AFTER_ID_PARAMETER}
+     * @throws ConcurrencyConflict since 1.17, on a lock conflict outside a transaction (see the class description)
      *
      * @return int number of deleted rows
      */
@@ -78,32 +99,54 @@ final class KeysetDelete
         );
         $delete = 'DELETE FROM ' . $table . ' WHERE ' . $idColumn . ' IN (?)';
 
-        $afterId = null;
-        $deleted = 0;
+        $afterId    = null;
+        $deleted    = 0;
+        $classifier = new TransientFailureClassifier();
+        $attempt    = 1;
         do {
-            if ($afterId === null) {
-                $rawIds = $connection->fetchFirstColumn($firstSelect, $params, $types);
-            } else {
-                $nextParams               = $params;
-                $nextParams[$afterIdSlot] = $afterId;
-                $nextTypes                = $types;
-                $nextTypes[$afterIdSlot]  = is_int($afterId) ? ParameterType::INTEGER : ParameterType::STRING;
-                $rawIds                   = $connection->fetchFirstColumn($nextSelect, $nextParams, $nextTypes);
+            $replay = false;
+            try {
+                if ($afterId === null) {
+                    $rawIds = $connection->fetchFirstColumn($firstSelect, $params, $types);
+                } else {
+                    $nextParams               = $params;
+                    $nextParams[$afterIdSlot] = $afterId;
+                    $nextTypes                = $types;
+                    $nextTypes[$afterIdSlot]  = is_int($afterId) ? ParameterType::INTEGER : ParameterType::STRING;
+                    $rawIds                   = $connection->fetchFirstColumn($nextSelect, $nextParams, $nextTypes);
+                }
+
+                if ($rawIds === []) {
+                    break;
+                }
+
+                [$ids, $integers] = self::normalizeIds($rawIds);
+                $batchDeleted     = (int) $connection->executeStatement(
+                    $delete,
+                    [$ids],
+                    [$integers ? ArrayParameterType::INTEGER : ArrayParameterType::STRING],
+                );
+            } catch (Throwable $failure) {
+                $kind = $classifier->classify($failure);
+                if (!$kind instanceof TransientFailureKind || $connection->isTransactionActive()) {
+                    throw $failure;
+                }
+
+                if ($attempt <= self::MAX_BATCH_REPLAYS && in_array($kind, [TransientFailureKind::Deadlock, TransientFailureKind::SerializationFailure], true)) {
+                    ++$attempt;
+                    $replay = true;
+
+                    continue;
+                }
+
+                throw new ConcurrencyConflict($attempt, $kind, self::RETRY_AFTER_SECONDS, $failure, $deleted > 0);
             }
 
-            if ($rawIds === []) {
-                break;
-            }
-
-            [$ids, $integers] = self::normalizeIds($rawIds);
             // Rows come back in id order (database collation, also for string ids): the last one is the keyset bound.
             $afterId = $ids[count($ids) - 1];
-            $deleted += (int) $connection->executeStatement(
-                $delete,
-                [$ids],
-                [$integers ? ArrayParameterType::INTEGER : ArrayParameterType::STRING],
-            );
-        } while (count($rawIds) === $batchSize);
+            $deleted += $batchDeleted;
+            $attempt = 1;
+        } while ($replay || count($rawIds) === $batchSize);
 
         return $deleted;
     }

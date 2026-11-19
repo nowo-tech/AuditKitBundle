@@ -98,12 +98,12 @@ final readonly class ReferenceCollationListener
         }
         $connection = $manager->getConnection();
         $platform   = $connection->getDatabasePlatform();
-        $version    = $platform instanceof MySQL80Platform ? self::serverVersion($connection) : null;
+        $version    = $platform instanceof MySQL80Platform ? $this->serverVersion($connection) : null;
         $collation  = self::collationFor($platform, $version);
         if ($collation === null) {
             return;
         }
-        $this->warnAboutPartialVersion($platform, self::configuredVersion($connection), $collation);
+        $this->warnAboutPartialVersion($platform, $this->configuredVersion($connection), $collation);
 
         $original = $table = $args->getClassTable();
         // @phpstan-ignore function.alreadyNarrowedType, function.alreadyNarrowedType (older doctrine/dbal / doctrine/orm)
@@ -157,7 +157,7 @@ final readonly class ReferenceCollationListener
     /**
      * The server version configured on the connection (also on a primary / replica connection), if any.
      */
-    private static function configuredVersion(Connection $connection): ?string
+    private function configuredVersion(Connection $connection): ?string
     {
         $params  = $connection->getParams();
         $primary = $params['primary'] ?? null;
@@ -169,9 +169,9 @@ final readonly class ReferenceCollationListener
     /**
      * The configured server version, else the one the server reports (null when it cannot be read: unknown).
      */
-    private static function serverVersion(Connection $connection): ?string
+    private function serverVersion(Connection $connection): ?string
     {
-        $version = self::configuredVersion($connection);
+        $version = $this->configuredVersion($connection);
         if ($version !== null) {
             return $version;
         }
@@ -181,7 +181,7 @@ final readonly class ReferenceCollationListener
             return $connection->getServerVersion();
         }
 
-        return self::wrappedServerVersion($connection); // @codeCoverageIgnore
+        return $this->wrappedServerVersion($connection); // @codeCoverageIgnore
     }
 
     /**
@@ -189,7 +189,7 @@ final readonly class ReferenceCollationListener
      *
      * @codeCoverageIgnore
      */
-    private static function wrappedServerVersion(Connection $connection): ?string
+    private function wrappedServerVersion(Connection $connection): ?string
     {
         $driver  = method_exists($connection, 'getWrappedConnection') ? $connection->getWrappedConnection() : null;
         $version = is_object($driver) && is_callable([$driver, 'getServerVersion']) ? $driver->getServerVersion() : null;

@@ -51,6 +51,36 @@
 
 ## Unreleased
 
+Concurrency (REQ-RUNTIME-003, see [CONCURRENCY.md](CONCURRENCY.md)). No configuration change is needed.
+
+- **New requirements.** `nowo-tech/transaction-contract` ^1.0 and `nowo-tech/transaction-doctrine` ^1.6 are installed
+  with the bundle. Registering transaction-doctrine's Symfony bundle is optional. Do it, with `commit_detection: true`,
+  when you want lock conflicts answered as 409 with `CONFLICT_001` / `CONFLICT_002` across the request.
+- **Exception type (BC note).** A lock conflict (deadlock, lock wait timeout, serialization failure) of:
+  - `recordAndFlush()` / `recordIdsAndFlush()` with `flush_mode: isolated`, and
+  - `KeysetDelete::run()` / `ActionLogRepository::purgeBefore()` outside a transaction of the connection
+
+  is now thrown as `Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict`, after the replays. Before, it was the DBAL
+  exception (`DeadlockException`, `LockWaitTimeoutException`, …). The DBAL exception is now its previous exception.
+  Code that catches the DBAL class there should catch `ConcurrencyConflict` (or
+  `Nowo\TransactionContract\TransientStorageFailure`), or walk `getPrevious()`. Host mode, `record()` and
+  `KeysetDelete` inside your transaction still throw the DBAL exception unchanged. Unique violations and lost
+  connections are never wrapped.
+- **Replays.** Outside a transaction, a deadlock or serialization failure of one isolated write or one purge batch is
+  replayed at most twice. A replay runs only after the attempt rolled back, so no row is written or deleted twice.
+- **Closed entity manager.** `record()`, `recordIds()` and the host-mode `*AndFlush()` methods replace the action log's
+  entity manager through the registry when it is already closed, before they persist. Before, they failed with
+  "EntityManager is closed". An open manager is never cleared or reset.
+- **Purge command exit code.** `nowo:audit-kit:action-log:purge` exits with 75 (`EX_TEMPFAIL`) and prints
+  `CONFLICT_001` or `CONFLICT_002` on a lock conflict. Before, the exception ended the command with exit code 1. Rows
+  of batches already deleted stay deleted; running the command again deletes the rest.
+- **A failed audit write.** It is never swallowed. Read
+  [A failed audit write and the host action](CONCURRENCY.md#a-failed-audit-write-and-the-host-action) to choose
+  between atomic rows (`host` mode, or `isolated` inside your transaction) and a row written after your commit.
+- **Worker mode with the kernel reset off.** Only the recorder's own write path replaces a closed manager. Other
+  services that hold the closed instance are repaired only by a kernel reset, or by transaction-doctrine's
+  `WorkerConnectionHygiene`.
+
 ## To 1.16.1
 
 From **1.16.0**:
