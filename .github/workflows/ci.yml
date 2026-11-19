@@ -321,7 +321,8 @@ jobs:
 
       - name: Use DBAL 3
         if: ${{ matrix.dbal != '' }}
-        run: composer require --no-interaction --no-progress --with-all-dependencies "doctrine/dbal:${{ matrix.dbal }}"
+        # doctrine/doctrine-bundle 3.x needs DBAL 4: DBAL 3 runs with DoctrineBundle 2.
+        run: composer require --no-interaction --no-progress --with-all-dependencies "doctrine/dbal:${{ matrix.dbal }}" "doctrine/doctrine-bundle:^2.10"
 
       - name: Two-connection lock and race tests (REQ-RUNTIME-003)
         timeout-minutes: 10
