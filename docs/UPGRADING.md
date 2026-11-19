@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.17.0](#to-1170)
 - [To 1.16.1](#to-1161)
 - [To 1.16.0](#to-1160)
 - [To 1.15.1](#to-1151)
@@ -50,6 +51,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.17.0
+
+From **1.16.1**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 Concurrency (REQ-RUNTIME-003, see [CONCURRENCY.md](CONCURRENCY.md)). No configuration change is needed.
 

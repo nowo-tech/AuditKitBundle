@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.17.0] - 2026-11-19](#1170---2026-11-19)
 - [[1.16.1] - 2026-11-16](#1161---2026-11-16)
 - [[1.16.0] - 2026-11-13](#1160---2026-11-13)
 - [[1.15.1] - 2026-11-13](#1151---2026-11-13)
@@ -52,6 +53,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.17.0] - 2026-11-19
+
 ### Added
 
 - Demo: `make test-e2e` and `make demo-screenshots` (root and `demo/symfony8`), two committed WebP screenshots in the README (REQ-DEMO-013).
@@ -77,7 +80,7 @@ All notable changes to this project will be documented in this file.
 
 - A lock conflict of an isolated write, or of a keyset purge outside a transaction, is now thrown as
   `Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict` (a `TransientStorageFailure`) with the DBAL error as
-  previous, instead of the DBAL exception itself. See [UPGRADING.md](UPGRADING.md#unreleased).
+  previous, instead of the DBAL exception itself. See [UPGRADING.md](UPGRADING.md#to-1170).
 - The demo lock installs the bundle's current requirements (`nowo-tech/migrations-kit-contracts`,
   `nowo-tech/transaction-*`).
 
@@ -90,6 +93,8 @@ All notable changes to this project will be documented in this file.
   through the new one by their identifier. The audit row of a failed action can now be written.
 - A lock conflict met by the avatar resolver while the timeline renders is rethrown instead of being logged and
   swallowed (REQ-RUNTIME-003 rule 8).
+
+[1.17.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.17.0
 
 ## [1.16.1] - 2026-11-16
 
