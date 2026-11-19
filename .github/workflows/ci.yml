@@ -336,7 +336,8 @@ jobs:
 
       - name: Unit and integration suites on this doctrine/dbal
         timeout-minutes: 10
-        run: vendor/bin/phpunit --no-coverage --testsuite Unit,Integration
+        # On DBAL 3, skip the tests whose stubs use DBAL 4 API (group dbal4-only).
+        run: vendor/bin/phpunit --no-coverage --testsuite Unit,Integration ${{ matrix.dbal != '' && '--exclude-group dbal4-only' || '' }}
 
   # Dependency floor: the code must work with the LOWEST nowo-tech/transaction-* versions composer.json allows (a host
   # can run `composer update nowo-tech/audit-kit-bundle` without updating them), and the demo lock must install what

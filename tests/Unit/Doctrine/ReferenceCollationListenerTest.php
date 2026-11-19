@@ -22,13 +22,18 @@ use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\AuditEntry;
 use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\Invoice;
 use Nowo\AuditKitBundle\Tests\Support\RecordingLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 
 use function is_string;
 
 /**
  * REQ-SEC-006 items 3 and 8: binary NO PAD collation on `actor_id` / `subject_id` of an id-mode action log.
+ *
+ * Group `dbal4-only`: the stubs use DBAL 4 API (`SQLitePlatform`, `Connection::getServerVersion()`); the DBAL 3 legs of
+ * the CI job "Databases" exclude it.
  */
+#[Group('dbal4-only')]
 final class ReferenceCollationListenerTest extends TestCase
 {
     /**

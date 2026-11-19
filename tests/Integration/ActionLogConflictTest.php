@@ -128,9 +128,10 @@ final class ActionLogConflictTest extends TestCase
         }
 
         $this->assertSame(1, $this->flushes);
-        // Back at the host's level: the host decides (here it still commits its own work).
+        // Back at the host's level: the host decides. (On DBAL 3 without savepoints its transaction is rollback-only.)
         $this->assertSame(1, $connection->getTransactionNestingLevel());
-        $connection->commit();
+        $connection->rollBack();
+        $this->assertSame(0, $connection->getTransactionNestingLevel());
         $this->assertSame(0, $this->actionLogCount());
     }
 
