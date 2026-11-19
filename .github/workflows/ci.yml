@@ -321,9 +321,10 @@ jobs:
 
       - name: Use DBAL 3
         if: ${{ matrix.dbal != '' }}
-        # doctrine/doctrine-bundle 3.x needs DBAL 4: DBAL 3 runs with DoctrineBundle 2 (and so Symfony 7.4).
+        # doctrine/doctrine-bundle 3.x needs DBAL 4: DBAL 3 runs with DoctrineBundle 2 (and so Symfony 7.4), which does not
+        # turn on native lazy objects: the ORM then needs symfony/var-exporter 7 for its LazyGhost proxies.
         run: |
-          composer require --no-update --no-interaction "doctrine/dbal:${{ matrix.dbal }}" "doctrine/doctrine-bundle:^2.10"
+          composer require --no-update --no-interaction "doctrine/dbal:${{ matrix.dbal }}" "doctrine/doctrine-bundle:^2.10" "symfony/var-exporter:^7.4"
           composer update --no-interaction --no-progress --with-all-dependencies
           composer show | grep -E '^(doctrine/dbal|doctrine/doctrine-bundle|symfony/framework-bundle) '
 
