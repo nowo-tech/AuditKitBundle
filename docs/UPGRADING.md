@@ -54,6 +54,19 @@
 
 ## Unreleased
 
+**Missing foreign keys on an id-mode action log (audit XI-6, MySQL / MariaDB).** Only if your `AbstractIdActionLog`
+subclass adds a `ManyToOne` / `OneToOne` association and its table was created or migrated with 1.15.1–1.18.0 on
+DBAL 4.5+ with ORM 3.7–3.8: the foreign key of that association (and its index) may be missing. After updating:
+
+1. Run `php bin/console doctrine:schema:validate` (or `doctrine:migrations:diff`): a missing foreign key shows up as a
+   pending `ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY` (with its `CREATE INDEX`).
+2. Before applying it, remove or fix the rows that point to deleted targets, or the `ALTER` fails, e.g.
+   `SELECT l.id FROM app_action_log l LEFT JOIN app_user u ON u.id = l.owner_id WHERE l.owner_id IS NOT NULL AND u.id IS NULL;`
+   then delete those rows or set the column to `NULL`, as the association's `onDelete` would have done.
+3. Generate and run the migration (`doctrine:migrations:diff`, then `doctrine:migrations:migrate`).
+
+Nothing else changes: the id columns keep their collation, and tables without such associations need nothing.
+
 ## To 1.18.0
 
 From **1.17.x**:

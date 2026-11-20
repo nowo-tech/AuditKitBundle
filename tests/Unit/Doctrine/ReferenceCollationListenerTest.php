@@ -15,19 +15,24 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Mapping\ClassMetadata;
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
-use Doctrine\Persistence\ManagerRegistry;
+use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuditKitBundle\Doctrine\ReferenceCollationListener;
-use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\AuditEntry;
-use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\Invoice;
+use Nowo\AuditKitBundle\Tests\Fixtures\SchemaFk\FkActionLog;
+use Nowo\AuditKitBundle\Tests\Fixtures\SchemaFk\Owner\FkOwner;
 use Nowo\AuditKitBundle\Tests\Support\RecordingLogger;
+use Nowo\AuditKitBundle\Tests\Support\SchemaShape;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
+use function array_keys;
+use function dirname;
 use function is_string;
 
 /**
- * REQ-SEC-006 items 3 and 8: binary NO PAD collation on `actor_id` / `subject_id` of an id-mode action log.
+ * REQ-SEC-006 items 3 and 8: binary NO PAD collation on `actor_id` / `subject_id` of an id-mode action log. Audit XI-6
+ * (1.18.1): applied on postGenerateSchema, so the foreign keys and indexes of a host subclass's own associations are kept.
  */
 final class ReferenceCollationListenerTest extends TestCase
 {
@@ -55,48 +60,70 @@ final class ReferenceCollationListenerTest extends TestCase
         self::assertSame($expected, ReferenceCollationListener::collationFor($platform, $version));
     }
 
-    public function testTheMappedIdColumnsGetTheCollation(): void
+    /**
+     * @return iterable<string, array{array<string, mixed>, string|null}>
+     */
+    public static function connections(): iterable
     {
-        $args = $this->args(AuditEntry::class);
-        (new ReferenceCollationListener($this->registry(new MariaDBPlatform())))->postGenerateSchemaTable($args);
+        yield 'MariaDB 11.4' => [['driver' => 'pdo_mysql', 'serverVersion' => '11.4.0-MariaDB'], 'utf8mb4_nopad_bin'];
+        yield 'MySQL 8.4' => [['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0'], 'utf8mb4_0900_bin'];
+        yield 'MySQL 5.7' => [['driver' => 'pdo_mysql', 'serverVersion' => '5.7.44'], 'utf8mb4_bin'];
+        yield 'SQLite' => [['driver' => 'pdo_sqlite', 'memory' => true], null];
+    }
 
-        $table = $args->getClassTable();
-        self::assertSame('utf8mb4_nopad_bin', $this->collation($table, 'who_did'));
-        self::assertSame('utf8mb4', $this->charset($table, 'who_did'));
-        self::assertSame('utf8mb4_nopad_bin', $this->collation($table, 'subject_id'));
+    /**
+     * XI-6: a host subclass with its own ManyToOne / OneToOne / ManyToMany keeps every foreign key and index.
+     *
+     * @param array<string, mixed> $params
+     */
+    #[DataProvider('connections')]
+    public function testTheIdColumnsAreCollatedAndEveryForeignKeyAndIndexIsKept(array $params, ?string $collation): void
+    {
+        $with    = SchemaShape::entityManager($params, [new ReferenceCollationListener()]);
+        $without = SchemaShape::entityManager($params);
+        $schema  = SchemaShape::generate($with);
+        $shape   = SchemaShape::of($schema);
+
+        self::assertSame(SchemaShape::of(SchemaShape::generate($without)), $shape);
+        self::assertContains('owner_id->xi_fk_owner(id) CASCADE', $shape['xi_fk_action_log']['fks']);
+        self::assertContains('reviewer_id->xi_fk_owner(id) SET NULL', $shape['xi_fk_action_log']['fks']);
+        self::assertContains('owner_id', $shape['xi_fk_action_log']['indexes']);
+        self::assertContains('unique reviewer_id', $shape['xi_fk_action_log']['indexes']);
+        $table = $schema->getTable('xi_fk_action_log');
+        self::assertSame($collation, $this->collation($table, 'actor_id'));
+        self::assertSame($collation, $this->collation($table, 'subject_id'));
+        self::assertSame($collation === null ? null : 'utf8mb4', $this->charset($table, 'actor_id'));
         self::assertNull($this->collation($table, 'scope'));
     }
 
     public function testTheConfiguredServerVersionDecidesOnMysql8(): void
     {
-        $args = $this->args(AuditEntry::class);
-        (new ReferenceCollationListener($this->registry(new MySQL80Platform(), ['primary' => ['serverVersion' => '8.4.3']])))->postGenerateSchemaTable($args);
-        self::assertSame('utf8mb4_0900_bin', $this->collation($args->getClassTable(), 'who_did'));
+        $args = $this->args(new MySQL80Platform(), ['primary' => ['serverVersion' => '8.4.3']]);
+        (new ReferenceCollationListener())->postGenerateSchema($args);
+        self::assertSame('utf8mb4_0900_bin', $this->collation($args->getSchema()->getTable('xi_fk_action_log'), 'actor_id'));
 
-        $args = $this->args(AuditEntry::class);
-        (new ReferenceCollationListener($this->registry(new MySQL80Platform(), [], '8.0.12')))->postGenerateSchemaTable($args);
-        self::assertSame('utf8mb4_bin', $this->collation($args->getClassTable(), 'subject_id'));
+        $args = $this->args(new MySQL80Platform(), [], '8.0.12');
+        (new ReferenceCollationListener())->postGenerateSchema($args);
+        self::assertSame('utf8mb4_bin', $this->collation($args->getSchema()->getTable('xi_fk_action_log'), 'subject_id'));
     }
 
-    public function testOtherPlatformsEntitiesAndManagersAreLeftAlone(): void
+    public function testOtherPlatformsAndManagersAreLeftAlone(): void
     {
-        foreach ([[AuditEntry::class, new SQLitePlatform()], [AuditEntry::class, new PostgreSQLPlatform()], [Invoice::class, new MariaDBPlatform()]] as [$class, $platform]) {
-            $args     = $this->args($class);
-            $original = $args->getClassTable();
-            (new ReferenceCollationListener($this->registry($platform)))->postGenerateSchemaTable($args);
-            self::assertSame($original, $args->getClassTable());
-            self::assertNull($this->collation($original, 'who_did'));
+        foreach ([new SQLitePlatform(), new PostgreSQLPlatform()] as $platform) {
+            $args     = $this->args($platform);
+            $original = $args->getSchema();
+            (new ReferenceCollationListener())->postGenerateSchema($args);
+            self::assertSame($original, $args->getSchema());
+            self::assertNull($this->collation($original->getTable('xi_fk_action_log'), 'actor_id'));
         }
 
-        $registry = $this->createMock(ManagerRegistry::class);
-        $registry->method('getManagerForClass')->willReturn(null);
-        $args = $this->args(AuditEntry::class);
-        (new ReferenceCollationListener($registry))->postGenerateSchemaTable($args);
-        self::assertNull($this->collation($args->getClassTable(), 'who_did'));
-
-        $args = $this->args(AuditEntry::class, mapped: false);
-        (new ReferenceCollationListener($this->registry(new MariaDBPlatform())))->postGenerateSchemaTable($args);
-        self::assertNull($this->collation($args->getClassTable(), 'who_did'));
+        // A manager without an id-mode action log, and one whose generated schema does not hold the log's table.
+        $owners = SchemaShape::entityManager(['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0'], [new ReferenceCollationListener()], [dirname(__DIR__, 2) . '/Fixtures/SchemaFk/Owner']);
+        self::assertSame(['xi_fk_owner'], array_keys(SchemaShape::of(SchemaShape::generate($owners))));
+        $logs   = SchemaShape::entityManager(['driver' => 'pdo_mysql', 'serverVersion' => '8.4.0'], [new ReferenceCollationListener()]);
+        $schema = (new SchemaTool($logs))->getSchemaFromMetadata([$logs->getClassMetadata(FkOwner::class)]);
+        self::assertSame(['xi_fk_owner'], array_keys(SchemaShape::of($schema)));
+        self::assertFalse($logs->getConnection()->isConnected());
     }
 
     public function testAMysqlServerVersionWithoutPatchIsWarnedAbout(): void
@@ -113,8 +140,8 @@ final class ReferenceCollationListenerTest extends TestCase
         ];
         foreach ($cases as [$platform, $version, $warnings]) {
             $logger = new RecordingLogger();
-            (new ReferenceCollationListener($this->registry($platform, $version === null ? [] : ['serverVersion' => $version], $version === null ? '8.4.3' : null), $logger))
-                ->postGenerateSchemaTable($this->args(AuditEntry::class));
+            (new ReferenceCollationListener(null, $logger))
+                ->postGenerateSchema($this->args($platform, $version === null ? [] : ['serverVersion' => $version], $version === null ? '8.4.3' : null));
             self::assertCount($warnings, $logger->records, (string) $version);
             if ($warnings === 1) {
                 self::assertStringContainsString('has no patch number', (string) $logger->records[0][1]);
@@ -133,39 +160,60 @@ final class ReferenceCollationListenerTest extends TestCase
     }
 
     /**
-     * @param class-string $class
+     * @return iterable<string, array{bool, bool, bool, bool}>
      */
-    private function args(string $class, bool $mapped = true): GenerateSchemaTableEventArgs
+    public static function apiCombinations(): iterable
     {
-        $metadata = new ClassMetadata($class);
-        if ($mapped) {
-            // A renamed actor column: the listener follows the mapping.
-            $metadata->mapField(['fieldName' => 'actorId', 'columnName' => 'who_did', 'type' => 'string', 'length' => 64]);
-            $metadata->mapField(['fieldName' => 'subjectId', 'columnName' => 'subject_id', 'type' => 'string', 'length' => 64]);
-        }
-        $table = new Table('t');
-        foreach (['who_did', 'subject_id', 'scope'] as $column) {
-            $table->addColumn($column, 'string', ['length' => 64]);
-        }
+        yield 'DBAL 4.5, ORM 3.7' => [true, true, true, true];
+        yield 'DBAL 4.3/4.4 (no Schema::edit), ORM 3.7' => [true, false, true, false];
+        yield 'DBAL 4.5, ORM 3.0-3.6 (no setSchema)' => [true, true, false, false];
+        yield 'DBAL 3.x / 4.0-4.2, ORM 2.x' => [false, false, false, false];
+    }
 
-        return new GenerateSchemaTableEventArgs($metadata, new Schema(), $table);
+    #[DataProvider('apiCombinations')]
+    public function testTheEditorPathNeedsEveryApi(bool $tableEdit, bool $schemaEdit, bool $setSchema, bool $expected): void
+    {
+        self::assertSame($expected, ReferenceCollationListener::editorSupported($tableEdit, $schemaEdit, $setSchema));
+    }
+
+    public function testNothingToCollateKeepsTheSchema(): void
+    {
+        $args   = $this->args(new MariaDBPlatform());
+        $schema = $args->getSchema();
+        ReferenceCollationListener::collateSchema($args, ['xi_fk_action_log' => ['missing']], 'utf8mb4_nopad_bin');
+        self::assertSame($schema, $args->getSchema());
+    }
+
+    public function testTheFormerTableEventDoesNothing(): void
+    {
+        $table = new Table('t');
+        $table->addColumn('actor_id', 'string', ['length' => 64]);
+        $args = new GenerateSchemaTableEventArgs(new ClassMetadata(FkActionLog::class), new Schema(), $table);
+
+        (new ReferenceCollationListener())->postGenerateSchemaTable($args);
+
+        self::assertSame($table, $args->getClassTable());
+        self::assertNull($this->collation($table, 'actor_id'));
     }
 
     /**
+     * The schema of the XI-6 fixtures, given to the listener with an entity manager on `$platform`.
+     *
      * @param array<string, mixed> $params
      */
-    private function registry(AbstractPlatform $platform, array $params = [], ?string $reported = null): ManagerRegistry
+    private function args(AbstractPlatform $platform, array $params = [], ?string $reported = null): GenerateSchemaEventArgs
     {
+        $real       = SchemaShape::entityManager(['driver' => 'pdo_sqlite', 'memory' => true]);
+        $schema     = SchemaShape::generate($real);
         $connection = $this->createMock(Connection::class);
         $connection->method('getDatabasePlatform')->willReturn($platform);
         $connection->method('getParams')->willReturn($params);
         $connection->method('getServerVersion')->willReturn($reported ?? '8.4.3');
         $manager = $this->createMock(EntityManagerInterface::class);
         $manager->method('getConnection')->willReturn($connection);
-        $registry = $this->createMock(ManagerRegistry::class);
-        $registry->method('getManagerForClass')->willReturn($manager);
+        $manager->method('getMetadataFactory')->willReturn($real->getMetadataFactory());
 
-        return $registry;
+        return new GenerateSchemaEventArgs($manager, $schema);
     }
 
     private function collation(Table $table, string $column): ?string

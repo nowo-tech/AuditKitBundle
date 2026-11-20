@@ -27,6 +27,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use function array_keys;
 use function get_parent_class;
 use function in_array;
+use function is_array;
 use function is_int;
 use function is_string;
 use function mb_strlen;
@@ -405,7 +406,10 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             return null;
         }
 
-        $length = $this->entityManager()->getClassMetadata($this->entityClass)->getFieldMapping('scope')['length'] ?? null;
+        // ORM 3: a FieldMapping object (its ArrayAccess is deprecated, doctrine/orm#11211); ORM 2.20: an array.
+        $mapping = $this->entityManager()->getClassMetadata($this->entityClass)->getFieldMapping('scope');
+        // @phpstan-ignore function.impossibleType, nullCoalesce.offset (an array on doctrine/orm 2.x only)
+        $length = is_array($mapping) ? ($mapping['length'] ?? null) : $mapping->length;
 
         return is_int($length) && strlen($value) > $length ? null : $value;
     }
