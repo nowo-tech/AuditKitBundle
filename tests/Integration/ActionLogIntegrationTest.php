@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Tests\Integration;
 
 use DateTimeImmutable;
+use Doctrine\Deprecations\Deprecation;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
@@ -105,6 +106,28 @@ final class ActionLogIntegrationTest extends TestCase
         $table = (new SchemaTool($this->em))->getSchemaFromMetadata([$metadata])->getTable('kernel_action_log');
         $this->assertTrue($table->hasIndex('idx_kernel_action_log_scope_created'));
         $this->assertCount(2, $table->getForeignKeys());
+    }
+
+    /**
+     * 1.18.1: the scope length is read from the FieldMapping properties (its ArrayAccess is deprecated,
+     * doctrine/orm#11211); a scope longer than the column is still dropped.
+     */
+    public function testTheScopeLengthCheckRaisesNoFieldMappingArrayAccessDeprecation(): void
+    {
+        $link = 'https://github.com/doctrine/orm/pull/11211';
+        Deprecation::enableTrackingDeprecations();
+        try {
+            $before   = Deprecation::getTriggeredDeprecations()[$link] ?? 0;
+            $recorder = $this->recorder();
+            $fits     = $recorder->record('item.updated', $this->alice, context: ['project_uuid' => str_repeat('x', 64)]);
+            $tooLong  = $recorder->record('item.updated', $this->alice, context: ['project_uuid' => str_repeat('x', 65)]);
+
+            $this->assertSame($before, Deprecation::getTriggeredDeprecations()[$link] ?? 0);
+            $this->assertSame(str_repeat('x', 64), $fits->getScope());
+            $this->assertNull($tooLong->getScope());
+        } finally {
+            Deprecation::disable();
+        }
     }
 
     public function testRecorderPersistsEnumActionIpAndScopeFromContext(): void

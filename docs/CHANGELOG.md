@@ -54,6 +54,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Foreign keys of a host's id-mode action log kept in the generated schema (audit XI-6).** Since 1.15.1
+  `ReferenceCollationListener` replaced the action log table on `postGenerateSchemaTable` (`setClassTable()`, DBAL 4.5+
+  with ORM 3.7+); ORM 3.7–3.8 then added the table's foreign keys to the object it had replaced. On MySQL / MariaDB, a
+  host subclass of `AbstractIdActionLog` that adds its own `ManyToOne` / `OneToOne` association therefore got no
+  foreign key (and no index) for it from `doctrine:schema:update` / `doctrine:migrations:diff` (1.15.1–1.18.0). The
+  bundle's own columns have no foreign keys; join tables of a `ManyToMany` were not affected. The listener now runs on
+  `postGenerateSchema`, once every foreign key exists: with DBAL 4.5+ and ORM 3.7+ the table is rebuilt with its editor
+  (foreign keys and indexes included) and swapped in with `GenerateSchemaEventArgs::setSchema()`; with anything older
+  (ORM 2.x, ORM 3.0–3.6, DBAL 3.x–4.4) the column options are set in place. The platform is the one of the schema tool's
+  entity manager, and a manager without an id-mode action log is left alone. Same collations as before.
+  `postGenerateSchemaTable()` stays as a deprecated no-op; the `ManagerRegistry` constructor argument is unused
+  (optional). To restore missing foreign keys see [UPGRADING](UPGRADING.md#unreleased). Tests: foreign keys and indexes
+  with and without the listener for a host subclass with a ManyToOne, a OneToOne and a ManyToMany on MariaDB, MySQL 8.4,
+  MySQL 5.7, PostgreSQL and SQLite platforms, and on real MySQL 8.4 / MariaDB 11.4 / PostgreSQL 16 (DBAL 4 and 3) with
+  an `ON DELETE CASCADE` check.
+- `ActionLogRecorder` reads the `scope` column length from the `FieldMapping` properties instead of its deprecated
+  ArrayAccess (doctrine/orm#11211; ORM 2.20 field mappings, which are arrays, still work), so recording with
+  `scope_context_key` raises no ORM deprecation. Test: no doctrine/orm#11211 deprecation while a fitting and a too long
+  scope are recorded.
+
 ## [1.18.0] - 2026-11-20
 
 ### Added

@@ -10,14 +10,18 @@ use Doctrine\DBAL\Platforms\AbstractPlatform;
 use Doctrine\DBAL\Platforms\MariaDBPlatform;
 use Doctrine\DBAL\Platforms\MySQL80Platform;
 use Doctrine\DBAL\Schema\ColumnEditor;
+use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
 use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Psr\Log\LoggerInterface;
 use ReflectionMethod;
 
+use function array_map;
+use function array_values;
 use function is_a;
 use function is_array;
 use function is_callable;
@@ -42,7 +46,17 @@ use function version_compare;
  * UPGRADING. A MySQL `server_version` without its patch number (`8`, `8.0`) cannot select `utf8mb4_0900_bin`: a
  * warning is logged and `utf8mb4_bin` is used.
  *
- * Stateless (REQ-RUNTIME-002): the platform is read from the registry on each event.
+ * 1.18.1 (audit XI-6): applied on `postGenerateSchema`, once the schema tool has added every foreign key, by table name.
+ * 1.15.1–1.18.0 replaced the table on `postGenerateSchemaTable` (`setClassTable()`, DBAL 4.5+ with ORM 3.7+), and ORM
+ * 3.7–3.8 then added the table's foreign keys to the object it had replaced: on MySQL / MariaDB the foreign keys (and
+ * their indexes) of the to-one associations a host's subclass adds were missing from the generated schema. Now:
+ *
+ * - DBAL 4.5+ with ORM 3.7+: the table is rebuilt with its table editor (foreign keys and indexes included) and swapped
+ *   into a new schema given back with `GenerateSchemaEventArgs::setSchema()`;
+ * - anything older (ORM 2.x, ORM 3.0–3.6, DBAL 3.x–4.4): the column's platform options are set in place.
+ *
+ * Stateless (REQ-RUNTIME-002): the platform is the one of the schema tool's entity manager, read on each event; a
+ * manager that maps no id-mode action log is left alone.
  *
  * @internal
  */
@@ -63,10 +77,15 @@ final readonly class ReferenceCollationListener
     /** Id-mode fields that hold a user id. */
     public const FIELDS = ['actorId', 'subjectId'];
 
+    /**
+     * @param ManagerRegistry|null $doctrine unused since 1.18.1 (the platform comes from the schema tool's entity
+     *                                       manager); kept for BC
+     */
     public function __construct(
-        private ManagerRegistry $doctrine,
+        ?ManagerRegistry $doctrine = null,
         private ?LoggerInterface $logger = null,
     ) {
+        unset($doctrine);
     }
 
     /**
@@ -86,14 +105,15 @@ final readonly class ReferenceCollationListener
         };
     }
 
-    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
+    /**
+     * Gives the id columns of every id-mode action log in the generated schema their exact-match collation, keeping every
+     * foreign key and index of its table.
+     */
+    public function postGenerateSchema(GenerateSchemaEventArgs $args): void
     {
-        $metadata = $args->getClassMetadata();
-        if (!is_a($metadata->getName(), AbstractIdActionLog::class, true)) {
-            return;
-        }
-        $manager = $this->doctrine->getManagerForClass($metadata->getName());
-        if (!$manager instanceof EntityManagerInterface) {
+        $manager = $args->getEntityManager();
+        $columns = $this->idColumns($manager, $args->getSchema());
+        if ($columns === []) {
             return;
         }
         $connection = $manager->getConnection();
@@ -104,19 +124,62 @@ final readonly class ReferenceCollationListener
             return;
         }
         $this->warnAboutPartialVersion($platform, $this->configuredVersion($connection), $collation);
+        self::collateSchema($args, $columns, $collation);
+    }
 
-        $original = $table = $args->getClassTable();
-        // @phpstan-ignore function.alreadyNarrowedType, function.alreadyNarrowedType (older doctrine/dbal / doctrine/orm)
-        $editor = method_exists($table, 'edit') && method_exists($args, 'setClassTable');
-        foreach (self::FIELDS as $field) {
-            $column = $metadata->hasField($field) ? $metadata->getColumnName($field) : null;
-            if ($column !== null && $column !== '' && $table->hasColumn($column)) {
-                $table = self::collate($table, $column, $collation, $editor) ?? $table;
+    /**
+     * No longer subscribed (1.18.1, audit XI-6): replacing the table there lost its foreign keys. Kept for BC; does nothing.
+     *
+     * @deprecated since 1.18.1, the collation is applied on postGenerateSchema ({@see self::postGenerateSchema()})
+     */
+    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
+    {
+        unset($args);
+    }
+
+    /**
+     * Whether the table-editor path is usable: it rebuilds the table (`Table::edit()`, DBAL 4.3+) and swaps it into a new
+     * schema (`Schema::edit()`, DBAL 4.5+, and `GenerateSchemaEventArgs::setSchema()`, ORM 3.7+). Anything less uses the
+     * in-place path.
+     */
+    public static function editorSupported(bool $tableEdit, bool $schemaEdit, bool $setSchema): bool
+    {
+        return $tableEdit && $schemaEdit && $setSchema;
+    }
+
+    /**
+     * Gives `$columns` (table name => columns) `$collation` in the schema of `$args`, keeping every foreign key and index:
+     * rebuilt with the table editor and swapped into a new schema when {@see editorSupported()}, changed in place
+     * otherwise.
+     *
+     * @param array<string, list<non-empty-string>> $columns
+     * @param non-empty-string $collation
+     */
+    public static function collateSchema(GenerateSchemaEventArgs $args, array $columns, string $collation): void
+    {
+        $schema = $args->getSchema();
+        // @phpstan-ignore function.alreadyNarrowedType, function.alreadyNarrowedType, function.alreadyNarrowedType (older doctrine/dbal / doctrine/orm)
+        $editor = self::editorSupported(method_exists(Table::class, 'edit'), method_exists(Schema::class, 'edit'), method_exists(GenerateSchemaEventArgs::class, 'setSchema'));
+        $edited = [];
+        foreach ($columns as $name => $tableColumns) {
+            $original = $table = $schema->getTable($name);
+            foreach ($tableColumns as $column) {
+                if ($table->hasColumn($column)) {
+                    $table = self::collate($table, $column, $collation, $editor) ?? $table;
+                }
+            }
+            if ($table !== $original) {
+                $edited[] = [$original, $table];
             }
         }
-        if ($table !== $original) {
-            $args->setClassTable($table);
+        if ($edited === []) {
+            return;
         }
+        $schemaEditor = $schema->edit();
+        foreach ($edited as [$original, $table]) {
+            $schemaEditor->dropTable($original->getObjectName())->addTable($table);
+        }
+        $args->setSchema($schemaEditor->create());
     }
 
     /**
@@ -139,6 +202,34 @@ final readonly class ReferenceCollationListener
             ->setPlatformOption('collation', $collation);
 
         return null;
+    }
+
+    /**
+     * The `actorId` / `subjectId` columns (renamed ones included) of every id-mode action log `$manager` maps, per table
+     * of `$schema`.
+     *
+     * @return array<string, list<non-empty-string>> table name => columns
+     */
+    private function idColumns(EntityManagerInterface $manager, Schema $schema): array
+    {
+        $columns = [];
+        foreach ($manager->getMetadataFactory()->getAllMetadata() as $metadata) {
+            if ($metadata->isMappedSuperclass || !is_a($metadata->getName(), AbstractIdActionLog::class, true)) {
+                continue;
+            }
+            $table = $metadata->getTableName();
+            if (!$schema->hasTable($table)) {
+                continue;
+            }
+            foreach (self::FIELDS as $field) {
+                $column = $metadata->hasField($field) ? $metadata->getColumnName($field) : '';
+                if ($column !== '') {
+                    $columns[$table][$column] = $column;
+                }
+            }
+        }
+
+        return array_map(array_values(...), $columns);
     }
 
     /**
