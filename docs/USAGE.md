@@ -727,7 +727,34 @@ nowo_audit_kit:
   write is never swallowed: see
   [A failed audit write and the host action](CONCURRENCY.md#a-failed-audit-write-and-the-host-action).
 - **REQ-ARCH-001 rule 6 is opt-in in 1.x.** The default `host` mode flushes your entity manager, as before, for
-  backward compatibility. Switching the default to `isolated` in 2.0 is planned, pending the owner's decision.
+  backward compatibility. **The default becomes `isolated` in 2.0.** Since 1.18, leaving `flush_mode` unset triggers a
+  deprecation notice once per kernel boot, and the host-flush probe below. Set `flush_mode` explicitly (`isolated`, or
+  `host` to keep flushing your changes) to silence both.
+
+#### Host-flush probe (since 1.18)
+
+With an action log configured and `flush_mode` unset, `recordAndFlush()` / `recordIdsAndFlush()` look at your entity
+manager right before they flush it. Each of your entity classes with pending changes (a scheduled insert or delete, or
+a managed entity whose fields, to-one associations or collections changed) triggers one deprecation per request,
+Messenger message or console command:
+
+```text
+Your pending changes to App\Entity\Invoice were flushed by NowoAuditKitBundle; 2.0 no longer does.
+```
+
+Each line is a place where your code relies on the action log to save its own changes. Read your deprecation log (the
+profiler's "Deprecations" panel, the `php` log channel, or your test suite's deprecation report) as the migration list:
+for each class, add your own `flush()` after the change, then set `flush_mode: isolated`.
+
+- The new action log row is never reported. A row you recorded earlier with `record()` and did not flush is reported
+  as your action log class: in 2.0 `recordAndFlush()` no longer writes it, so flush it yourself.
+- The probe only reads the unit of work. It never flushes, clears, closes or resets your entity manager, and the
+  flush that follows is the same as before.
+- It resets at every request, message and command, also in FrankenPHP worker mode with the kernel reset off. When
+  transaction-doctrine's Symfony bundle is registered, its shared probe (`nowo_transaction_doctrine.host_flush_probe`)
+  is used.
+- A closed entity manager is replaced before the row is written (since 1.17); the new one holds none of your changes,
+  so nothing is reported.
 
 **Your security user is not the Doctrine user entity (since 1.12)**
 
@@ -788,10 +815,11 @@ services:
   `BlameValueResolverInterface` (Symfony `UserInterface`, Doctrine `ObjectManager`) for blame; the framework-free
   ports drive the id path. `CurrentActorProviderInterface` selects the profile on both paths.
 - `action_log.flush_mode` defaults to `host` (flushes your pending changes) for backward compatibility: REQ-ARCH-001
-  rule 6 is opt-in in 1.x; switching the default to `isolated` in 2.0 is planned, pending the owner's decision.
+  rule 6 is opt-in in 1.x; the default becomes `isolated` in 2.0 (deprecation notice and host-flush probe since 1.18
+  when unset).
 - No events are dispatched when audit fields are written or an action is recorded.
-- `#[Auditable]` alone opts a class in only with `attribute_opt_in: true` (default `false` until 2.0); use
-  `auditable_entities` meanwhile.
+- `#[Auditable]` alone opts a class in only with `attribute_opt_in: true` (default `false` until 2.0, deprecation
+  notice since 1.18 when unset); use `auditable_entities` meanwhile.
 - The action log row id is an auto-increment integer (an internal key of the log; user references are strings).
 
 ## Related bundles

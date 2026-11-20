@@ -16,6 +16,7 @@ use LogicException;
 use Nowo\AuditKitBundle\Model\ReferenceId;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\DoctrineTransactionRunner;
+use Nowo\TransactionDoctrine\HostFlushProbe;
 use Nowo\TransactionDoctrine\TransientFailureClassifier;
 use Nowo\TransactionDoctrine\TransientFailureKind;
 use Nowo\TransactionDoctrine\WriteUnit\ConcurrencyConflict;
@@ -55,6 +56,12 @@ use function strlen;
  * (savepoint-aware repair of the connection); outside a transaction a deadlock or serialization failure is replayed at
  * most {@see MAX_ISOLATED_REPLAYS} times on a new entity manager, and a lock conflict that remains is thrown as
  * {@see ConcurrencyConflict} (`committed` false: the row itself was not written).
+ *
+ * Since 1.18 (REQ-ARCH-001 rule 6 deprecation layer), when `flush_mode` is left unset the two `*AndFlush()` methods run
+ * transaction-doctrine's {@see HostFlushProbe} on the host's entity manager right before they persist the row and
+ * flush: each entity class outside this bundle with pending changes (an action log row recorded earlier with record()
+ * included) triggers one deprecation per unit of work, because the 2.0 default (`isolated`) no longer flushes them.
+ * The probe only reads the unit of work.
  */
 final readonly class ActionLogRecorder implements ActionLogRecorderInterface, ActionLogIdRecorderInterface
 {
@@ -67,6 +74,15 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
     /** Since 1.17: replays of an isolated write after a deadlock or a serialization failure, outside a transaction. */
     public const MAX_ISOLATED_REPLAYS = 2;
 
+    /** Since 1.18: the bundle name the host-flush probe shows. */
+    public const BUNDLE_NAME = 'NowoAuditKitBundle';
+
+    /**
+     * Since 1.18: the namespace whose classes the host-flush probe never reports (the action log mapped superclasses).
+     * The bundle maps no entity of its own: the action log class is the host's, so its pending rows are reported.
+     */
+    public const BUNDLE_NAMESPACE = 'Nowo\\AuditKitBundle\\ActionLog';
+
     /** Since 1.17: `Retry-After` hint (seconds) carried by the {@see ConcurrencyConflict} of an isolated write. */
     public const RETRY_AFTER_SECONDS = 1;
 
@@ -75,6 +91,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      * @param string|null $scopeContextKey context key copied into `scope` when no scope is given
      * @param string $flushMode since 1.15: {@see FLUSH_HOST} or {@see FLUSH_ISOLATED}
      * @param LoggerInterface|null $logger since 1.15.1: warned when an unusable user id is stored as `null`
+     * @param HostFlushProbe|null $hostFlushProbe since 1.18: set by the bundle only when `flush_mode` is left unset
      */
     public function __construct(
         private ManagerRegistry $registry,
@@ -84,6 +101,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         private bool $captureIp = true,
         private string $flushMode = self::FLUSH_HOST,
         private ?LoggerInterface $logger = null,
+        private ?HostFlushProbe $hostFlushProbe = null,
     ) {
         if ($flushMode !== self::FLUSH_HOST && $flushMode !== self::FLUSH_ISOLATED) {
             throw new InvalidArgumentException(sprintf('Unknown action log flush mode "%s" (expected "%s" or "%s").', $flushMode, self::FLUSH_HOST, self::FLUSH_ISOLATED));
@@ -133,6 +151,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             });
         }
 
+        $this->probeHostFlush();
         $entry = $this->record($action, $actor, $subject, $context, $scope);
         $this->entityManager()->flush();
 
@@ -170,10 +189,30 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             return $this->isolated(fn (EntityManagerInterface $own): ActionLogEntryInterface => $this->persistIds($own, $action, $actorId, $subjectId, $context, $scope));
         }
 
+        $this->probeHostFlush();
         $entry = $this->recordIds($action, $actorId, $subjectId, $context, $scope);
         $this->entityManager()->flush();
 
         return $entry;
+    }
+
+    /**
+     * Since 1.18: reports, through the host-flush probe, the host's pending changes the coming host-mode flush writes.
+     *
+     * It runs before the new row is persisted, so the row itself is never reported, and only on an open manager: a
+     * closed one is replaced with an empty unit of work before the row is written (see writableEntityManager()), so
+     * nothing of the host's is flushed then. Read-only: the probe never flushes, clears, closes or resets the manager.
+     */
+    private function probeHostFlush(): void
+    {
+        if (!$this->hostFlushProbe instanceof HostFlushProbe) {
+            return;
+        }
+
+        $manager = $this->entityManager();
+        if ($manager->isOpen()) {
+            $this->hostFlushProbe->beforeHostFlush($manager, self::BUNDLE_NAME, [self::BUNDLE_NAMESPACE]);
+        }
     }
 
     /** @return class-string<AbstractActionLog>|class-string<AbstractIdActionLog> */
