@@ -236,18 +236,26 @@ final class ActionLogHostFlushProbeTest extends TestCase
     {
         $ran = 0;
         foreach ($dispatcher->getListeners($eventName) as $listener) {
-            $target = null;
-            if (is_array($listener) && is_object($listener[0] ?? null)) {
-                $target = $listener[0];
-            } elseif ($listener instanceof Closure) {
-                $target = (new ReflectionFunction($listener))->getClosureThis();
-            }
-            if (($target instanceof ActionLogHostFlushProbeResetSubscriber || $target instanceof UnitOfWorkBoundaryListener) && is_callable($listener)) {
-                $listener($event, $eventName, $dispatcher);
+            $boundary = self::boundaryListener($listener);
+            if ($boundary !== null) {
+                $boundary($event, $eventName, $dispatcher);
                 ++$ran;
             }
         }
         $this->assertGreaterThan(0, $ran, $eventName);
+    }
+
+    /** The listener when it belongs to a boundary listener (typed mixed: the dispatcher's listener type differs by Symfony version). */
+    private static function boundaryListener(mixed $listener): ?callable
+    {
+        $target = null;
+        if ($listener instanceof Closure) {
+            $target = (new ReflectionFunction($listener))->getClosureThis();
+        } elseif (is_array($listener) && isset($listener[0]) && is_object($listener[0])) {
+            $target = $listener[0];
+        }
+
+        return ($target instanceof ActionLogHostFlushProbeResetSubscriber || $target instanceof UnitOfWorkBoundaryListener) && is_callable($listener) ? $listener : null;
     }
 
     private function message(string $class): string
