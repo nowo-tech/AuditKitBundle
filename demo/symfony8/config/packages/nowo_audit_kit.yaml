@@ -1,5 +1,7 @@
 nowo_audit_kit:
     default_profile: default
+    # Set explicitly: the default becomes true in 2.0 (1.18 notice when unset).
+    attribute_opt_in: false
 
     profiles:
         default:

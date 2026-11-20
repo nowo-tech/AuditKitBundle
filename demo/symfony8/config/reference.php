@@ -1251,7 +1251,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  * @psalm-type NowoAuditKitConfig = array{
  *     default_profile?: scalar|Param|null, // Profile name used when no profile is resolved from the authenticated user. Defaults to the first configured profile (resolved after all configuration files are merged). // Default: null
  *     blame_mode?: "reference"|"id"|Param, // Since 1.14: what the blame fields receive. "reference" (default): a Doctrine reference to the profile user_class entity (BlameableTrait relations). "id": the current user id as a string (getId(), never the identifier), for hosts whose blame fields are plain id columns; user_class becomes optional (any security user, or a class / interface to match). // Default: "reference"
- *     attribute_opt_in?: bool|Param, // Since 1.13: when true, #[Auditable] alone (without a bundle interface or trait) opts a class in. Default false keeps the 1.12 behaviour (the attribute alone is ignored); the default becomes true in 2.0. // Default: false
+ *     attribute_opt_in?: bool|Param, // Since 1.13: when true, #[Auditable] alone (without a bundle interface or trait) opts a class in. Default false keeps the 1.12 behaviour (the attribute alone is ignored); the default becomes true in 2.0. Since 1.18 leaving it unset (with an enabled profile) triggers a deprecation notice: set it to true or false. // Default: false
  *     auditable_entities?: list<scalar|Param|null>,
  *     profiles?: array<string, array{ // Default: []
  *         enabled?: bool|Param, // Enable auditing for this profile. // Default: true
@@ -1272,7 +1272,7 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         mapping?: "attribute"|"xml"|Param, // Since 1.14: driver of the prepended superclass mapping. "attribute" (default) or "xml" (Resources/config/doctrine/action_log/*.orm.xml) for hosts that map everything in XML. // Default: "attribute"
  *         scope_context_key?: scalar|Param|null, // Context key copied into `scope` by ActionLogRecorder when no scope is passed (e.g. project_uuid). // Default: null
  *         capture_ip?: bool|Param, // Store the client IP of the current request. // Default: true
- *         flush_mode?: "host"|"isolated"|Param, // Since 1.15: what recordAndFlush() / recordIdsAndFlush() flush. "host" (default, the behaviour of earlier versions): the entity manager that maps the action log class, with every pending change of the application. "isolated": only the new row, through a short-lived entity manager of the bundle on the same connection; the application unit of work is neither flushed nor cleared. // Default: "host"
+ *         flush_mode?: "host"|"isolated"|Param, // Since 1.15: what recordAndFlush() / recordIdsAndFlush() flush. "host" (default, the behaviour of earlier versions): the entity manager that maps the action log class, with every pending change of the application. "isolated": only the new row, through a short-lived entity manager of the bundle on the same connection; the application unit of work is neither flushed nor cleared. The default becomes "isolated" in 2.0; since 1.18 leaving it unset triggers a deprecation notice and the host-flush probe. // Default: "host"
  *         purge?: array{
  *             older_than_days?: int|Param, // Default --older-than-days of nowo:audit-kit:action-log:purge. // Default: 90
  *             batch_size?: int|Param, // Rows deleted per keyset batch. // Default: 1000

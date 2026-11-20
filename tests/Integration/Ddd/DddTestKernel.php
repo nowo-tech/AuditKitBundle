@@ -77,6 +77,7 @@ final class DddTestKernel extends Kernel
         $container->loadFromExtension('nowo_audit_kit', [
             'blame_mode'         => 'id',
             'auditable_entities' => [Domain\Invoice::class],
+            'attribute_opt_in'   => false,
             'fields'             => [
                 'created_at' => 'createdAt',
                 'updated_at' => 'updatedAt',
@@ -86,6 +87,7 @@ final class DddTestKernel extends Kernel
             'action_log' => [
                 'entity_class' => Domain\AuditEntry::class,
                 'mapping'      => 'xml',
+                'flush_mode'   => 'host',
             ],
         ]);
         $container->setAlias('test.action_log_id_recorder', ActionLogIdRecorderInterface::class)->setPublic(true);

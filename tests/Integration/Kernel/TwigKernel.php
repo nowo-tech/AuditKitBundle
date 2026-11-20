@@ -57,7 +57,8 @@ final class TwigKernel extends Kernel
         ]);
         $container->loadFromExtension('twig', ['strict_variables' => true]);
         $container->loadFromExtension('nowo_audit_kit', [
-            'user_class' => Entity\KernelUser::class,
+            'user_class'       => Entity\KernelUser::class,
+            'attribute_opt_in' => false,
         ]);
         if ($this->configure instanceof Closure) {
             ($this->configure)($container);

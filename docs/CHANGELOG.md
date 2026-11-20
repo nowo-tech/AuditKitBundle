@@ -53,9 +53,33 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Host-flush probe (REQ-ARCH-001 rule 6 deprecation layer).** With an action log configured and
+  `action_log.flush_mode` unset, `recordAndFlush()` / `recordIdsAndFlush()` run transaction-doctrine's
+  `HostFlushProbe` on the entity manager of the action log class right before they flush it. Each entity class outside
+  the bundle with pending changes (an action log row recorded earlier with `record()` and not flushed included; the new
+  row never) triggers one `E_USER_DEPRECATED` per request, message or command: "Your pending changes to App\X were
+  flushed by NowoAuditKitBundle; 2.0 no longer does." The probe only reads the unit of work; the flush is unchanged.
+  It is reset at every boundary (`ActionLogHostFlushProbeResetSubscriber` and `kernel.reset`, worker mode with the
+  kernel reset off included); transaction-doctrine's shared probe is used when its Symfony bundle is registered.
+- `ActionLogRecorder::__construct()` takes an optional trailing `?HostFlushProbe $hostFlushProbe` (direct
+  instantiation is unaffected).
+
+### Deprecated
+
+- Leaving `nowo_audit_kit.action_log.flush_mode` unset while an action log is configured: one notice per kernel boot.
+  The default becomes `isolated` in 2.0. Set `flush_mode: isolated` to opt in now, or `flush_mode: host` to keep the
+  current behaviour explicitly.
+- Leaving `nowo_audit_kit.attribute_opt_in` unset while a profile is enabled: one notice per kernel boot. The default
+  becomes `true` in 2.0 (announced in 1.13). Set `attribute_opt_in: true` to opt in now, or `false` explicitly.
+- The id-mode legacy port overrides (`CurrentUserResolverInterface`, `BlameValueResolverInterface` with
+  `blame_mode: id`) keep their 1.15 notices; 2.0 no longer reads them in id mode.
+
 ### Changed
 
-- Requires `nowo-tech/transaction-doctrine` ^1.8.1 (fixes GHSA-9wh3-m3m5-jffx and GHSA-65w2-9r4h-848g).
+- Requires `nowo-tech/transaction-doctrine` ^1.9 (the host-flush probe; 1.8.1 fixed GHSA-9wh3-m3m5-jffx and
+  GHSA-65w2-9r4h-848g).
 
 ## [1.17.0] - 2026-11-19
 

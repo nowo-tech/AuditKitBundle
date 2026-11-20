@@ -101,6 +101,7 @@ final class DddPortsTestKernel extends Kernel
         $container->loadFromExtension('nowo_audit_kit', [
             'blame_mode'         => 'id',
             'auditable_entities' => [Domain\Invoice::class],
+            'attribute_opt_in'   => false,
             'default_profile'    => 'default',
             'profiles'           => [
                 'default' => [],
