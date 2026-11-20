@@ -16,6 +16,7 @@ use Nowo\TransactionDoctrine\HostFlushProbe;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\IgnoreDeprecations;
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
 use Symfony\Component\DependencyInjection\Container;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
@@ -67,6 +68,14 @@ final class DefaultFlipNoticesTest extends TestCase
         ], $container);
 
         $this->assertSame([], $container->getParameter(DefaultFlipNotices::PARAMETER));
+    }
+
+    public function testAFileWhereASectionIsNotAnArrayDoesNotHideTheOptionOfAnotherFile(): void
+    {
+        $isSet = new ReflectionMethod(NowoAuditKitExtension::class, 'isSet');
+
+        $this->assertFalse($isSet->invoke(new NowoAuditKitExtension(), [['action_log' => null], ['action_log' => true]], 'action_log', 'flush_mode'));
+        $this->assertTrue($isSet->invoke(new NowoAuditKitExtension(), [['action_log' => null], ['action_log' => ['flush_mode' => 'host']]], 'action_log', 'flush_mode'));
     }
 
     public function testBootTriggersEachNoticeOnce(): void
