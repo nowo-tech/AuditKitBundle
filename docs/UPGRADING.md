@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.18.1](#to-1181)
 - [To 1.18.0](#to-1180)
 - [Preparing for 2.0](#preparing-for-20)
 - [To 1.17.0](#to-1170)
@@ -53,6 +54,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.18.1
+
+From **1.18.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 **Missing foreign keys on an id-mode action log (audit XI-6, MySQL / MariaDB).** Only if your `AbstractIdActionLog`
 subclass adds a `ManyToOne` / `OneToOne` association and its table was created or migrated with 1.15.1–1.18.0 on

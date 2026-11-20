@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.18.1] - 2026-11-21](#1181---2026-11-21)
 - [[1.18.0] - 2026-11-20](#1180---2026-11-20)
 - [[1.17.0] - 2026-11-19](#1170---2026-11-19)
 - [[1.16.1] - 2026-11-16](#1161---2026-11-16)
@@ -54,6 +55,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.18.1] - 2026-11-21
+
 ### Fixed
 
 - **Foreign keys of a host's id-mode action log kept in the generated schema (audit XI-6).** Since 1.15.1
@@ -67,7 +70,7 @@ All notable changes to this project will be documented in this file.
   (ORM 2.x, ORM 3.0–3.6, DBAL 3.x–4.4) the column options are set in place. The platform is the one of the schema tool's
   entity manager, and a manager without an id-mode action log is left alone. Same collations as before.
   `postGenerateSchemaTable()` stays as a deprecated no-op; the `ManagerRegistry` constructor argument is unused
-  (optional). To restore missing foreign keys see [UPGRADING](UPGRADING.md#unreleased). Tests: foreign keys and indexes
+  (optional). To restore missing foreign keys see [UPGRADING](UPGRADING.md#to-1181). Tests: foreign keys and indexes
   with and without the listener for a host subclass with a ManyToOne, a OneToOne and a ManyToMany on MariaDB, MySQL 8.4,
   MySQL 5.7, PostgreSQL and SQLite platforms, and on real MySQL 8.4 / MariaDB 11.4 / PostgreSQL 16 (DBAL 4 and 3) with
   an `ON DELETE CASCADE` check.
@@ -75,6 +78,8 @@ All notable changes to this project will be documented in this file.
   ArrayAccess (doctrine/orm#11211; ORM 2.20 field mappings, which are arrays, still work), so recording with
   `scope_context_key` raises no ORM deprecation. Test: no doctrine/orm#11211 deprecation while a fitting and a too long
   scope are recorded.
+
+[1.18.1]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.18.1
 
 ## [1.18.0] - 2026-11-20
 
