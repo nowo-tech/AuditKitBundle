@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.18.0] - 2026-11-20](#1180---2026-11-20)
 - [[1.17.0] - 2026-11-19](#1170---2026-11-19)
 - [[1.16.1] - 2026-11-16](#1161---2026-11-16)
 - [[1.16.0] - 2026-11-13](#1160---2026-11-13)
@@ -53,6 +54,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-11-20
+
 ### Added
 
 - **Host-flush probe (REQ-ARCH-001 rule 6 deprecation layer).** With an action log configured and
@@ -80,6 +83,8 @@ All notable changes to this project will be documented in this file.
 
 - Requires `nowo-tech/transaction-doctrine` ^1.9 (the host-flush probe; 1.8.1 fixed GHSA-9wh3-m3m5-jffx and
   GHSA-65w2-9r4h-848g).
+
+[1.18.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v1.18.0
 
 ## [1.17.0] - 2026-11-19
 

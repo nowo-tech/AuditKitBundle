@@ -3,8 +3,9 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
-- [Preparing for 2.0](#preparing-for-20)
 - [To 1.18.0](#to-1180)
+- [Preparing for 2.0](#preparing-for-20)
+- [To 1.18.0](#to-1180-1)
 - [To 1.17.0](#to-1170)
 - [To 1.16.1](#to-1161)
 - [To 1.16.0](#to-1160)
@@ -53,6 +54,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 1.18.0
+
+From **1.17.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 ## Preparing for 2.0
 
