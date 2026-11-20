@@ -5,7 +5,6 @@
 - [Unreleased](#unreleased)
 - [To 1.18.0](#to-1180)
 - [Preparing for 2.0](#preparing-for-20)
-- [To 1.18.0](#to-1180-1)
 - [To 1.17.0](#to-1170)
 - [To 1.16.1](#to-1161)
 - [To 1.16.0](#to-1160)
@@ -54,31 +53,6 @@
   - [1.0.0](#100)
 
 ## Unreleased
-
-## To 1.18.0
-
-From **1.17.0**:
-
-```bash
-composer update nowo-tech/audit-kit-bundle
-```
-
-## Preparing for 2.0
-
-2.0 contains only changes announced by deprecations in 1.x: if your application runs 1.18 without deprecation notices
-from this bundle, the upgrade needs no code change. After 2.0 is released, the 1.x line gets security fixes for 6
-months: Moderate and higher advisories are backported to the last 1.x minor; Low ones are fixed in 2.x only.
-
-What changes in 2.0, and how to opt in on 1.18:
-
-| 2.0 change | 1.18 notice | Opt in now |
-| --- | --- | --- |
-| `action_log.flush_mode` defaults to `isolated`: `recordAndFlush()` / `recordIdsAndFlush()` write only the new row, your pending changes stay pending | "Leaving \"nowo_audit_kit.action_log.flush_mode\" unset is deprecated", plus one host-flush probe line per class of yours that the flush writes | `nowo_audit_kit.action_log.flush_mode: isolated`, after adding your own `flush()` for each class the probe lists |
-| `attribute_opt_in` defaults to `true`: `#[Auditable]` alone opts a class in | "Leaving \"nowo_audit_kit.attribute_opt_in\" unset is deprecated" | `nowo_audit_kit.attribute_opt_in: true`, after checking which classes carry `#[Auditable]` without a bundle interface or trait |
-| With `blame_mode: id`, host overrides of `CurrentUserResolverInterface` / `BlameValueResolverInterface` are no longer read | "With \"nowo_audit_kit.blame_mode: id\", overriding … is deprecated" (since 1.15) | alias `CurrentActorProviderInterface` / `BlameIdResolverInterface` to your services |
-
-Setting an option explicitly to its current value (`flush_mode: host`, `attribute_opt_in: false`) silences its notice
-and keeps the 1.x behaviour in 2.0.
 
 ## To 1.18.0
 
@@ -133,6 +107,23 @@ listed in `auditable_entities`: they start being audited (and blamed when blame 
 
 **Constructor (direct instantiation only).** `ActionLogRecorder::__construct()` takes an optional trailing
 `?HostFlushProbe $hostFlushProbe` (default `null`: no probe).
+
+## Preparing for 2.0
+
+2.0 contains only changes announced by deprecations in 1.x: if your application runs 1.18 without deprecation notices
+from this bundle, the upgrade needs no code change. After 2.0 is released, the 1.x line gets security fixes for 6
+months: Moderate and higher advisories are backported to the last 1.x minor; Low ones are fixed in 2.x only.
+
+What changes in 2.0, and how to opt in on 1.18:
+
+| 2.0 change | 1.18 notice | Opt in now |
+| --- | --- | --- |
+| `action_log.flush_mode` defaults to `isolated`: `recordAndFlush()` / `recordIdsAndFlush()` write only the new row, your pending changes stay pending | "Leaving \"nowo_audit_kit.action_log.flush_mode\" unset is deprecated", plus one host-flush probe line per class of yours that the flush writes | `nowo_audit_kit.action_log.flush_mode: isolated`, after adding your own `flush()` for each class the probe lists |
+| `attribute_opt_in` defaults to `true`: `#[Auditable]` alone opts a class in | "Leaving \"nowo_audit_kit.attribute_opt_in\" unset is deprecated" | `nowo_audit_kit.attribute_opt_in: true`, after checking which classes carry `#[Auditable]` without a bundle interface or trait |
+| With `blame_mode: id`, host overrides of `CurrentUserResolverInterface` / `BlameValueResolverInterface` are no longer read | "With \"nowo_audit_kit.blame_mode: id\", overriding … is deprecated" (since 1.15) | alias `CurrentActorProviderInterface` / `BlameIdResolverInterface` to your services |
+
+Setting an option explicitly to its current value (`flush_mode: host`, `attribute_opt_in: false`) silences its notice
+and keeps the 1.x behaviour in 2.0.
 
 ## To 1.17.0
 
