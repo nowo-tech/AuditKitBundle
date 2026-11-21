@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.1.0] - 2026-11-21](#210---2026-11-21)
 - [[2.0.0] - 2026-11-21](#200---2026-11-21)
 - [[1.18.1] - 2026-11-21](#1181---2026-11-21)
 - [[1.18.0] - 2026-11-20](#1180---2026-11-20)
@@ -56,7 +57,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-Additive minor over 2.0 (no BC break). See [UPGRADING](UPGRADING.md#unreleased).
+## [2.1.0] - 2026-11-21
+
+Additive minor over 2.0 (no BC break). See [UPGRADING](UPGRADING.md#to-210).
 
 ### Added
 
@@ -86,6 +89,8 @@ Additive minor over 2.0 (no BC break). See [UPGRADING](UPGRADING.md#unreleased).
   id and scope of the SQL candidates instead of one `COUNT(*)`. `ActionLogCriteria` casts int and `Stringable` scopes
   (a Uuid) to string, so `scope: 5` or `scope: $uuid` still matches the stored `'5'` / UUID string as SQL `IN` did;
   the `$scope` parameter now also accepts `int` and `Stringable` (additive).
+
+[2.1.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v2.1.0
 
 ## [2.0.0] - 2026-11-21
 
