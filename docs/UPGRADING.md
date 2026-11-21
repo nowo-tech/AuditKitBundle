@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.0.0](#to-200)
   - [Before you upgrade](#before-you-upgrade)
   - [The action log no longer flushes your changes](#the-action-log-no-longer-flushes-your-changes)
   - [`#[Auditable]` alone opts a class in](#auditable-alone-opts-a-class-in)
@@ -61,6 +62,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 2.0.0
+
+From **1.18.1**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 ```bash
 composer require nowo-tech/audit-kit-bundle:^2.0 -W
@@ -183,7 +192,6 @@ and the twin to alias (`#[AsAlias]` / `#[AsDecorator]` on an autodiscovered clas
 | --- | --- | --- |
 | `BlameValueResolverInterface` | an alias, a service registered under the interface id, a decorator | 1.15–1.18 warned about the alias and the service id. **They ignored a decorator silently, with no notice**: it had no effect in id mode, and now it is reported |
 | `CurrentUserResolverInterface` | an alias, a service registered under the interface id (both announced by the 1.15 notice) | A decorator stays allowed, as in 1.x: the default actor provider (`SecurityCurrentActorProvider`) still reads it |
-
 
 ```text
 With "nowo_audit_kit.blame_mode: id", the service(s) "App\Audit\MyBlame" override "Nowo\AuditKitBundle\Blame\BlameValueResolverInterface", which the id mode no longer supports since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "Nowo\AuditKitBundle\Blame\BlameIdResolverInterface" to your service instead (see UPGRADING.md, "To 2.0.0").

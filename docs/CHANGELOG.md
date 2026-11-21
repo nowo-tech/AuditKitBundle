@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.0.0] - 2026-11-21](#200---2026-11-21)
 - [[1.18.1] - 2026-11-21](#1181---2026-11-21)
 - [[1.18.0] - 2026-11-20](#1180---2026-11-20)
 - [[1.17.0] - 2026-11-19](#1170---2026-11-19)
@@ -55,8 +56,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-21
+
 2.0.0 (REQ-ARCH-001 wave 1): removes only what 1.x announced (REQ-BC-001) and flips the two announced defaults. Read
-[UPGRADING](UPGRADING.md#unreleased) before updating: `composer require nowo-tech/audit-kit-bundle:^2.0 -W`.
+[UPGRADING](UPGRADING.md#to-200) before updating: `composer require nowo-tech/audit-kit-bundle:^2.0 -W`.
 
 ### Changed
 
@@ -108,6 +111,8 @@ All notable changes to this project will be documented in this file.
 
 - Supported versions: 2.x; 1.x receives security fixes rated Moderate and above for 6 months after 2.0.0 (backported
   to the last 1.x minor); Low ones are fixed in 2.x only.
+
+[2.0.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v2.0.0
 
 ## [1.18.1] - 2026-11-21
 

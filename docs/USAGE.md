@@ -683,7 +683,7 @@ services:
 - In id mode, since 2.0 the container build fails while the twin keeps its default when you override
   `BlameValueResolverInterface` (an alias, a service under its id or a decorator) or `CurrentUserResolverInterface`
   (an alias or a service under its id), attributes such as `#[AsAlias]` / `#[AsDecorator]` included. Alias
-  `CurrentActorProviderInterface` / `BlameIdResolverInterface` instead (see [UPGRADING](UPGRADING.md#unreleased)). A
+  `CurrentActorProviderInterface` / `BlameIdResolverInterface` instead (see [UPGRADING](UPGRADING.md#to-200)). A
   decorator of `CurrentUserResolverInterface` stays allowed: the default actor provider reads it.
 
 **Mapping the traits in XML**
@@ -764,7 +764,7 @@ $actionLog->recordAndFlush('board.unlinked', $user, null, ['board' => $board->ge
 ```
 
 Or keep `flush_mode: host`. 1.18 reported each such place as a host-flush probe line ("Your pending changes to App\X
-were flushed by NowoAuditKitBundle; 2.0 no longer does."); see [UPGRADING](UPGRADING.md#unreleased).
+were flushed by NowoAuditKitBundle; 2.0 no longer does."); see [UPGRADING](UPGRADING.md#to-200).
 
 **Your security user is not the Doctrine user entity (since 1.12)**
 
