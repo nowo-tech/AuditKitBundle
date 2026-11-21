@@ -89,8 +89,8 @@ nowo_audit_kit:
 ## Opt-in without the traits (since 1.13)
 
 A class is audited without any AuditKit interface or trait when it is listed in `auditable_entities` (the class, a
-parent class or an interface of your own), or, with `attribute_opt_in: true`, when it carries `#[Auditable]` (the
-default `false` keeps the 1.12 rule: the attribute alone is ignored; it becomes `true` in 2.0). Each configured field is
+parent class or an interface of your own), or when it carries `#[Auditable]` (`attribute_opt_in`, `true` by default
+since 2.0; set it to `false` to keep the 1.x rule that ignores the attribute alone). Each configured field is
 written only when it exists, is writable (setter or public property) and accepts the value; any other is skipped and
 a warning is logged once per class and field. `#[Auditable(enabled: false)]`, also on a parent class, always opts out.
 The mapping is yours.
@@ -680,8 +680,10 @@ services:
   port, keep the two in agreement (same person, a profile whose `user_class` that user is an instance of), or alias
   `CurrentUserResolverInterface` / `BlameValueResolverInterface` as well. With `blame_mode: id` the actor port alone
   is enough.
-- In id mode, an alias of `CurrentUserResolverInterface` or `BlameValueResolverInterface` still works but is
-  deprecated (see [UPGRADING](UPGRADING.md#to-1161)).
+- In id mode, overriding `CurrentUserResolverInterface` or `BlameValueResolverInterface` (an alias, a service under
+  its id or a decorator, attributes such as `#[AsAlias]` / `#[AsDecorator]` included) while its twin keeps the default
+  fails the container build since 2.0: the id mode no longer reads them. Alias `CurrentActorProviderInterface` /
+  `BlameIdResolverInterface` instead (see [UPGRADING](UPGRADING.md#unreleased)).
 
 **Mapping the traits in XML**
 
@@ -699,23 +701,20 @@ With `blame_mode: id`, skip `BlameableTrait` (its properties are typed `?object`
 
 ### Action log flush mode (since 1.15)
 
-`recordAndFlush()` / `recordIdsAndFlush()` flush the entity manager that maps the action log class: every pending
-change of your unit of work is written with the row (the behaviour of earlier versions, kept as the default). To write
-only the row, set:
-
-```yaml
-nowo_audit_kit:
-    action_log:
-        flush_mode: isolated
-```
+Since 2.0 `recordAndFlush()` / `recordIdsAndFlush()` write **only the new row** (`flush_mode: isolated`, the default,
+REQ-ARCH-001 rule 6): your pending changes stay pending until you flush them yourself.
 
 - The row is written through a short-lived entity manager of the bundle (same connection, configuration and event
-  manager), which is flushed, cleared and closed in the call. Your pending inserts and updates are neither flushed nor
-  cleared; your entity manager stays open.
+  manager), which is flushed, cleared and closed in the call. Your pending inserts, updates and removals are neither
+  flushed nor cleared; your entity manager stays open, and the entities it holds stay managed by it.
 - Inside a transaction you opened on the same connection, the row commits or rolls back with it.
 - Actor / subject entities must already be stored and managed by your entity manager (they are referenced by id). A
   new user, a persisted user not flushed yet (also with an assigned id such as a UUID) or a detached one throws a
   `LogicException`. The returned row is detached.
+- **Your own associations (since 2.0).** A to-one association of your action log class (an `owner`, a `tenant`, set by
+  your subclass or by one of your Doctrine listeners) may hold an entity of your entity manager: the row stores its id
+  as a reference, and your instance is neither written nor detached. The entity must be stored already; one that is
+  persisted but not flushed throws a `LogicException`. Do not cascade-persist from the action log to your entities.
 - **Transactions and savepoints.** If the isolated flush fails while a transaction you opened on the same connection
   is active, the nested transaction is rolled back. On DBAL 3 without savepoints this marks your outer transaction
   rollback-only: its commit then fails. Enable savepoints (`doctrine.dbal.connections.<name>.use_savepoints: true`;
@@ -726,35 +725,42 @@ nowo_audit_kit:
   replayed at most twice; a conflict that remains is thrown as `ConcurrencyConflict` (`CONFLICT_001`). A failed audit
   write is never swallowed: see
   [A failed audit write and the host action](CONCURRENCY.md#a-failed-audit-write-and-the-host-action).
-- **REQ-ARCH-001 rule 6 is opt-in in 1.x.** The default `host` mode flushes your entity manager, as before, for
-  backward compatibility. **The default becomes `isolated` in 2.0.** Since 1.18, leaving `flush_mode` unset triggers a
-  deprecation notice once per kernel boot, and the host-flush probe below. Set `flush_mode` explicitly (`isolated`, or
-  `host` to keep flushing your changes) to silence both.
 
-#### Host-flush probe (since 1.18)
+#### Flushing your changes with the row (`flush_mode: host`)
 
-With an action log configured and `flush_mode` unset, `recordAndFlush()` / `recordIdsAndFlush()` look at your entity
-manager right before they flush it. Each of your entity classes with pending changes (a scheduled insert or delete, or
-a managed entity whose fields, to-one associations or collections changed) triggers one deprecation per request,
-Messenger message or console command:
+The 1.x default stays available as an explicit choice, with no notice:
 
-```text
-Your pending changes to App\Entity\Invoice were flushed by NowoAuditKitBundle; 2.0 no longer does.
+```yaml
+nowo_audit_kit:
+    action_log:
+        flush_mode: host
 ```
 
-Each line is a place where your code relies on the action log to save its own changes. Read your deprecation log (the
-profiler's "Deprecations" panel, the `php` log channel, or your test suite's deprecation report) as the migration list:
-for each class, add your own `flush()` after the change, then set `flush_mode: isolated`.
+`*AndFlush()` then flush the entity manager that maps the action log class, with every pending change of your unit of
+work, as 1.x did. The row commits or fails with your changes (see
+[A failed audit write and the host action](CONCURRENCY.md#a-failed-audit-write-and-the-host-action)).
 
-- The new action log row is never reported. A row you recorded earlier with `record()` and did not flush is reported
-  as your action log class: in 2.0 `recordAndFlush()` no longer writes it, so flush it yourself.
-- The probe only reads the unit of work. It never flushes, clears, closes or resets your entity manager, and the
-  flush that follows is the same as before.
-- It resets at every request, message and command, also in FrankenPHP worker mode with the kernel reset off. When
-  transaction-doctrine's Symfony bundle is registered, its shared probe (`nowo_transaction_doctrine.host_flush_probe`)
-  is used.
-- A closed entity manager is replaced before the row is written (since 1.17); the new one holds none of your changes,
-  so nothing is reported.
+#### A change that relied on the action log flush
+
+With the isolated default, code that changes an entity and then calls `*AndFlush()` without its own `flush()` loses
+that change silently: nothing fails, the change is simply never written. Typical case: a removal done just before an
+action is recorded, such as dropping a sync schedule when a board is unlinked:
+
+```php
+$em->remove($schedule);                                   // never flushed in 2.0
+$actionLog->recordAndFlush('board.unlinked', $user, null, ['board' => $board->getUuid()]);
+```
+
+Flush your own changes first (or record with `record()` and flush once yourself):
+
+```php
+$em->remove($schedule);
+$em->flush();
+$actionLog->recordAndFlush('board.unlinked', $user, null, ['board' => $board->getUuid()]);
+```
+
+Or keep `flush_mode: host`. 1.18 reported each such place as a host-flush probe line ("Your pending changes to App\X
+were flushed by NowoAuditKitBundle; 2.0 no longer does."); see [UPGRADING](UPGRADING.md#unreleased).
 
 **Your security user is not the Doctrine user entity (since 1.12)**
 
@@ -805,8 +811,9 @@ services:
 - Query object: `ActionLogCriteria`. It accepts user entities or ids for `actor`, `subject` and `involving`.
 - Config: `blame_mode` (since 1.14), `profiles.*` (`user_class`, `fields`, `blameable`, `timestampable`,
   `timestamp_type`), `action_log.*` (`mapping: xml` since 1.14, `register_mapping: false` to map the superclass yourself,
-  `flush_mode: isolated` since 1.15), `auditable_entities` (since 1.13) and `#[Auditable]` with
-  `attribute_opt_in: true` to opt a class in without a bundle interface or trait, `#[Auditable(enabled: false)]` to opt out.
+  `flush_mode` since 1.15, `isolated` by default since 2.0), `auditable_entities` (since 1.13) and `#[Auditable]`
+  (`attribute_opt_in`, `true` by default since 2.0) to opt a class in without a bundle interface or trait,
+  `#[Auditable(enabled: false)]` to opt out.
 
 **Known limitations**
 
@@ -814,12 +821,11 @@ services:
 - The reference path (`blame_mode: reference`) still uses `CurrentUserResolverInterface` and
   `BlameValueResolverInterface` (Symfony `UserInterface`, Doctrine `ObjectManager`) for blame; the framework-free
   ports drive the id path. `CurrentActorProviderInterface` selects the profile on both paths.
-- `action_log.flush_mode` defaults to `host` (flushes your pending changes) for backward compatibility: REQ-ARCH-001
-  rule 6 is opt-in in 1.x; the default becomes `isolated` in 2.0 (deprecation notice and host-flush probe since 1.18
-  when unset).
+- `action_log.flush_mode` defaults to `isolated` since 2.0: `*AndFlush()` never flush your pending changes. Set
+  `flush_mode: host` to keep the 1.x behaviour.
 - No events are dispatched when audit fields are written or an action is recorded.
-- `#[Auditable]` alone opts a class in only with `attribute_opt_in: true` (default `false` until 2.0, deprecation
-  notice since 1.18 when unset); use `auditable_entities` meanwhile.
+- `#[Auditable]` alone opts a class in (`attribute_opt_in` defaults to `true` since 2.0); set `attribute_opt_in: false`
+  to ignore it and list classes in `auditable_entities` instead.
 - The action log row id is an auto-increment integer (an internal key of the log; user references are strings).
 
 ## Related bundles

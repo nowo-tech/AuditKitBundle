@@ -45,7 +45,7 @@ No public HTTP controllers, Messenger handlers, or subprocesses ship in this pac
 
 ## Mitigations
 
-- **Opt-in only**: entities must use traits/interfaces, be listed in `auditable_entities` or carry `#[Auditable]` with `attribute_opt_in: true` (since 1.13); `#[Auditable(enabled: false)]` skips an entity.
+- **Opt-in only**: entities must use traits/interfaces, be listed in `auditable_entities` or carry `#[Auditable]` (since 1.13; `attribute_opt_in`, `true` by default since 2.0, `false` ignores the attribute alone); `#[Auditable(enabled: false)]` skips an entity.
 - **User resolution**: blame uses `TokenStorage` / `CurrentUserResolver`; anonymous and CLI leave blame `null`.
 - **Type guard**: blame is set only when the token user is an instance of the configured `user_class`.
 - **Doctrine reference**: prefers `EntityManager::getReference` by identifier; on failure logs a warning and uses the token user instance.
@@ -73,9 +73,10 @@ Run `composer audit` in consuming projects and keep `nowo-tech/audit-kit-bundle`
 
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x     | :white_check_mark: |
+| Version | Supported                                             |
+| ------- | ----------------------------------------------------- |
+| 2.x     | ✅                                                    |
+| 1.x     | security fixes (Moderate+) until 6 months after 2.0.0 |
 
 ## Reporting a Vulnerability
 

@@ -935,7 +935,7 @@
         },
         {
             "name": "nowo-tech/audit-kit-bundle",
-            "version": "dev-chore/demo-platform-shell",
+            "version": "dev-main",
             "dist": {
                 "type": "path",
                 "url": "/var/audit-kit-bundle",

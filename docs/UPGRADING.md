@@ -3,6 +3,13 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+  - [Before you upgrade](#before-you-upgrade)
+  - [The action log no longer flushes your changes](#the-action-log-no-longer-flushes-your-changes)
+  - [`#[Auditable]` alone opts a class in](#auditable-alone-opts-a-class-in)
+  - [Blame id mode reads only the framework-free ports](#blame-id-mode-reads-only-the-framework-free-ports)
+  - [Removed](#removed)
+  - [Composer](#composer)
+  - [1.x support](#1x-support)
 - [To 1.18.1](#to-1181)
 - [To 1.18.0](#to-1180)
 - [Preparing for 2.0](#preparing-for-20)
@@ -54,6 +61,158 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+```bash
+composer require nowo-tech/audit-kit-bundle:^2.0 -W
+```
+
+2.0 contains only changes that 1.x announced through deprecation notices: an application that runs the last 1.x
+minor without deprecation notices from this bundle upgrades without code changes. After 2.0.0 is released, the 1.x
+line receives security fixes for 6 months: fixes rated Moderate and above are backported to the last 1.x minor;
+Low ones are fixed in 2.x only.
+
+**Packages that require this bundle.** Update them with it (`-W` does): LegalKitBundle 1.15.3 or later and
+BlogKitBundle 1.12.0 or later accept `^2.0`. Older versions of them keep Composer on 1.x.
+
+### Before you upgrade
+
+On 1.18, run your test suite (or one deploy cycle) with the deprecation log on and clear every notice of this bundle.
+Build-time notices show in `bin/console debug:container --deprecations`; the probe lines show per request, message or
+command (profiler "Deprecations" panel, the `php` log channel, your test suite's deprecation report).
+
+| 1.18 notice | What to do |
+| --- | --- |
+| `Since nowo-tech/audit-kit-bundle 1.18: Leaving "nowo_audit_kit.action_log.flush_mode" unset is deprecated: recordAndFlush() and recordIdsAndFlush() then flush the entity manager of the action log class with all your pending changes ("host"). The default becomes "isolated" in 2.0 (only the new row is written; your pending changes stay pending). Set "nowo_audit_kit.action_log.flush_mode: isolated" to opt in now, or "flush_mode: host" to keep the current behaviour explicitly.` | Fix every probe line below, then set `flush_mode: isolated` (or `host`, see [The action log no longer flushes your changes](#the-action-log-no-longer-flushes-your-changes)) |
+| `Your pending changes to App\Entity\X were flushed by NowoAuditKitBundle; 2.0 no longer does.` (host-flush probe) | A change of yours that relied on the action log flush: see [A change that relied on the action log flush](#a-change-that-relied-on-the-action-log-flush) |
+| `Since nowo-tech/audit-kit-bundle 1.18: Leaving "nowo_audit_kit.attribute_opt_in" unset is deprecated: #[Auditable] alone (without a bundle interface or trait) is ignored today. The default becomes true in 2.0 (the attribute alone opts a class in). Set "nowo_audit_kit.attribute_opt_in: true" to opt in now, or "attribute_opt_in: false" to keep the current behaviour explicitly.` | See [`#[Auditable]` alone opts a class in](#auditable-alone-opts-a-class-in) |
+| `Since nowo-tech/audit-kit-bundle 1.15: With "nowo_audit_kit.blame_mode: id", overriding "Nowo\AuditKitBundle\Security\CurrentUserResolverInterface" is deprecated: alias "Nowo\AuditKitBundle\Security\CurrentActorProviderInterface" to your service instead. 2.0 no longer reads the former in id mode.` | Alias `CurrentActorProviderInterface` (see [Blame id mode reads only the framework-free ports](#blame-id-mode-reads-only-the-framework-free-ports)) |
+| `Since nowo-tech/audit-kit-bundle 1.15: With "nowo_audit_kit.blame_mode: id", overriding "Nowo\AuditKitBundle\Blame\BlameValueResolverInterface" is deprecated: alias "Nowo\AuditKitBundle\Blame\BlameIdResolverInterface" to your service instead. 2.0 no longer reads the former in id mode.` | Alias `BlameIdResolverInterface` |
+
+### The action log no longer flushes your changes
+
+`action_log.flush_mode` defaults to `isolated` (REQ-ARCH-001 rule 6).
+
+| `flush_mode` | 1.x | 2.0 |
+| --- | --- | --- |
+| unset | `host`, plus the 1.18 notice and probe | `isolated`: `recordAndFlush()` / `recordIdsAndFlush()` write only the new row, through a short-lived entity manager of the bundle on the same connection; your pending changes stay pending |
+| `host` | flushes the entity manager of the action log class, with every pending change | the same, with no notice and no probe (a supported choice) |
+| `isolated` | only the new row | the same |
+
+**Data-loss warning.** Nothing fails when code relied on the old default: a change made before `*AndFlush()` and never
+flushed by your own code is simply not written. Migrate in this order (the 1.18 list):
+
+1. On 1.18, collect the probe lines (one per class of yours that the action log flush wrote).
+2. For each class, find the code that changes it and then records an action with `*AndFlush()`; add your own `flush()`
+   (or record with `record()` and flush once yourself).
+3. A line naming your action log class means a row recorded with `record()` was left for `*AndFlush()` to write: flush
+   it yourself.
+4. Set `flush_mode: isolated` on 1.18 and check that no line and no notice remain. Then upgrade.
+
+To keep the 1.x behaviour, set it explicitly:
+
+```yaml
+nowo_audit_kit:
+    action_log:
+        flush_mode: host
+```
+
+#### A change that relied on the action log flush
+
+The pattern the probe reports. A removal (or any change) made just before an action is recorded, with no `flush()` of
+your own, for example dropping a sync schedule when a board is unlinked:
+
+```php
+// 1.x (unset flush_mode): the removal was written by recordAndFlush(). 2.0: never written, no error.
+$em->remove($schedule);
+$actionLog->recordAndFlush('board.unlinked', $user, null, ['board' => $board->getUuid()]);
+```
+
+```php
+// 2.0: flush your own change first, then record (or keep flush_mode: host).
+$em->remove($schedule);
+$em->flush();
+$actionLog->recordAndFlush('board.unlinked', $user, null, ['board' => $board->getUuid()]);
+```
+
+#### Code patterns that change with the isolated default
+
+- **Your pending changes are no longer flushed by the bundle.** Flush them yourself (above).
+- **Actor and subject must be stored.** With `AbstractActionLog`, the actor / subject passed to `recordAndFlush()` must
+  be managed by your entity manager and already flushed: a new, persisted-but-not-flushed or detached user throws a
+  `LogicException`.
+- **The returned row is detached.** It belongs to the bundle's short-lived entity manager, which is closed after the
+  call. To point one of your entities at it, use a reference of your own entity manager:
+  `$em->getReference(UserAction::class, $entry->getId())`, never the returned instance (the flush of your entity
+  manager would fail with "A new entity was found through the relationship").
+- **Your own associations on the action log.** A to-one association of your action log class (set by your subclass or
+  by one of your Doctrine listeners) that holds one of your entities is written as a reference by id; your instance
+  stays managed by your entity manager and is not written. The entity must already be stored: one persisted but not
+  flushed throws a `LogicException`. Do not cascade-persist from the action log to your entities.
+- **Inside your transaction** (same connection), the row commits or rolls back with it. On DBAL 3 enable
+  `use_savepoints: true` so a failed isolated write does not mark your transaction rollback-only.
+- **Lock conflicts** of the isolated write are thrown as `ConcurrencyConflict` (since 1.17), not as the DBAL exception.
+
+### `#[Auditable]` alone opts a class in
+
+`attribute_opt_in` defaults to `true` (announced in 1.13).
+
+| `attribute_opt_in` | 1.x | 2.0 |
+| --- | --- | --- |
+| unset | `false` (+ the 1.18 notice): `#[Auditable]` alone is ignored | `true`: `#[Auditable]` alone opts a class in |
+| `true` / `false` | as set | as set |
+
+Before upgrading, search for `#[Auditable]` on classes that use none of the bundle interfaces or traits
+(`AuditableInterface`, `TimestampableInterface`, `BlameableInterface` or their traits) and are not listed in
+`auditable_entities`: they start being audited (and blamed when blame is on). To keep ignoring them, set
+`attribute_opt_in: false`.
+
+### Blame id mode reads only the framework-free ports
+
+With `blame_mode: id`, the audit listener reads only `CurrentActorProviderInterface` and `BlameIdResolverInterface`.
+A host override of `CurrentUserResolverInterface` or `BlameValueResolverInterface` (an alias, a service registered
+under the interface id, or a decorator; `#[AsAlias]` / `#[AsDecorator]` on an autodiscovered class included) while its
+twin keeps the bundle default now **fails the container build**, naming the service and the twin to alias:
+
+```text
+With "nowo_audit_kit.blame_mode: id", the service(s) "App\Audit\MyBlame" override "Nowo\AuditKitBundle\Blame\BlameValueResolverInterface", which the id mode no longer reads since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "Nowo\AuditKitBundle\Blame\BlameIdResolverInterface" to your service instead (see UPGRADING.md, "To 2.0.0").
+```
+
+Move the override to the twin (the migration table and example of [To 1.15.0](#to-1150)):
+
+```yaml
+# config/services.yaml
+services:
+    Nowo\AuditKitBundle\Security\CurrentActorProviderInterface: '@App\Infrastructure\Audit\AuditActorAdapter'
+    Nowo\AuditKitBundle\Blame\BlameIdResolverInterface: '@App\Infrastructure\Audit\AuditBlameIdAdapter'
+```
+
+Reference mode (`blame_mode: reference`, the default) is unchanged: it still uses both 1.14 ports, and overriding them
+there stays supported.
+
+### Removed
+
+| Removed | Deprecated since | Replacement |
+| --- | --- | --- |
+| The `action_log.flush_mode` default `host` | 1.18 (notice), announced in 1.15 | `isolated`; `flush_mode: host` explicitly |
+| The `attribute_opt_in` default `false` | 1.18 (notice), announced in 1.13 | `true`; `attribute_opt_in: false` explicitly |
+| Reading host overrides of `CurrentUserResolverInterface` / `BlameValueResolverInterface` in `blame_mode: id` (now a build error) | 1.15 | `CurrentActorProviderInterface` / `BlameIdResolverInterface` |
+| The host-flush probe: service `nowo_audit_kit.host_flush_probe`, `NowoAuditKitExtension::HOST_FLUSH_PROBE`, `ActionLogHostFlushProbeResetSubscriber`, `HostFlushProbePass` (internal) | 1.18 (existed only for the unset `flush_mode`) | none needed |
+| The default-flip notices: `Deprecation\DefaultFlipNotices` (internal), the `nowo_audit_kit.default_flip_notices` parameter, `NowoAuditKitBundle::boot()` | 1.18 | none needed |
+| `ReferenceCollationListener::postGenerateSchemaTable()` (internal no-op) | 1.18.1 | `postGenerateSchema` (unchanged, keeps the foreign keys) |
+
+**Kept, ignored:** the trailing `?HostFlushProbe $hostFlushProbe` argument of `ActionLogRecorder::__construct()`
+(direct instantiation only) and the constants `ActionLogRecorder::BUNDLE_NAME` / `BUNDLE_NAMESPACE` are deprecated
+since 2.0 and removed in 3.0. `ActionLogRecorder::__construct()` still defaults `$flushMode` to `host` for direct
+instantiation; the bundle always passes the configured value.
+
+### Composer
+
+No package moves. Same PHP, Symfony, Doctrine and transaction-doctrine (`^1.9`) ranges.
+
+### 1.x support
+
+1.x receives security fixes for 6 months after 2.0.0: fixes rated Moderate and above are backported to the last 1.x
+minor; Low ones are fixed in 2.x only.
 
 ## To 1.18.1
 
@@ -131,6 +290,8 @@ listed in `auditable_entities`: they start being audited (and blamed when blame 
 `?HostFlushProbe $hostFlushProbe` (default `null`: no probe).
 
 ## Preparing for 2.0
+
+Done in 2.0: see [Unreleased](#unreleased).
 
 2.0 contains only changes announced by deprecations in 1.x: if your application runs 1.18 without deprecation notices
 from this bundle, the upgrade needs no code change. After 2.0 is released, the 1.x line gets security fixes for 6

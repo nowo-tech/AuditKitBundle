@@ -21,8 +21,9 @@ requirement REQ-RUNTIME-003). Applies from 1.17. Worker mode with the kernel res
   each store their row. The audit columns (`created_at`, `updated_by`, …) are set on the host's own entities inside
   the host's flush, so they follow the host's unit of work.
 - **The host owns its unit of work.** `record()` / `recordIds()` only persist into the entity manager that maps the
-  action log class. The host flushes. `recordAndFlush()` / `recordIdsAndFlush()` in the default `host` mode flush
-  that manager because the host asked for it by name (rule 2). The row then commits or fails with the host's changes.
+  action log class. The host flushes. `recordAndFlush()` / `recordIdsAndFlush()` write only the row in the default
+  `isolated` mode (since 2.0, REQ-ARCH-001 rule 6); with an explicit `flush_mode: host` they flush that manager because
+  the host asked for it by name (rule 2), and the row then commits or fails with the host's changes.
 - **The host's manager is never cleared or reset while open.** Before it persists a row, the recorder checks the
   manager. If it is already closed (a failed flush of the host closes it), the recorder replaces it through the
   registry (`ManagerRegistry::resetManager()`), so the row can still be written. Actor and subject entities loaded by
@@ -53,8 +54,8 @@ requirement REQ-RUNTIME-003). Applies from 1.17. Worker mode with the kernel res
 | Path | Transaction | Control (rule 4) | Conflict answer (rule 6) |
 | --- | --- | --- | --- |
 | `record()`, `recordIds()` | None of its own: the row is persisted into the host's unit of work, and the host's flush writes it | Append-only insert | The host's (its flush fails as a whole) |
-| `recordAndFlush()`, `recordIdsAndFlush()`, `flush_mode: host` (default) | The host's flush: one transaction with the host's pending changes, or a savepoint inside the host's open transaction | Append-only insert. A closed host manager is replaced first. | The storage error reaches the host unchanged |
-| `recordAndFlush()`, `recordIdsAndFlush()`, `flush_mode: isolated` | One transaction of transaction-doctrine's runner on the bundle's own manager, or a savepoint inside the host's open transaction | Append-only insert. Outside a transaction a deadlock or serialization failure is replayed at most twice on a new manager. | `ConcurrencyConflict` (`committed` false: the row was not written), `CONFLICT_001` |
+| `recordAndFlush()`, `recordIdsAndFlush()`, `flush_mode: host` (explicit) | The host's flush: one transaction with the host's pending changes, or a savepoint inside the host's open transaction | Append-only insert. A closed host manager is replaced first. | The storage error reaches the host unchanged |
+| `recordAndFlush()`, `recordIdsAndFlush()`, `flush_mode: isolated` (default since 2.0) | One transaction of transaction-doctrine's runner on the bundle's own manager, or a savepoint inside the host's open transaction | Append-only insert. Outside a transaction a deadlock or serialization failure is replayed at most twice on a new manager. | `ConcurrencyConflict` (`committed` false: the row was not written), `CONFLICT_001` |
 | `ActionLogRepository::purgeBefore()`, `KeysetDelete::run()`, `nowo:audit-kit:action-log:purge` | Batches of `batch_size` ids: a `SELECT` then a `DELETE … WHERE id IN (…)`, each in auto-commit | Idempotent: deleting by id twice deletes nothing the second time. A deadlocked or serialization-failed batch is replayed at most twice. | `ConcurrencyConflict`: `committed` true (`CONFLICT_002`) once a batch was deleted, else `CONFLICT_001`. The command prints the code and exits with 75. Inside the caller's transaction: rethrown unchanged. |
 | `AuditableEntityListener`, `PublicUuidListener` | The host's flush (they only set fields on the host's entities) | — | The host's |
 
@@ -79,7 +80,7 @@ responder turns it into the platform answer. For example, nowo-tech/transaction-
 - **Not conflicts:** unique-constraint violations and lost connections are never mapped. They are rethrown unchanged.
   The action log has no unique key, so a unique violation there is a real error.
 - **Host mode is not wrapped.** In `flush_mode: host` the failing flush is the host's own, so the storage error
-  reaches the host as the ORM throws it. That keeps the behaviour of earlier versions.
+  reaches the host as the ORM throws it. That keeps the 1.x behaviour.
 - **The console.** `nowo:audit-kit:action-log:purge` prints `CONFLICT_001` (nothing deleted, run it again later) or
   `CONFLICT_002` (some rows were deleted and stay deleted, run it again to delete the rest), and exits with 75
   (`EX_TEMPFAIL`).
@@ -109,7 +110,7 @@ outside any transaction). A lost connection, whose outcome is unknown, is never 
 ```yaml
 nowo_audit_kit:
     action_log:
-        flush_mode: host        # host (default) | isolated: see "A failed audit write and the host action"
+        flush_mode: isolated    # isolated (default since 2.0) | host: see "A failed audit write and the host action"
         purge:
             batch_size: 1000    # rows per purge statement: smaller batches hold fewer locks
 ```

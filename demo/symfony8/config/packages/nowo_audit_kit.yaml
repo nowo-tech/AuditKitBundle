@@ -1,6 +1,6 @@
 nowo_audit_kit:
     default_profile: default
-    # Set explicitly: the default becomes true in 2.0 (1.18 notice when unset).
+    # The demo audits through interfaces and traits only; true (the default since 2.0) would also opt in #[Auditable] alone.
     attribute_opt_in: false
 
     profiles:
