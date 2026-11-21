@@ -325,19 +325,27 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
     /**
      * Since 2.0 ({@see FLUSH_ISOLATED}): every to-one association of the persisted row whose value is an entity of the
      * application's entity manager (set by a host subclass, a host Doctrine listener on the shared event manager, or a
-     * blame resolver) is replaced by a reference of the bundle entity manager by id. Flushing the bundle manager then
-     * writes only the foreign key: it never inserts, updates or detaches the host's entity ("A new entity was found
-     * through the relationship"). The host's instance stays managed by the host, untouched.
+     * blame resolver) is replaced by a reference of the bundle entity manager by the identifier the application's unit
+     * of work holds (a target whose identifier is an association is loaded by its ids instead: one SELECT). Flushing
+     * the bundle manager then writes only the foreign key: it never inserts, updates or detaches the host's entity ("A
+     * new entity was found through the relationship"). The host's instance stays managed by the host, untouched.
      *
-     * A value the host manages but has not written yet (scheduled for insertion) cannot be referenced: the row would
-     * point at a row that does not exist outside the host's unit of work. Values the host does not manage are left to
-     * the ORM, as before.
+     * Refused with a {@see LogicException}, before anything is flushed:
+     *
+     * - a value the host manages but has not written yet (scheduled for insertion): the row would point at a row that
+     *   does not exist outside the host's unit of work;
+     * - an association that cascades persist into the host's entity: `persist()` already scheduled it for insertion in
+     *   the bundle manager (a second row). An identifier that a pre-insert generator (sequence, UUID) assigned to the
+     *   host's instance on that occasion is restored first;
+     * - a reference that cannot be built because the row is gone (a target with subclasses is looked up).
+     *
+     * Values the host does not manage and to-many associations are left to the ORM, as before.
      *
      * @template E of ActionLogEntryInterface
      *
      * @param E $entry
      *
-     * @throws LogicException when an associated host entity is not stored yet
+     * @throws LogicException when an associated host entity is not stored, is cascaded into, or no longer exists
      *
      * @return E
      */
@@ -351,17 +359,34 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             }
 
             $value = $metadata->getFieldValue($entry, $association);
-            if (!is_object($value) || $own->contains($value) || !$host->contains($value)) {
+            if (!is_object($value) || !$host->contains($value)) {
                 continue;
             }
 
-            $target = $metadata->getAssociationTargetClass($association);
-            $id     = $host->getClassMetadata($value::class)->getIdentifierValues($value);
-            if ($id === [] || in_array(null, $id, true) || $hostUow->isScheduledForInsert($value)) {
+            // The flattened identifier of the host's unit of work (association identifiers included).
+            $hostId = $hostUow->isInIdentityMap($value) ? $hostUow->getEntityIdentifier($value) : null;
+
+            if ($own->contains($value)) {
+                $hostMetadata = $host->getClassMetadata($value::class);
+                if ($hostId !== null && !$hostMetadata->containsForeignIdentifier) {
+                    $hostMetadata->setIdentifierValues($value, $hostId);
+                }
+
+                throw new LogicException(sprintf('With "nowo_audit_kit.action_log.flush_mode: isolated" the action log association "%s" cascades persist into an entity of your entity manager, which the bundle\'s entity manager would insert a second time. Remove cascade persist from that association (the row only needs the reference), or record with flush_mode "host".', $association));
+            }
+
+            if ($hostId === null || in_array(null, $hostId, true) || $hostUow->isScheduledForInsert($value)) {
                 throw new LogicException(sprintf('With "nowo_audit_kit.action_log.flush_mode: isolated" the action log association "%s" holds an entity of your entity manager that is not stored yet: flush it first, or record with flush_mode "host".', $association));
             }
 
-            $metadata->setFieldValue($entry, $association, $own->getReference($target, $id));
+            // ORM proxies cannot carry an association identifier given as ids: such a target is loaded by its ids.
+            $target    = $metadata->getAssociationTargetClass($association);
+            $reference = $own->getClassMetadata($target)->containsForeignIdentifier ? $own->find($target, $hostId) : $own->getReference($target, $hostId);
+            if ($reference === null) {
+                throw new LogicException(sprintf('With "nowo_audit_kit.action_log.flush_mode: isolated" the action log association "%s" holds an entity of your entity manager whose row no longer exists (deleted after it was loaded): the row was not written.', $association));
+            }
+
+            $metadata->setFieldValue($entry, $association, $reference);
         }
 
         return $entry;

@@ -29,7 +29,7 @@ final class HostRelationsTestKernel extends Kernel
     use MicroKernelTrait;
 
     /**
-     * @param class-string<HostIdActionLog|HostObjectActionLog> $entityClass
+     * @param class-string<HostCascadeActionLog|HostIdActionLog|HostObjectActionLog> $entityClass
      */
     public function __construct(
         private readonly string $entityClass,

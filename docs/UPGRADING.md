@@ -148,6 +148,13 @@ $actionLog->recordAndFlush('board.unlinked', $user, null, ['board' => $board->ge
   by one of your Doctrine listeners) that holds one of your entities is written as a reference by id; your instance
   stays managed by your entity manager and is not written. The entity must already be stored: one persisted but not
   flushed throws a `LogicException`. Do not cascade-persist from the action log to your entities.
+- **Remove `cascade: ['persist']` from the action log's associations to your entities.** In 1.15–1.18 isolated mode,
+  the ORM's "A new entity was found through the relationship … configure cascade persist" hint led some hosts to add
+  it. With the isolated default it would make the bundle's entity manager insert your entity a second time (and give
+  your instance a new id), so 2.0 refuses it with a `LogicException` before anything is written, naming the
+  association. The row only needs the reference; host mode is unaffected.
+- **Associations set in your `preFlush` / `onFlush` listeners** are not converted: the ORM refuses them ("A new entity
+  was found through the relationship") before anything is written. Set them in `prePersist` or before recording.
 - **Inside your transaction** (same connection), the row commits or rolls back with it. On DBAL 3 enable
   `use_savepoints: true` so a failed isolated write does not mark your transaction rollback-only.
 - **Lock conflicts** of the isolated write are thrown as `ConcurrencyConflict` (since 1.17), not as the DBAL exception.
@@ -169,12 +176,17 @@ Before upgrading, search for `#[Auditable]` on classes that use none of the bund
 ### Blame id mode reads only the framework-free ports
 
 With `blame_mode: id`, the audit listener reads only `CurrentActorProviderInterface` and `BlameIdResolverInterface`.
-A host override of `CurrentUserResolverInterface` or `BlameValueResolverInterface` (an alias, a service registered
-under the interface id, or a decorator; `#[AsAlias]` / `#[AsDecorator]` on an autodiscovered class included) while its
-twin keeps the bundle default now **fails the container build**, naming the service and the twin to alias:
+While its twin keeps the bundle default, these host overrides now **fail the container build**, naming the service
+and the twin to alias (`#[AsAlias]` / `#[AsDecorator]` on an autodiscovered class included):
+
+| Port | Fails the build | Notes |
+| --- | --- | --- |
+| `BlameValueResolverInterface` | an alias, a service registered under the interface id, a decorator | 1.15–1.18 warned about the alias and the service id. **They ignored a decorator silently, with no notice**: it had no effect in id mode, and now it is reported |
+| `CurrentUserResolverInterface` | an alias, a service registered under the interface id (both announced by the 1.15 notice) | A decorator stays allowed, as in 1.x: the default actor provider (`SecurityCurrentActorProvider`) still reads it |
+
 
 ```text
-With "nowo_audit_kit.blame_mode: id", the service(s) "App\Audit\MyBlame" override "Nowo\AuditKitBundle\Blame\BlameValueResolverInterface", which the id mode no longer reads since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "Nowo\AuditKitBundle\Blame\BlameIdResolverInterface" to your service instead (see UPGRADING.md, "To 2.0.0").
+With "nowo_audit_kit.blame_mode: id", the service(s) "App\Audit\MyBlame" override "Nowo\AuditKitBundle\Blame\BlameValueResolverInterface", which the id mode no longer supports since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "Nowo\AuditKitBundle\Blame\BlameIdResolverInterface" to your service instead (see UPGRADING.md, "To 2.0.0").
 ```
 
 Move the override to the twin (the migration table and example of [To 1.15.0](#to-1150)):

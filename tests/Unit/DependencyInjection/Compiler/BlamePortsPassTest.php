@@ -72,6 +72,15 @@ final class BlamePortsPassTest extends TestCase
         $this->process($container);
     }
 
+    public function testIdModeAcceptsDecoratorsOfTheUserPort(): void
+    {
+        $container = $this->container('id');
+        $container->register('app.user_decorator')->setDecoratedService(CurrentUserResolverInterface::class);
+
+        $this->process($container);
+        $this->assertEquals(new Reference(BlameIdResolverInterface::class), $container->getDefinition(AuditableEntityListener::class)->getArgument('$blameIdResolver'));
+    }
+
     public function testIdModeAcceptsLegacyOverridesNextToOverriddenTwins(): void
     {
         $container = $this->container('id');
@@ -129,6 +138,6 @@ final class BlamePortsPassTest extends TestCase
     private function expectBuildError(array $services, string $legacy, string $twin): void
     {
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage(sprintf('With "nowo_audit_kit.blame_mode: id", the service(s) "%s" override "%s", which the id mode no longer reads since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "%s" to your service instead (see UPGRADING.md, "To 2.0.0").', implode('", "', $services), $legacy, $twin));
+        $this->expectExceptionMessage(sprintf('With "nowo_audit_kit.blame_mode: id", the service(s) "%s" override "%s", which the id mode no longer supports since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "%s" to your service instead (see UPGRADING.md, "To 2.0.0").', implode('", "', $services), $legacy, $twin));
     }
 }

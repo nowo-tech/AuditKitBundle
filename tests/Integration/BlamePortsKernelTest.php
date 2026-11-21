@@ -12,7 +12,9 @@ use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Security\CurrentActorProviderInterface;
 use Nowo\AuditKitBundle\Security\CurrentUserResolverInterface;
 use Nowo\AuditKitBundle\Tests\Fixtures\BlamePorts\LegacyAlias\HostBlameValueResolver;
-use Nowo\AuditKitBundle\Tests\Fixtures\BlamePorts\LegacyDecorator\HostCurrentUserResolver;
+use Nowo\AuditKitBundle\Tests\Fixtures\BlamePorts\LegacyBlameDecorator\HostBlameValueResolverDecorator;
+use Nowo\AuditKitBundle\Tests\Fixtures\BlamePorts\LegacyDecorator\HostCurrentUserResolver as AllowedUserDecorator;
+use Nowo\AuditKitBundle\Tests\Fixtures\BlamePorts\LegacyUserAlias\HostCurrentUserResolver as UserAlias;
 use Nowo\AuditKitBundle\Tests\Integration\Ddd\BlamePortsTestKernel;
 use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\Invoice;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -23,8 +25,9 @@ use function sprintf;
 
 /**
  * Since 2.0 (owner decision Q6): with `blame_mode: id`, a host override of a 1.14 port that the id mode no longer reads
- * fails the container build, also when autodiscovery registered it through `#[AsAlias]` or `#[AsDecorator]`. Overriding
- * the framework-free twins works, and the twin is what writes the blame ids.
+ * fails the container build, also when autodiscovery registered it through `#[AsAlias]` or `#[AsDecorator]`. A decorator
+ * of `CurrentUserResolverInterface` stays allowed (1.x gave it no notice and the default actor provider reads it).
+ * Overriding the framework-free twins works, and the twin is what writes the blame ids.
  */
 final class BlamePortsKernelTest extends TestCase
 {
@@ -46,7 +49,8 @@ final class BlamePortsKernelTest extends TestCase
     public static function legacyOverrides(): iterable
     {
         yield '#[AsAlias] of BlameValueResolverInterface' => ['LegacyAlias', HostBlameValueResolver::class, BlameValueResolverInterface::class, BlameIdResolverInterface::class];
-        yield '#[AsDecorator] of CurrentUserResolverInterface' => ['LegacyDecorator', HostCurrentUserResolver::class, CurrentUserResolverInterface::class, CurrentActorProviderInterface::class];
+        yield '#[AsDecorator] of BlameValueResolverInterface' => ['LegacyBlameDecorator', HostBlameValueResolverDecorator::class, BlameValueResolverInterface::class, BlameIdResolverInterface::class];
+        yield '#[AsAlias] of CurrentUserResolverInterface' => ['LegacyUserAlias', UserAlias::class, CurrentUserResolverInterface::class, CurrentActorProviderInterface::class];
     }
 
     #[DataProvider('legacyOverrides')]
@@ -55,8 +59,24 @@ final class BlamePortsKernelTest extends TestCase
         $this->kernel = new BlamePortsTestKernel($case);
 
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage(sprintf('With "nowo_audit_kit.blame_mode: id", the service(s) "%s" override "%s", which the id mode no longer reads since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "%s" to your service instead (see UPGRADING.md, "To 2.0.0").', $service, $legacy, $twin));
+        $this->expectExceptionMessage(sprintf('With "nowo_audit_kit.blame_mode: id", the service(s) "%s" override "%s", which the id mode no longer supports since nowo-tech/audit-kit-bundle 2.0 (deprecated since 1.15). Alias "%s" to your service instead (see UPGRADING.md, "To 2.0.0").', $service, $legacy, $twin));
         $this->kernel->boot();
+    }
+
+    public function testAnAutodiscoveredDecoratorOfTheUserPortIsAllowedAndStillRead(): void
+    {
+        $this->kernel = new BlamePortsTestKernel('LegacyDecorator');
+        $this->kernel->boot();
+
+        $em = $this->kernel->getContainer()->get('doctrine.orm.entity_manager');
+        self::assertInstanceOf(EntityManagerInterface::class, $em);
+        (new SchemaTool($em))->createSchema([$em->getClassMetadata(Invoice::class)]);
+
+        $invoice = new Invoice('inv-1', 'Draft');
+        $em->persist($invoice);
+        $em->flush();
+
+        $this->assertSame(AllowedUserDecorator::ACTOR_ID, $invoice->getCreatedBy());
     }
 
     public function testAutodiscoveredTwinsWriteTheBlameIds(): void

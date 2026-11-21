@@ -488,7 +488,7 @@ The bundle registers the Twig namespace **`@NowoAuditKitBundle/`** (REQ-TWIG-002
 
 **Recovering upstream after a freeze:** delete (or rename aside) the application file, clear the cache, and re-apply only the customisations you still need through variables or CSS. Diff your copy against `vendor/nowo-tech/audit-kit-bundle/src/Resources/views/<subpath>` before re-copying.
 
-Renaming or removing a `<subpath>` listed above is a breaking change and is announced in [UPGRADING.md](UPGRADING.md). The legacy namespace `@NowoAuditKit/` (Symfony's automatic bundle namespace) still resolves the same files for 1.x but is deprecated; use `@NowoAuditKitBundle/`.
+Renaming or removing a `<subpath>` listed above is a breaking change and is announced in [UPGRADING.md](UPGRADING.md). The legacy namespace `@NowoAuditKit/` (Symfony's automatic bundle namespace) still resolves the same files but is deprecated; use `@NowoAuditKitBundle/`.
 
 ## Doctrine migrations
 
@@ -680,10 +680,11 @@ services:
   port, keep the two in agreement (same person, a profile whose `user_class` that user is an instance of), or alias
   `CurrentUserResolverInterface` / `BlameValueResolverInterface` as well. With `blame_mode: id` the actor port alone
   is enough.
-- In id mode, overriding `CurrentUserResolverInterface` or `BlameValueResolverInterface` (an alias, a service under
-  its id or a decorator, attributes such as `#[AsAlias]` / `#[AsDecorator]` included) while its twin keeps the default
-  fails the container build since 2.0: the id mode no longer reads them. Alias `CurrentActorProviderInterface` /
-  `BlameIdResolverInterface` instead (see [UPGRADING](UPGRADING.md#unreleased)).
+- In id mode, since 2.0 the container build fails while the twin keeps its default when you override
+  `BlameValueResolverInterface` (an alias, a service under its id or a decorator) or `CurrentUserResolverInterface`
+  (an alias or a service under its id), attributes such as `#[AsAlias]` / `#[AsDecorator]` included. Alias
+  `CurrentActorProviderInterface` / `BlameIdResolverInterface` instead (see [UPGRADING](UPGRADING.md#unreleased)). A
+  decorator of `CurrentUserResolverInterface` stays allowed: the default actor provider reads it.
 
 **Mapping the traits in XML**
 
@@ -714,7 +715,10 @@ REQ-ARCH-001 rule 6): your pending changes stay pending until you flush them you
 - **Your own associations (since 2.0).** A to-one association of your action log class (an `owner`, a `tenant`, set by
   your subclass or by one of your Doctrine listeners) may hold an entity of your entity manager: the row stores its id
   as a reference, and your instance is neither written nor detached. The entity must be stored already; one that is
-  persisted but not flushed throws a `LogicException`. Do not cascade-persist from the action log to your entities.
+  persisted but not flushed throws a `LogicException`, and so does one whose row was deleted after you loaded it.
+  Do not map `cascade: ['persist']` on these associations: the bundle's entity manager would insert your entity again,
+  so it is refused with a `LogicException` before anything is written (the ORM's "configure cascade persist" hint does
+  not apply here). Associations set in `preFlush` / `onFlush` listeners are not converted (the ORM refuses them).
 - **Transactions and savepoints.** If the isolated flush fails while a transaction you opened on the same connection
   is active, the nested transaction is rolled back. On DBAL 3 without savepoints this marks your outer transaction
   rollback-only: its commit then fails. Enable savepoints (`doctrine.dbal.connections.<name>.use_savepoints: true`;

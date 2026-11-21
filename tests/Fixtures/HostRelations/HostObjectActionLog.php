@@ -20,9 +20,19 @@ class HostObjectActionLog extends AbstractActionLog implements TenantStampedLog
     #[ORM\JoinColumn(name: 'reviewer_tenant_id', onDelete: 'SET NULL')]
     public ?HostTenant $reviewer = null;
 
-    public function stamp(HostTenant $tenant, ?HostTenant $reviewer): void
+    #[ORM\ManyToOne(targetEntity: HostTenantProfile::class)]
+    #[ORM\JoinColumn(name: 'profile_tenant_id', referencedColumnName: 'tenant_id', onDelete: 'SET NULL')]
+    public ?HostTenantProfile $profile = null;
+
+    #[ORM\ManyToOne(targetEntity: HostParty::class)]
+    #[ORM\JoinColumn(name: 'party_id', onDelete: 'SET NULL')]
+    public ?HostParty $party = null;
+
+    public function stamp(TenantStampingListener $from): void
     {
-        $this->tenant   = $tenant;
-        $this->reviewer = $reviewer;
+        $this->tenant   = $from->current;
+        $this->reviewer = $from->reviewer;
+        $this->profile  = $from->profile;
+        $this->party    = $from->party;
     }
 }

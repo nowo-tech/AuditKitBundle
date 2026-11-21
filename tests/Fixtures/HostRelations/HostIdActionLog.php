@@ -22,6 +22,14 @@ class HostIdActionLog extends AbstractIdActionLog implements TenantStampedLog
     #[ORM\JoinColumn(name: 'reviewer_tenant_id', onDelete: 'SET NULL')]
     public ?HostTenant $reviewer = null;
 
+    #[ORM\ManyToOne(targetEntity: HostTenantProfile::class)]
+    #[ORM\JoinColumn(name: 'profile_tenant_id', referencedColumnName: 'tenant_id', onDelete: 'SET NULL')]
+    public ?HostTenantProfile $profile = null;
+
+    #[ORM\ManyToOne(targetEntity: HostParty::class)]
+    #[ORM\JoinColumn(name: 'party_id', onDelete: 'SET NULL')]
+    public ?HostParty $party = null;
+
     /** @var Collection<int, HostTenant> */
     #[ORM\ManyToMany(targetEntity: HostTenant::class)]
     #[ORM\JoinTable(name: 'hr_id_action_log_watcher')]
@@ -33,9 +41,11 @@ class HostIdActionLog extends AbstractIdActionLog implements TenantStampedLog
         $this->watchers = new ArrayCollection();
     }
 
-    public function stamp(HostTenant $tenant, ?HostTenant $reviewer): void
+    public function stamp(TenantStampingListener $from): void
     {
-        $this->tenant   = $tenant;
-        $this->reviewer = $reviewer;
+        $this->tenant   = $from->current;
+        $this->reviewer = $from->reviewer;
+        $this->profile  = $from->profile;
+        $this->party    = $from->party;
     }
 }

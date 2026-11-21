@@ -69,9 +69,11 @@ All notable changes to this project will be documented in this file.
   class in. `attribute_opt_in: false` keeps ignoring it.
 - **BREAKING: with `blame_mode: id`, a host override of `CurrentUserResolverInterface` / `BlameValueResolverInterface`
   fails the container build** while its twin (`CurrentActorProviderInterface` / `BlameIdResolverInterface`) keeps the
-  bundle default (owner decision Q6; deprecated since 1.15, "no longer read in 2.0"). Aliases, services registered
-  under the interface id and decorators count, including `#[AsAlias]` / `#[AsDecorator]` on autodiscovered classes;
-  the message names the services and the twin to alias. Reference mode is unchanged.
+  bundle default (owner decision Q6; deprecated since 1.15). Aliases and services registered under the interface id
+  count, including `#[AsAlias]` on autodiscovered classes; decorators (`#[AsDecorator]` included) count for
+  `BlameValueResolverInterface` only, which 1.15–1.18 ignored silently in id mode. A decorator of
+  `CurrentUserResolverInterface` stays allowed (the default actor provider reads it). The message names the services
+  and the twin to alias. Reference mode is unchanged.
 - Demo: runs in UiKit's demo platform shell (`nowo-tech/ui-kit-bundle` ^2.60); the demo's own masthead is gone and the pages use the shell page headers and section cards. Demo only, no bundle change.
 - CI also runs on the `1.x` maintenance branch.
 
@@ -81,9 +83,14 @@ All notable changes to this project will be documented in this file.
   `ManyToOne` / `OneToOne`, set by the subclass or by a host Doctrine listener on the shared event manager) that holds
   an entity of the application's entity manager is replaced by a reference of the bundle's entity manager. 1.15–1.18
   failed there with "A new entity was found through the relationship" in `flush_mode: isolated`; the host's instance
-  is never written or detached. A host entity persisted but not flushed yet is refused with a `LogicException`.
-  Tests: id-mode and relation-mode logs with a host listener on SQLite and on MySQL 8.4, MariaDB 11.4 and PostgreSQL 16
-  (DBAL 4 and 3).
+  is never written or detached. The reference uses the identifier of the application's unit of work, so targets whose
+  identifier is an association work too. Refused with a `LogicException` before anything is flushed: a host entity
+  persisted but not flushed yet; a row deleted after the host loaded it (the reference lookup of a target with
+  subclasses finds nothing); and an association mapped with `cascade: ['persist']`, which in 1.15–1.18 isolated mode
+  inserted the host's entity a second time and gave the host's instance the new row's id (with a pre-insert generator
+  the identifier is restored before the exception). Tests: id-mode and relation-mode logs with a host listener,
+  derived-identifier and single-table targets, IDENTITY and pre-insert generators, on SQLite and on MySQL 8.4,
+  MariaDB 11.4 and PostgreSQL 16 (DBAL 4 and 3).
 
 ### Removed
 
