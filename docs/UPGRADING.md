@@ -63,6 +63,18 @@
 
 ## Unreleased
 
+From **2.0.0**: `composer require nowo-tech/audit-kit-bundle:^2.1`. Nothing to change; 2.1 only adds API.
+
+- **Read port (optional).** Type-hint `Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface` to list or count
+  action log rows instead of extending `ActionLogRepository` or writing DQL over your log entity. It returns
+  `ActionLogView` snapshots (ids, scalars) and pages with a keyset cursor (`ActionLogPage::$next`, `toToken()` for an
+  HTTP parameter, `ActionLogCursor::fromToken()` to read it back; a malformed token gives `null`). Offsets are not used
+  by the port: `ActionLogCriteria::$offset` is ignored there (`findByCriteria()` still honours it).
+- **Repository subclasses.** `ActionLogRepository` now implements the port and gains `pageByCriteria()`,
+  `latestEntries()` and `pageInvolving()`. A host subclass that already declares a method with one of these names and an
+  incompatible signature must rename it (no other change).
+- The reader service exists only when `action_log.entity_class` is set, like the recorder.
+
 ## To 2.0.0
 
 From **1.18.1**:

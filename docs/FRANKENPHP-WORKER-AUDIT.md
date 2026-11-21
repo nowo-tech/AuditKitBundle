@@ -68,6 +68,7 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 | `Nowo\AuditKitBundle\Avatar\ActionLogAvatars` (Twig `nowo_audit_kit_avatar_url()` / `nowo_audit_kit_prime_avatars()`) | yes | `$urls` (user key → sanitised URL), per unit of work, ≤ 1,000 users | ✅ `kernel.reset` | ✅ since 1.14.1 (W-04) |
 | `Nowo\AuditKitBundle\Avatar\ActionLogAvatarsResetSubscriber` | yes | none (`readonly`) | ✅ | ✅ |
 | `Nowo\AuditKitBundle\Twig\ActionLogAvatarExtension` | yes | none (`readonly`) | ✅ | ✅ |
+| `Nowo\AuditKitBundle\ActionLog\ActionLogReader` (since 2.1, `ActionLogReaderInterface`) | yes | none (`readonly`; the repository is resolved through the registry on every call, so a reset or replaced entity manager is never kept). Id-mode reads use array hydration: nothing enters the identity map | ✅ | ✅ |
 
 `ProfileSettings` is `final readonly`. Traits and interfaces under `src/Model/` and the `#[Auditable]` attribute are excluded from the container (`src/Resources/config/services.yaml`).
 
@@ -126,6 +127,8 @@ Blame needs no boundary: `CurrentUserResolver` reads the token per Doctrine even
   - After each end boundary (finish request, handled, failed, console terminate) the memo is already empty.
 - `tests/Unit/Avatar/ActionLogAvatarsResetSubscriberTest.php` (events, main vs sub-request) and
   `tests/Unit/Avatar/ActionLogAvatarsTest.php` (`reset()`, bound).
+- Read port (since 2.1): `tests/Integration/ActionLogReaderDddTest.php::testReadsLeaveTheEntityManagerUntouched` (300
+  alternating-user reads in one kernel; identity map and unit of work stay empty, no transaction left open).
 - Blame: `CurrentUserResolverWorkerTest`, `AuditableEntityListenerTest::testSecondRequestOutsideFirewallIsNotBlamedOnPreviousUser`.
 
 Static checks: `composer igor` and the `nowo-tech/phpstan-frankenphp` classic + worker rulesets pass in CI.

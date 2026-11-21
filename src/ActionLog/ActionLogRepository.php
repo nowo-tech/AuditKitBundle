@@ -14,6 +14,7 @@ use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\Doctrine\KeysetDelete;
 use Nowo\AuditKitBundle\Model\ReferenceId;
 
+use function array_slice;
 use function count;
 use function max;
 use function min;
@@ -32,11 +33,14 @@ use function min;
  * PAD collation on MySQL / MariaDB (the bundle's listener does it for generated schemas; see UPGRADING) so SQL
  * pre-selects the exact rows only.
  *
+ * Since 2.1 it implements {@see ActionLogReaderInterface} (snapshots, keyset paging): hosts can type-hint the port, and
+ * no longer need to extend this class to list or count rows.
+ *
  * @template T of ActionLogEntryInterface
  *
  * @extends ServiceEntityRepository<T>
  */
-class ActionLogRepository extends ServiceEntityRepository
+class ActionLogRepository extends ServiceEntityRepository implements ActionLogReaderInterface
 {
     public const DEFAULT_BATCH_SIZE = KeysetDelete::DEFAULT_BATCH_SIZE;
 
@@ -139,6 +143,102 @@ class ActionLogRepository extends ServiceEntityRepository
     }
 
     /**
+     * Since 2.1: one newest-first page of {@see ActionLogView} snapshots after `$after` (see
+     * {@see ActionLogReaderInterface::pageByCriteria()}). Asks one row more than the page size to know whether a next
+     * page exists. In id mode with an actor / subject / involving filter it reads keyset batches of SQL candidates
+     * and keeps only the rows that hold the filter ids byte for byte, so look-alike rows never take a slot.
+     *
+     * Id-mode rows are read with array hydration: nothing enters the entity manager's identity map, so a long-running
+     * worker does not grow it. Relation-mode rows are hydrated as entities (their user ids come from the related
+     * users) and stay managed, as with {@see findByCriteria()}.
+     */
+    public function pageByCriteria(ActionLogCriteria $criteria, ?ActionLogCursor $after = null): ActionLogPage
+    {
+        if ($criteria->matchesNothing()) {
+            return new ActionLogPage([]);
+        }
+
+        $references = $this->exactReferences($criteria);
+        if ($references === false) {
+            return new ActionLogPage([]);
+        }
+
+        $limit         = min(max(1, $criteria->limit), ActionLogReaderInterface::MAX_LIMIT);
+        $byAssociation = $this->referencesByAssociation();
+        $qb            = $this->createCriteriaQueryBuilder($criteria);
+        if ($byAssociation) {
+            $qb->leftJoin('a.actor', 'actor')->addSelect('actor')
+                ->leftJoin('a.subject', 'subject')->addSelect('subject');
+        }
+        $qb->orderBy('a.createdAt', 'DESC')
+            ->addOrderBy('a.id', 'DESC');
+
+        // Without an exact-id filter SQL is final: one query of limit + 1 rows. With one, read on in batches.
+        $batch = $references === null ? $limit + 1 : min(max($limit + 1, self::EXACT_BATCH_SIZE), self::DEFAULT_BATCH_SIZE);
+        $qb->setMaxResults($batch);
+
+        $views = [];
+        $last  = $after;
+        do {
+            $page = clone $qb;
+            if ($last instanceof ActionLogCursor) {
+                $page->andWhere('a.createdAt < :pageAt OR (a.createdAt = :pageAt AND a.id < :pageId)')
+                    ->setParameter('pageAt', $last->createdAt, Types::DATETIME_IMMUTABLE)
+                    ->setParameter('pageId', $last->id);
+            }
+
+            /** @var list<ActionLogEntryInterface>|list<array{id: int|string, action: string, actorId: string|null, subjectId: string|null, context: array<string, mixed>|null, scope: string|null, ipAddress: string|null, createdAt: DateTimeImmutable}> $chunk */
+            $chunk = $byAssociation ? $page->getQuery()->getResult() : $page->getQuery()->getArrayResult();
+            foreach ($chunk as $row) {
+                $view = $row instanceof ActionLogEntryInterface ? ActionLogView::fromEntry($row) : $this->viewFromArray($row);
+                $last = $view->cursor();
+                if ($references !== null && !$this->holdsExactly($view->actorId, $view->subjectId, $references)) {
+                    continue;
+                }
+
+                $views[] = $view;
+                if (count($views) > $limit) {
+                    break 2;
+                }
+            }
+        } while ($references !== null && count($chunk) === $batch);
+
+        if (count($views) <= $limit) {
+            return new ActionLogPage($views);
+        }
+
+        $views = array_slice($views, 0, $limit);
+
+        return new ActionLogPage($views, $views[$limit - 1]->cursor());
+    }
+
+    /**
+     * Since 2.1: the newest rows across the whole log, as snapshots.
+     *
+     * @return list<ActionLogView>
+     */
+    public function latestEntries(int $limit = 50): array
+    {
+        return $this->pageByCriteria(new ActionLogCriteria(limit: $limit))->items;
+    }
+
+    /**
+     * Since 2.1: rows where the user (by id) is the actor or the subject, newest first, as a page of snapshots.
+     *
+     * @param list<BackedEnum|string>|null $actions allow-list (`null` = any action, `[]` = none)
+     */
+    public function pageInvolving(
+        int|string $userId,
+        ?array $actions = null,
+        ?DateTimeImmutable $from = null,
+        ?DateTimeImmutable $to = null,
+        int $limit = 100,
+        ?ActionLogCursor $after = null,
+    ): ActionLogPage {
+        return $this->pageByCriteria(new ActionLogCriteria(involving: $userId, actions: $actions, from: $from, to: $to, limit: $limit), $after);
+    }
+
+    /**
      * Deletes rows older than `$before` in id batches with {@see KeysetDelete} (keyset over the primary key: each batch
      * starts after the last id seen, so retained rows are scanned once, not once per batch). Runs on DBAL, outside the
      * unit of work.
@@ -214,6 +314,25 @@ class ActionLogRepository extends ServiceEntityRepository
     protected function referencesByAssociation(): bool
     {
         return $this->getClassMetadata()->hasAssociation('actor');
+    }
+
+    /**
+     * Snapshot of an array-hydrated id-mode row (field names and types as mapped by {@see AbstractIdActionLog}).
+     *
+     * @param array{id: int|string, action: string, actorId: string|null, subjectId: string|null, context: array<string, mixed>|null, scope: string|null, ipAddress: string|null, createdAt: DateTimeImmutable} $row
+     */
+    private function viewFromArray(array $row): ActionLogView
+    {
+        return new ActionLogView(
+            (int) $row['id'],
+            $row['action'],
+            $row['actorId'],
+            $row['subjectId'],
+            $row['context'] ?? [],
+            $row['scope'],
+            $row['ipAddress'],
+            $row['createdAt'],
+        );
     }
 
     /** The filter value as given for relations; the stored id string for id columns (`''` matches nothing). */

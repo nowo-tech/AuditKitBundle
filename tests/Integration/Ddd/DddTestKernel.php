@@ -6,6 +6,7 @@ namespace Nowo\AuditKitBundle\Tests\Integration\Ddd;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\CountingClock;
@@ -91,6 +92,7 @@ final class DddTestKernel extends Kernel
             ],
         ]);
         $container->setAlias('test.action_log_id_recorder', ActionLogIdRecorderInterface::class)->setPublic(true);
+        $container->setAlias('test.action_log_reader', ActionLogReaderInterface::class)->setPublic(true);
         $container->setAlias('test.blame_value_resolver', BlameValueResolverInterface::class)->setPublic(true);
 
         $container->register('security.token_storage', TokenStorage::class)->setPublic(true);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Tests\Integration\Kernel;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
 use Nowo\TransactionDoctrine\Symfony\NowoTransactionDoctrineBundle;
@@ -98,6 +99,7 @@ final class AuditKitTestKernel extends Kernel
             ->setAutowired(true)
             ->addTag('doctrine.repository_service');
         $container->setAlias('test.action_log_recorder', ActionLogRecorder::class)->setPublic(true);
+        $container->setAlias('test.action_log_reader', ActionLogReaderInterface::class)->setPublic(true);
 
         // No SecurityBundle in this kernel: provide the token storage CurrentUserResolver depends on.
         $container->register('security.token_storage', TokenStorage::class)->setPublic(true);

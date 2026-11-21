@@ -32,6 +32,14 @@ services:
     # Since 1.14: records by user id (AbstractIdActionLog stores them; AbstractActionLog turns them into references).
     Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface: '@Nowo\AuditKitBundle\ActionLog\ActionLogRecorder'
 
+    # Since 2.1: read port (snapshots, keyset paging) over the configured entity's repository (override the alias to swap it).
+    Nowo\AuditKitBundle\ActionLog\ActionLogReader:
+        arguments:
+            $registry: '@doctrine'
+            $entityClass: '%nowo_audit_kit.action_log.entity_class%'
+
+    Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface: '@Nowo\AuditKitBundle\ActionLog\ActionLogReader'
+
     # Since 1.15.1 (REQ-SEC-006): binary NO PAD collation on actor_id / subject_id of an id-mode log (MySQL / MariaDB).
     Nowo\AuditKitBundle\Doctrine\ReferenceCollationListener:
         arguments:

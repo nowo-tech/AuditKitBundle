@@ -11,8 +11,12 @@ use Doctrine\DBAL\Exception\DriverException;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\SchemaTool;
+use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
+use Nowo\AuditKitBundle\ActionLog\ActionLogCursor;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRepository;
+use Nowo\AuditKitBundle\ActionLog\ActionLogView;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\AuditKitTestKernel;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
@@ -192,6 +196,43 @@ final class ConcurrentWritesDbTest extends TestCase
         $this->other->commit();
 
         $this->assertSame(1, $this->rows());
+    }
+
+    /**
+     * Since 2.1: keyset pages of the read port while another connection records rows (committed between the pages, and
+     * one still uncommitted): every old row is listed once, none twice, on the real database's datetime comparison.
+     */
+    public function testReaderPagesStayStableWhileAnotherConnectionRecords(): void
+    {
+        $this->boot(ActionLogRecorder::FLUSH_ISOLATED);
+        foreach (['10:00:00', '10:00:00', '10:00:00', '09:00:00', '11:00:00'] as $time) {
+            $this->insertFromTheOtherConnection(['action' => 'item.viewed', 'actor_id' => $this->alice->id, 'context' => '[]', 'created_at' => '2026-01-01 ' . $time]);
+        }
+        /** @var list<int|string> $all */
+        $all      = $this->em->getConnection()->fetchFirstColumn('SELECT id FROM kernel_action_log ORDER BY created_at DESC, id DESC');
+        $expected = array_map(intval(...), $all);
+
+        $reader = $this->kernel->getContainer()->get('test.action_log_reader');
+        self::assertInstanceOf(ActionLogReaderInterface::class, $reader);
+        $criteria = new ActionLogCriteria(involving: $this->alice, limit: 2);
+
+        $first = $reader->pageByCriteria($criteria);
+        $this->insertFromTheOtherConnection(['action' => 'item.viewed', 'actor_id' => $this->alice->id, 'context' => '[]', 'created_at' => '2026-01-01 12:00:00']);
+        $this->other->beginTransaction();
+        $this->insertFromTheOtherConnection(['action' => 'item.viewed', 'actor_id' => $this->alice->id, 'context' => '[]', 'created_at' => '2026-01-01 13:00:00']);
+
+        $seen  = array_map(static fn (ActionLogView $view): int => $view->id, $first->items);
+        $after = $first->next;
+        while ($after instanceof ActionLogCursor) {
+            $page  = $reader->pageByCriteria($criteria, $after);
+            $seen  = [...$seen, ...array_map(static fn (ActionLogView $view): int => $view->id, $page->items)];
+            $after = $page->next;
+        }
+        $this->other->commit();
+
+        $this->assertSame($expected, $seen);
+        $this->assertSame(7, $reader->countByCriteria(new ActionLogCriteria(involving: $this->alice)));
+        $this->assertSame(0, $this->em->getConnection()->getTransactionNestingLevel());
     }
 
     private function boot(string $flushMode): void

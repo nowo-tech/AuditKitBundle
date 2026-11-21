@@ -56,6 +56,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+Additive minor over 2.0 (no BC break). See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- **`ActionLog\ActionLogReaderInterface`**, a read port over the action log (REQ-ARCH-001 rule 1, DDD-host checklist
+  B7): `pageByCriteria(ActionLogCriteria, ?ActionLogCursor)`, `countByCriteria()`, `latestEntries()` and
+  `pageInvolving($userId, …)`. It returns `ActionLogView` snapshots (ids and scalars, never entities) in
+  `ActionLogPage`s, newest first (`createdAt DESC, id DESC`), with keyset paging through `ActionLogCursor` (opaque
+  URL-safe token: `toToken()` / `fromToken()`, `null` for a malformed token). Rows recorded while a caller pages never
+  repeat or shift the rows already listed. Pages hold at most `ActionLogReaderInterface::MAX_LIMIT` (1000) rows. In id
+  mode the actor / subject / involving filters match byte for byte (REQ-SEC-006), as `findByCriteria()` does, and the
+  rows are read with array hydration, so nothing enters the entity manager (FrankenPHP worker, kernel reset off).
+- `ActionLogRepository` implements the port, so a host repository that extends it can be type-hinted as the port.
+- `ActionLog\ActionLogReader`, registered under `ActionLogReaderInterface` when `action_log.entity_class` is set: it
+  uses the entity's repository when that extends `ActionLogRepository`, else a plain `ActionLogRepository`. Stateless
+  (the repository is resolved on every call). A host no longer needs to extend the concrete repository to list rows.
+
 ## [2.0.0] - 2026-11-21
 
 2.0.0 (REQ-ARCH-001 wave 1): removes only what 1.x announced (REQ-BC-001) and flips the two announced defaults. Read
