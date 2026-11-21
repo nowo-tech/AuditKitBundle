@@ -55,9 +55,59 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+2.0.0 (REQ-ARCH-001 wave 1): removes only what 1.x announced (REQ-BC-001) and flips the two announced defaults. Read
+[UPGRADING](UPGRADING.md#unreleased) before updating: `composer require nowo-tech/audit-kit-bundle:^2.0 -W`.
+
 ### Changed
 
+- **BREAKING: `action_log.flush_mode` defaults to `isolated`** (REQ-ARCH-001 rule 6; 1.18 notice and host-flush
+  probe). `recordAndFlush()` / `recordIdsAndFlush()` write only the new row; the application's pending changes stay
+  pending. A change that relied on the action log flush is no longer written, silently: see UPGRADING "A change that
+  relied on the action log flush". An explicit `flush_mode: host` keeps the 1.x behaviour with no notice and no probe.
+  `ActionLogRecorder::__construct()` keeps `host` as its own default for direct instantiation.
+- **BREAKING: `attribute_opt_in` defaults to `true`** (announced in 1.13, 1.18 notice): `#[Auditable]` alone opts a
+  class in. `attribute_opt_in: false` keeps ignoring it.
+- **BREAKING: with `blame_mode: id`, a host override of `CurrentUserResolverInterface` / `BlameValueResolverInterface`
+  fails the container build** while its twin (`CurrentActorProviderInterface` / `BlameIdResolverInterface`) keeps the
+  bundle default (owner decision Q6; deprecated since 1.15). Aliases and services registered under the interface id
+  count, including `#[AsAlias]` on autodiscovered classes; decorators (`#[AsDecorator]` included) count for
+  `BlameValueResolverInterface` only, which 1.15–1.18 ignored silently in id mode. A decorator of
+  `CurrentUserResolverInterface` stays allowed (the default actor provider reads it). The message names the services
+  and the twin to alias. Reference mode is unchanged.
 - Demo: runs in UiKit's demo platform shell (`nowo-tech/ui-kit-bundle` ^2.60); the demo's own masthead is gone and the pages use the shell page headers and section cards. Demo only, no bundle change.
+- CI also runs on the `1.x` maintenance branch.
+
+### Fixed
+
+- **Isolated writes reference host entities by id.** A to-one association of the action log row (a host subclass's own
+  `ManyToOne` / `OneToOne`, set by the subclass or by a host Doctrine listener on the shared event manager) that holds
+  an entity of the application's entity manager is replaced by a reference of the bundle's entity manager. 1.15–1.18
+  failed there with "A new entity was found through the relationship" in `flush_mode: isolated`; the host's instance
+  is never written or detached. The reference uses the identifier of the application's unit of work, so targets whose
+  identifier is an association work too. Refused with a `LogicException` before anything is flushed: a host entity
+  persisted but not flushed yet; a row deleted after the host loaded it (the reference lookup of a target with
+  subclasses finds nothing); and an association mapped with `cascade: ['persist']`, which in 1.15–1.18 isolated mode
+  inserted the host's entity a second time and gave the host's instance the new row's id (with a pre-insert generator
+  the identifier is restored before the exception). Tests: id-mode and relation-mode logs with a host listener,
+  derived-identifier and single-table targets, IDENTITY and pre-insert generators, on SQLite and on MySQL 8.4,
+  MariaDB 11.4 and PostgreSQL 16 (DBAL 4 and 3).
+
+### Removed
+
+- The 1.18 host-flush probe: the `nowo_audit_kit.host_flush_probe` service, `NowoAuditKitExtension::HOST_FLUSH_PROBE`,
+  `ActionLog\ActionLogHostFlushProbeResetSubscriber` and the internal `HostFlushProbePass`. The trailing
+  `?HostFlushProbe $hostFlushProbe` argument of `ActionLogRecorder::__construct()` stays, ignored, and with
+  `ActionLogRecorder::BUNDLE_NAME` / `BUNDLE_NAMESPACE` is deprecated since 2.0 (removed in 3.0).
+- The 1.18 default-flip notices: the internal `Deprecation\DefaultFlipNotices`, the
+  `nowo_audit_kit.default_flip_notices` parameter and `NowoAuditKitBundle::boot()`.
+- The 1.15 id-mode bridge of `BlamePortsPass` (host overrides of the 1.14 ports read in id mode) and its two notices.
+- `ReferenceCollationListener::postGenerateSchemaTable()`, an internal no-op deprecated since 1.18.1. The
+  `postGenerateSchema` path and its foreign-key regression tests (XI-6) stay.
+
+### Security
+
+- Supported versions: 2.x; 1.x receives security fixes rated Moderate and above for 6 months after 2.0.0 (backported
+  to the last 1.x minor); Low ones are fixed in 2.x only.
 
 ## [1.18.1] - 2026-11-21
 

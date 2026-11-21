@@ -277,7 +277,8 @@ final class NowoAuditKitExtensionTest extends TestCase
         $this->assertSame(KernelActionLog::class, $container->getParameter('nowo_audit_kit.action_log.entity_class'));
         $this->assertSame('project_uuid', $container->getParameter('nowo_audit_kit.action_log.scope_context_key'));
         $this->assertTrue($container->getParameter('nowo_audit_kit.action_log.capture_ip'));
-        $this->assertSame(ActionLogRecorder::FLUSH_HOST, $container->getParameter('nowo_audit_kit.action_log.flush_mode'));
+        $this->assertSame(ActionLogRecorder::FLUSH_ISOLATED, $container->getParameter('nowo_audit_kit.action_log.flush_mode'));
+        $this->assertFalse($container->hasParameter('nowo_audit_kit.default_flip_notices'));
         $this->assertSame('%nowo_audit_kit.action_log.flush_mode%', $container->getDefinition(ActionLogRecorder::class)->getArgument('$flushMode'));
         $this->assertSame(['item.viewed'], $container->getParameter('nowo_audit_kit.action_log.purge.actions'));
         $this->assertSame(90, $container->getParameter('nowo_audit_kit.action_log.purge.older_than_days'));

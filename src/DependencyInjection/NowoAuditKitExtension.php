@@ -7,19 +7,14 @@ namespace Nowo\AuditKitBundle\DependencyInjection;
 use InvalidArgumentException;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
-use Nowo\AuditKitBundle\ActionLog\ActionLogHostFlushProbeResetSubscriber;
-use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\Blame\BlameIdResolverInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
 use Nowo\AuditKitBundle\Collation\ActionLogExactKeyColumns;
-use Nowo\AuditKitBundle\DependencyInjection\Compiler\HostFlushProbePass;
-use Nowo\AuditKitBundle\Deprecation\DefaultFlipNotices;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
-use Nowo\TransactionDoctrine\HostFlushProbe;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
@@ -28,27 +23,18 @@ use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-use function array_key_exists;
 use function array_keys;
 use function class_exists;
 use function is_array;
 use function is_string;
 use function ltrim;
 use function sprintf;
-use function str_replace;
 
 /** Loads bundle parameters and services from processed configuration. */
 final class NowoAuditKitExtension extends Extension implements PrependExtensionInterface
 {
     /** Doctrine mapping name registered for {@see AbstractActionLog}. */
     public const ACTION_LOG_MAPPING = 'NowoAuditKitActionLog';
-
-    /**
-     * Since 1.18: the bundle's host-flush probe, registered only in implicit host mode (`action_log.flush_mode` unset).
-     * {@see HostFlushProbePass} points it at transaction-doctrine's
-     * shared probe when that bundle is registered.
-     */
-    public const HOST_FLUSH_PROBE = 'nowo_audit_kit.host_flush_probe';
 
     /** Maps {@see AuditUserInterface} (BlameableTrait association target) to the default profile user class. */
     public function prepend(ContainerBuilder $container): void
@@ -131,15 +117,14 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
 
             // Since 1.15: the framework-free ports drive id mode. No security user, no ObjectManager; the host can
             // alias CurrentActorProviderInterface / BlameIdResolverInterface to its own services.
-            // BlamePortsPass falls back to a host BlameValueResolverInterface override (deprecated).
+            // Since 2.0 BlamePortsPass fails the build on a host override of the 1.14 ports that the id mode no longer reads.
             $container->getDefinition(AuditableEntityListener::class)
                 ->setArgument('$currentUserResolver', null)
                 ->setArgument('$blameValueResolver', null)
                 ->setArgument('$blameIdResolver', new Reference(BlameIdResolverInterface::class));
         }
 
-        $flushModeSet = $this->isSet($configs, 'action_log', 'flush_mode');
-        $this->loadActionLog($config['action_log'], $container, $flushModeSet);
+        $this->loadActionLog($config['action_log'], $container);
         $this->registerExactKeyColumns($container);
 
         $registry = new ProfileRegistry($profiles, $defaultProfileName);
@@ -148,45 +133,6 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             $container->removeDefinition(AuditableEntityListener::class);
             $container->removeDefinition(AuditableDoctrineListener::class);
         }
-
-        // Since 1.18: one notice per kernel boot for each default that changes in 2.0 and that the host left unset.
-        $notices = [];
-        if ($container->getParameter('nowo_audit_kit.action_log.enabled') === true && !$flushModeSet) {
-            $notices[] = DefaultFlipNotices::FLUSH_MODE;
-        }
-        if ($registry->hasEnabledProfile() && !$this->isSet($configs, 'attribute_opt_in')) {
-            $notices[] = DefaultFlipNotices::ATTRIBUTE_OPT_IN;
-        }
-        $container->setParameter(DefaultFlipNotices::PARAMETER, $notices);
-    }
-
-    /**
-     * Since 1.18: whether any raw configuration file sets the option at $path (a key that is present, whatever its
-     * value), as opposed to the processed configuration, where an unset option holds its default. XML keys use dashes.
-     *
-     * @param array<mixed> $configs
-     */
-    private function isSet(array $configs, string ...$path): bool
-    {
-        foreach ($configs as $config) {
-            foreach ($path as $key) {
-                if (!is_array($config)) {
-                    continue 2;
-                }
-                $dashed = str_replace('_', '-', $key);
-                if (array_key_exists($key, $config)) {
-                    $config = $config[$key];
-                } elseif (array_key_exists($dashed, $config)) {
-                    $config = $config[$dashed];
-                } else {
-                    continue 2;
-                }
-            }
-
-            return true;
-        }
-
-        return false;
     }
 
     /**
@@ -267,13 +213,11 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
     /**
      * Registers the action log recorder and purge command when `action_log.entity_class` is set.
      *
-     * Since 1.18, in implicit host mode (`flush_mode` unset) the recorder gets the host-flush probe: before it flushes
-     * the host's entity manager, every foreign entity class with pending changes triggers one deprecation per unit of
-     * work. An explicit `flush_mode` (host or isolated) keeps its behaviour in 2.0, so it gets no probe.
+     * Since 2.0 `flush_mode` defaults to `isolated`; an explicit `host` keeps the 1.x behaviour (no probe, no notice).
      *
      * @param array{entity_class: ?string, register_mapping: bool, scope_context_key: ?string, capture_ip: bool, flush_mode: string, purge: array{older_than_days: int, batch_size: int, actions: list<string>}} $config
      */
-    private function loadActionLog(array $config, ContainerBuilder $container, bool $flushModeSet): void
+    private function loadActionLog(array $config, ContainerBuilder $container): void
     {
         $entityClass = $config['entity_class'];
         $enabled     = is_string($entityClass) && $entityClass !== '';
@@ -296,19 +240,6 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('action_log.yaml');
-
-        if ($flushModeSet || $config['flush_mode'] !== ActionLogRecorder::FLUSH_HOST) {
-            return;
-        }
-
-        // Per unit of work state: kernel.reset, plus the boundary subscriber for worker mode with the kernel reset off.
-        $container->register(self::HOST_FLUSH_PROBE, HostFlushProbe::class)
-            ->addTag('kernel.reset', ['method' => 'reset']);
-        $container->register(ActionLogHostFlushProbeResetSubscriber::class, ActionLogHostFlushProbeResetSubscriber::class)
-            ->setArguments([new Reference(self::HOST_FLUSH_PROBE)])
-            ->addTag('kernel.event_subscriber');
-        $container->getDefinition(ActionLogRecorder::class)
-            ->setArgument('$hostFlushProbe', new Reference(self::HOST_FLUSH_PROBE));
     }
 
     public function getAlias(): string

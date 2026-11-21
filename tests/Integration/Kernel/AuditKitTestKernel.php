@@ -6,7 +6,6 @@ namespace Nowo\AuditKitBundle\Tests\Integration\Kernel;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
-use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
 use Nowo\TransactionDoctrine\Symfony\NowoTransactionDoctrineBundle;
 use Psr\Clock\ClockInterface;
@@ -20,9 +19,9 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 /**
  * Real kernel (FrameworkBundle + DoctrineBundle on in-memory SQLite) for end-to-end persistence tests.
  * Since 1.15 `$flushMode` sets `action_log.flush_mode` (one container per mode). Since 1.17 `$databaseUrl` points the
- * kernel at a real database instead (tests/Database, REQ-RUNTIME-003). Since 1.18 a null `$flushMode` leaves
- * `action_log.flush_mode` unset (implicit host mode: the deprecation notice and the host-flush probe), and
- * `$transactionDoctrineBundle` registers transaction-doctrine's Symfony bundle (its shared probe).
+ * kernel at a real database instead (tests/Database, REQ-RUNTIME-003). A null `$flushMode` leaves
+ * `action_log.flush_mode` unset (since 2.0: the `isolated` default), and `$transactionDoctrineBundle` registers
+ * transaction-doctrine's Symfony bundle. `$attributeOptIn` null leaves `attribute_opt_in` unset (since 2.0: `true`).
  */
 final class AuditKitTestKernel extends Kernel
 {
@@ -32,8 +31,13 @@ final class AuditKitTestKernel extends Kernel
         private readonly ?string $flushMode = ActionLogRecorder::FLUSH_HOST,
         private readonly ?string $databaseUrl = null,
         private readonly bool $transactionDoctrineBundle = false,
+        private readonly ?bool $attributeOptIn = true,
     ) {
-        parent::__construct(($flushMode === ActionLogRecorder::FLUSH_HOST ? 'test' : 'test' . ($flushMode ?? 'unset')) . ($transactionDoctrineBundle ? 'td' : '') . ($databaseUrl === null ? '' : 'db'), false);
+        parent::__construct(($flushMode === ActionLogRecorder::FLUSH_HOST ? 'test' : 'test' . ($flushMode ?? 'unset')) . ($transactionDoctrineBundle ? 'td' : '') . ($databaseUrl === null ? '' : 'db') . match ($attributeOptIn) {
+            true  => '',
+            false => 'optout',
+            null  => 'optunset',
+        }, false);
     }
 
     public function registerBundles(): iterable
@@ -84,20 +88,16 @@ final class AuditKitTestKernel extends Kernel
         $container->loadFromExtension('nowo_audit_kit', [
             'user_class'         => Entity\KernelUser::class,
             'auditable_entities' => [Entity\KernelAuditedRecord::class],
-            'attribute_opt_in'   => true,
             'action_log'         => [
                 'entity_class'      => Entity\KernelActionLog::class,
                 'scope_context_key' => 'project_uuid',
                 'purge'             => ['older_than_days' => 30, 'batch_size' => 2, 'actions' => ['item.viewed']],
             ] + ($this->flushMode === null ? [] : ['flush_mode' => $this->flushMode]),
-        ]);
+        ] + ($this->attributeOptIn === null ? [] : ['attribute_opt_in' => $this->attributeOptIn]));
         $container->register(Repository\KernelActionLogRepository::class)
             ->setAutowired(true)
             ->addTag('doctrine.repository_service');
         $container->setAlias('test.action_log_recorder', ActionLogRecorder::class)->setPublic(true);
-        if ($this->flushMode === null) {
-            $container->setAlias('test.host_flush_probe', NowoAuditKitExtension::HOST_FLUSH_PROBE)->setPublic(true);
-        }
 
         // No SecurityBundle in this kernel: provide the token storage CurrentUserResolver depends on.
         $container->register('security.token_storage', TokenStorage::class)->setPublic(true);

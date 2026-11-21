@@ -21,9 +21,10 @@ use function memory_get_usage;
 /**
  * REQ-ARCH-001 rule 6 evidence for `recordAndFlush()` / `recordIdsAndFlush()` (since 1.15).
  *
- * - `flush_mode: host` (default, unchanged): the host entity manager is flushed, pending host changes included.
- * - `flush_mode: isolated`: only the action log row is written; the host's pending inserts and updates are neither
- *   flushed nor cleared, and the host identity map is untouched.
+ * - `flush_mode: host` (the 1.x default, an explicit choice since 2.0): the host entity manager is flushed, pending host
+ *   changes included.
+ * - `flush_mode: isolated` (the default since 2.0): only the action log row is written; the host's pending inserts and
+ *   updates are neither flushed nor cleared, and the host identity map is untouched.
  */
 final class ActionLogFlushIsolationTest extends TestCase
 {
@@ -51,7 +52,7 @@ final class ActionLogFlushIsolationTest extends TestCase
 
         $this->recorder->recordAndFlush('item.viewed', $this->alice, $this->bob);
 
-        // The behaviour of earlier versions, kept as the default: the host's changes were flushed too.
+        // The 1.x behaviour, kept for an explicit host mode: the host's changes were flushed too.
         $this->assertSame(['Changed', 'Pending'], $this->articleTitles());
         $this->assertFalse($this->em->getUnitOfWork()->isScheduledForInsert($pending));
         $this->assertSame(1, $this->actionLogCount());

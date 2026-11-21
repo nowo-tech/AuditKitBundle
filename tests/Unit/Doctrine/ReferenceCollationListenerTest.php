@@ -11,15 +11,11 @@ use Doctrine\DBAL\Platforms\MySQL80Platform;
 use Doctrine\DBAL\Platforms\MySQLPlatform;
 use Doctrine\DBAL\Platforms\PostgreSQLPlatform;
 use Doctrine\DBAL\Platforms\SQLitePlatform;
-use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
-use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuditKitBundle\Doctrine\ReferenceCollationListener;
-use Nowo\AuditKitBundle\Tests\Fixtures\SchemaFk\FkActionLog;
 use Nowo\AuditKitBundle\Tests\Fixtures\SchemaFk\Owner\FkOwner;
 use Nowo\AuditKitBundle\Tests\Support\RecordingLogger;
 use Nowo\AuditKitBundle\Tests\Support\SchemaShape;
@@ -182,18 +178,6 @@ final class ReferenceCollationListenerTest extends TestCase
         $schema = $args->getSchema();
         ReferenceCollationListener::collateSchema($args, ['xi_fk_action_log' => ['missing']], 'utf8mb4_nopad_bin');
         self::assertSame($schema, $args->getSchema());
-    }
-
-    public function testTheFormerTableEventDoesNothing(): void
-    {
-        $table = new Table('t');
-        $table->addColumn('actor_id', 'string', ['length' => 64]);
-        $args = new GenerateSchemaTableEventArgs(new ClassMetadata(FkActionLog::class), new Schema(), $table);
-
-        (new ReferenceCollationListener())->postGenerateSchemaTable($args);
-
-        self::assertSame($table, $args->getClassTable());
-        self::assertNull($this->collation($table, 'actor_id'));
     }
 
     /**

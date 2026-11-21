@@ -37,7 +37,7 @@ trait CapturesDeprecations
     }
 
     /**
-     * The messages of this bundle: its notices and the host-flush probe lines naming it.
+     * The messages of this bundle (its package or bundle name).
      *
      * @param list<string> $messages
      *
@@ -46,15 +46,5 @@ trait CapturesDeprecations
     private static function ownDeprecations(array $messages): array
     {
         return array_values(array_filter($messages, static fn (string $message): bool => str_contains($message, 'nowo-tech/audit-kit-bundle') || str_contains($message, 'NowoAuditKitBundle')));
-    }
-
-    /**
-     * @param list<string> $messages
-     *
-     * @return list<string>
-     */
-    private static function probeMessages(array $messages): array
-    {
-        return array_values(array_filter($messages, static fn (string $message): bool => str_contains($message, 'were flushed by NowoAuditKitBundle')));
     }
 }
