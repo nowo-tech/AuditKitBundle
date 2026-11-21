@@ -34,7 +34,7 @@ final readonly class ActionLogCriteria
      * @param int|object|string|null $subject rows about this user (entity or id)
      * @param int|object|string|null $involving rows where this user is the actor OR the subject
      * @param array<int|string|Stringable>|int|string|Stringable|null $scope one scope or a list of scopes (ints and
-     *                                                                   `Stringable` values are cast to string, since 2.1)
+     *                                                                       `Stringable` values are cast to string, since 2.1)
      * @param array<BackedEnum|string>|BackedEnum|string|null $actions one action or an allow-list
      * @param DateTimeImmutable|null $from inclusive lower bound on `createdAt`
      * @param DateTimeImmutable|null $to inclusive upper bound on `createdAt`

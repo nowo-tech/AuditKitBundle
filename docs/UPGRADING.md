@@ -78,8 +78,9 @@ From **2.0.0**: `composer require nowo-tech/audit-kit-bundle:^2.1`. Nothing to c
   `scope` is byte-identical to a filter scope, in every read (`findByCriteria()`, `countByCriteria()`,
   `pageByCriteria()`, the reader). On MySQL / MariaDB the `*_ci` / PAD SPACE collation of the `scope` column made
   `Tenant-A` and `tenant-a ` match `tenant-a` before. Nothing to change. If your scopes differ only by case, accents or
-  trailing spaces, those rows are now kept apart, which is the intended tenant boundary. Detection (MySQL / MariaDB;
-  replace `user_action` with your table and column):
+  trailing spaces, those rows are now kept apart, which is the intended tenant boundary. Int and `Stringable` scope
+  filters (`scope: 5`, `scope: $uuid`) are cast to string and keep matching the stored string. Detection (MySQL /
+  MariaDB; replace `user_action` with your table and column):
 
   ```sql
   SELECT LOWER(TRIM(TRAILING ' ' FROM scope)) AS folded, COUNT(DISTINCT HEX(scope)) AS variants

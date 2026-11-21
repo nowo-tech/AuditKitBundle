@@ -158,9 +158,9 @@ abstract class ScopeExactMatchTestCase extends TestCase
     public function testIntAndStringableScopesMatchTheirStringForm(string $mode): void
     {
         $this->boot($mode);
-        $uuid    = Uuid::fromString('0193a4b2-7c1d-7e00-8000-000000000001');
-        $five    = $this->insert('5');
-        $byUuid  = $this->insert($uuid->toRfc4122());
+        $uuid   = Uuid::fromString('0193a4b2-7c1d-7e00-8000-000000000001');
+        $five   = $this->insert('5');
+        $byUuid = $this->insert($uuid->toRfc4122());
         $this->insert('50');
         $this->insert(' 5');
 
