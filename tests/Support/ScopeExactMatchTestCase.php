@@ -209,7 +209,7 @@ abstract class ScopeExactMatchTestCase extends TestCase
         // With a sequence id generator (PostgreSQL on DBAL 3) the id comes from the sequence.
         $metadata = $this->em->getClassMetadata($this->entityClass);
         if ($metadata->isIdGeneratorSequence()) {
-            $platform = $this->connection->getDatabasePlatform();
+            $platform  = $this->connection->getDatabasePlatform();
             $row['id'] = (int) $this->connection->fetchOne($platform->getSequenceNextValSQL($metadata->getSequenceName($platform)));
             $this->connection->insert($this->table, $row);
 
