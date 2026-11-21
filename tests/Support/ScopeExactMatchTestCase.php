@@ -23,6 +23,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpKernel\Kernel;
+use Symfony\Component\Uid\Uuid;
 
 use function array_map;
 use function count;
@@ -147,6 +148,30 @@ abstract class ScopeExactMatchTestCase extends TestCase
         self::assertSame(['tenant-a', 'tenant-a'], array_map(static fn (ActionLogView $view): ?string => $view->scope, [...$first->items, ...$second->items]));
         self::assertSame(2, $reader->countByCriteria(new ActionLogCriteria(scope: 'tenant-a')));
         self::assertSame([], $reader->pageByCriteria(new ActionLogCriteria(scope: 'tenant-c'))->items);
+    }
+
+    /**
+     * Since 2.1 (audit YC1-D-L1): an int scope matches the stored `'5'` and a `Stringable` one (a Uuid) its string form,
+     * as SQL `IN` matched them before the exact re-check.
+     */
+    #[DataProvider('modes')]
+    public function testIntAndStringableScopesMatchTheirStringForm(string $mode): void
+    {
+        $this->boot($mode);
+        $uuid    = Uuid::fromString('0193a4b2-7c1d-7e00-8000-000000000001');
+        $five    = $this->insert('5');
+        $byUuid  = $this->insert($uuid->toRfc4122());
+        $this->insert('50');
+        $this->insert(' 5');
+
+        $repository = $this->repository();
+        self::assertSame([$five], $this->ids($repository->findByCriteria(new ActionLogCriteria(scope: 5))));
+        self::assertSame(1, $repository->countByCriteria(new ActionLogCriteria(scope: [5])));
+        self::assertSame([$byUuid], $this->ids($repository->findByCriteria(new ActionLogCriteria(scope: $uuid))));
+        self::assertSame([$byUuid, $five], $this->ids($repository->findByCriteria(new ActionLogCriteria(scope: [5, $uuid]))));
+        self::assertSame(2, $repository->countByCriteria(new ActionLogCriteria(scope: [$uuid, 5])));
+        self::assertSame([$byUuid, $five], $this->viewIds($this->reader()->pageByCriteria(new ActionLogCriteria(scope: [5, $uuid]))->items));
+        self::assertSame(2, $this->reader()->countByCriteria(new ActionLogCriteria(scope: [5, $uuid])));
     }
 
     /** Id mode: the scope and the id re-checks apply together. */

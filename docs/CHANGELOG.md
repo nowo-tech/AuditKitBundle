@@ -83,7 +83,9 @@ Additive minor over 2.0 (no BC break). See [UPGRADING](UPGRADING.md#unreleased).
   id filters of 1.15.1 do), in relation and id mode, so look-alike rows are never returned, never counted and never
   take a slot in a page. PostgreSQL and SQLite compared exactly already. No schema change: the `scope` column keeps its
   collation (an optional binary collation only saves reads, see UPGRADING). A count with a scope filter now reads the
-  id and scope of the SQL candidates instead of one `COUNT(*)`.
+  id and scope of the SQL candidates instead of one `COUNT(*)`. `ActionLogCriteria` casts int and `Stringable` scopes
+  (a Uuid) to string, so `scope: 5` or `scope: $uuid` still matches the stored `'5'` / UUID string as SQL `IN` did;
+  the `$scope` parameter now also accepts `int` and `Stringable` (additive).
 
 ## [2.0.0] - 2026-11-21
 
