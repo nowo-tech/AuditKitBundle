@@ -14,7 +14,6 @@ use Doctrine\DBAL\Schema\Schema;
 use Doctrine\DBAL\Schema\Table;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Tools\Event\GenerateSchemaEventArgs;
-use Doctrine\ORM\Tools\Event\GenerateSchemaTableEventArgs;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Psr\Log\LoggerInterface;
@@ -125,16 +124,6 @@ final readonly class ReferenceCollationListener
         }
         $this->warnAboutPartialVersion($platform, $this->configuredVersion($connection), $collation);
         self::collateSchema($args, $columns, $collation);
-    }
-
-    /**
-     * No longer subscribed (1.18.1, audit XI-6): replacing the table there lost its foreign keys. Kept for BC; does nothing.
-     *
-     * @deprecated since 1.18.1, the collation is applied on postGenerateSchema ({@see self::postGenerateSchema()})
-     */
-    public function postGenerateSchemaTable(GenerateSchemaTableEventArgs $args): void
-    {
-        unset($args);
     }
 
     /**

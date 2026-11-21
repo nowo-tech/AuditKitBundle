@@ -12,8 +12,9 @@ use Symfony\Component\Security\Core\User\UserInterface;
  * initiator, impersonation, a CLI user).
  *
  * Symfony-typed adapter port. Since 1.15 the framework-free {@see CurrentActorProviderInterface} is the host extension
- * point: its default {@see SecurityCurrentActorProvider} reads this port. With `blame_mode: id`, aliasing this
- * interface to your own service is deprecated (removed in 2.0): alias {@see CurrentActorProviderInterface} instead.
+ * point: its default {@see SecurityCurrentActorProvider} reads this port. With `blame_mode: id`, since 2.0 overriding
+ * this interface (while {@see CurrentActorProviderInterface} keeps its default) fails the container build: alias
+ * {@see CurrentActorProviderInterface} instead.
  *
  * @since 1.12.0
  */

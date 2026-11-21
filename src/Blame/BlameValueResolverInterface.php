@@ -17,8 +17,8 @@ use Nowo\AuditKitBundle\Profile\ProfileSettings;
  * implementation; a value other than an object needs blame fields (`fields.*`) whose setters accept it.
  *
  * Doctrine-typed port of the reference path (`blame_mode: reference`). With `blame_mode: id`, since 1.15 the listener
- * reads the framework-free {@see BlameIdResolverInterface}; aliasing this interface there is deprecated (still read in
- * 1.x, removed in 2.0).
+ * reads the framework-free {@see BlameIdResolverInterface}; since 2.0 overriding this interface there (while
+ * {@see BlameIdResolverInterface} keeps its default) fails the container build: alias the twin instead.
  *
  * @since 1.12.0
  */

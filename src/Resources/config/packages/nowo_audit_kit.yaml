@@ -9,6 +9,9 @@ nowo_audit_kit:
     # "id" writes the current user's id string (DDD hosts with plain id columns; user_class then optional).
     # blame_mode: reference
 
+    # Since 2.0 #[Auditable] alone opts a class in (default true); false ignores the attribute alone (the 1.x default).
+    # attribute_opt_in: true
+
     profiles:
         default:
             # FQCN used for createdBy / updatedBy references.
@@ -43,6 +46,7 @@ nowo_audit_kit:
     #     mapping: attribute          # since 1.14: or xml (superclass mapping from the shipped .orm.xml files)
     #     scope_context_key: ~        # e.g. project_uuid: copy context[project_uuid] into `scope`
     #     capture_ip: true
+    #     flush_mode: isolated        # default since 2.0: *AndFlush() write only the row; "host" also flushes your changes
     #     purge:
     #         older_than_days: 90
     #         batch_size: 1000

@@ -20,15 +20,15 @@ final class AuditableEntitiesConfigTest extends TestCase
         (new NowoAuditKitExtension())->load([['user_class' => 'App\\Entity\\User']], $container);
 
         $this->assertSame([], $container->getParameter('nowo_audit_kit.auditable_entities'));
-        $this->assertFalse($container->getParameter('nowo_audit_kit.attribute_opt_in'), 'the attribute alone keeps the 1.12 behaviour');
+        $this->assertTrue($container->getParameter('nowo_audit_kit.attribute_opt_in'), 'since 2.0 the attribute alone opts a class in');
     }
 
-    public function testTheAttributeSwitchCanBeTurnedOn(): void
+    public function testTheAttributeSwitchCanBeTurnedOff(): void
     {
         $container = new ContainerBuilder();
-        (new NowoAuditKitExtension())->load([['user_class' => 'App\\Entity\\User', 'attribute_opt_in' => true]], $container);
+        (new NowoAuditKitExtension())->load([['user_class' => 'App\\Entity\\User', 'attribute_opt_in' => false]], $container);
 
-        $this->assertTrue($container->getParameter('nowo_audit_kit.attribute_opt_in'));
+        $this->assertFalse($container->getParameter('nowo_audit_kit.attribute_opt_in'));
     }
 
     public function testKeepsExistingClassesAndInterfacesOnce(): void
