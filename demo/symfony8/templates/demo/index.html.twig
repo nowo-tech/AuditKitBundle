@@ -3,60 +3,52 @@
 {% block title %}Audit Kit Demo{% endblock %}
 
 {% block nowo_ui_page_header %}
+    {% set _toolbar %}<a class="nowo-ui-btn nowo-ui-btn--primary" href="{{ path('demo_home') }}">Persist another row</a>{% endset %}
     {{ include(nowo_ui_partial('page_header'), {
         title: 'Automatic audit fields',
         intro: 'Each refresh persists a new audited Article and a LegacyRecord with #[Auditable(enabled: false)] while simulating an authenticated user (' ~ user.email ~ ').',
+        toolbar: _toolbar,
     }) }}
 {% endblock %}
 
 {% block body %}
-    <p><a class="nowo-ui-btn nowo-ui-btn--primary" href="{{ path('demo_home') }}">Persist another row</a></p>
-
-    <section class="nowo-ui-card">
-        <div class="nowo-ui-card__header">
-            <h2 class="nowo-ui-card__title">Latest articles <span class="nowo-ui-badge nowo-ui-badge--success">audited</span></h2>
-        </div>
-        <div class="nowo-ui-card__body">
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Latest articles', kind: 'table', empty: articles is empty, state_message: 'No articles yet.', articles: articles} %}
+        {% block section_actions %}<span class="nowo-ui-badge nowo-ui-badge--success">audited</span>{% endblock %}
+        {% block section_body %}
             <table class="nowo-ui-data-table">
-                <thead><tr><th scope="col">Title</th><th scope="col">createdAt</th><th scope="col">updatedAt</th><th scope="col">createdBy</th><th scope="col">updatedBy</th></tr></thead>
+                <thead><tr><th scope="col">Title</th><th scope="col" class="nowo-ui-cell--date">createdAt</th><th scope="col" class="nowo-ui-cell--date">updatedAt</th><th scope="col">createdBy</th><th scope="col">updatedBy</th></tr></thead>
                 <tbody>
                 {% for article in articles %}
                     <tr>
                         <th scope="row">{{ article.title }}</th>
-                        <td>{{ article.createdAt ? article.createdAt|date('Y-m-d H:i:s') : '—' }}</td>
-                        <td>{{ article.updatedAt ? article.updatedAt|date('Y-m-d H:i:s') : '—' }}</td>
+                        <td class="nowo-ui-cell--date">{% if article.createdAt %}<time datetime="{{ article.createdAt|date('c') }}">{{ article.createdAt|date('Y-m-d H:i:s') }}</time>{% else %}—{% endif %}</td>
+                        <td class="nowo-ui-cell--date">{% if article.updatedAt %}<time datetime="{{ article.updatedAt|date('c') }}">{{ article.updatedAt|date('Y-m-d H:i:s') }}</time>{% else %}—{% endif %}</td>
                         <td>{{ article.createdBy ? article.createdBy.email : 'null' }}</td>
                         <td>{{ article.updatedBy ? article.updatedBy.email : 'null' }}</td>
                     </tr>
-                {% else %}
-                    <tr><td colspan="5">No articles yet.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
-        </div>
-    </section>
+        {% endblock %}
+    {% endembed %}
 
-    <section class="nowo-ui-card">
-        <div class="nowo-ui-card__header">
-            <h2 class="nowo-ui-card__title">Latest legacy records <span class="nowo-ui-badge nowo-ui-badge--neutral">#[Auditable(enabled: false)]</span></h2>
-        </div>
-        <div class="nowo-ui-card__body">
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Latest legacy records', kind: 'table', empty: legacyRecords is empty, state_message: 'No legacy records yet.', legacyRecords: legacyRecords} %}
+        {% block section_actions %}<span class="nowo-ui-badge nowo-ui-badge--neutral">#[Auditable(enabled: false)]</span>{% endblock %}
+        {% block section_body %}
             <table class="nowo-ui-data-table">
-                <thead><tr><th scope="col">Label</th><th scope="col">createdAt</th><th scope="col">updatedAt</th><th scope="col">createdBy</th><th scope="col">updatedBy</th></tr></thead>
+                <thead><tr><th scope="col">Label</th><th scope="col" class="nowo-ui-cell--date">createdAt</th><th scope="col" class="nowo-ui-cell--date">updatedAt</th><th scope="col">createdBy</th><th scope="col">updatedBy</th></tr></thead>
                 <tbody>
                 {% for record in legacyRecords %}
                     <tr>
                         <th scope="row">{{ record.label }}</th>
-                        <td>{{ record.createdAt ? record.createdAt|date('Y-m-d H:i:s') : '—' }}</td>
-                        <td>{{ record.updatedAt ? record.updatedAt|date('Y-m-d H:i:s') : '—' }}</td>
+                        <td class="nowo-ui-cell--date">{% if record.createdAt %}<time datetime="{{ record.createdAt|date('c') }}">{{ record.createdAt|date('Y-m-d H:i:s') }}</time>{% else %}—{% endif %}</td>
+                        <td class="nowo-ui-cell--date">{% if record.updatedAt %}<time datetime="{{ record.updatedAt|date('c') }}">{{ record.updatedAt|date('Y-m-d H:i:s') }}</time>{% else %}—{% endif %}</td>
                         <td>{{ record.createdBy ? record.createdBy.email : 'null' }}</td>
                         <td>{{ record.updatedBy ? record.updatedBy.email : 'null' }}</td>
                     </tr>
-                {% else %}
-                    <tr><td colspan="5">No legacy records yet.</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
-        </div>
-    </section>
+        {% endblock %}
+    {% endembed %}
 {% endblock %}

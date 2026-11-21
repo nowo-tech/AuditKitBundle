@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 /**
- * REQ-DEMO-013 — full demo frame: UiKit masthead + AuditKit UI + Symfony WebProfiler toolbar.
+ * REQ-DEMO-013 — full demo frame: UiKit demo platform shell + AuditKit UI (the Symfony WebProfiler toolbar is hidden).
  * Playwright clips to the viewport, so the viewport is enlarged before capture.
  */
 const outDir = process.env.SCREENSHOT_DIR
@@ -22,13 +22,12 @@ async function boxOf(page: Page, selector: string): Promise<Box | null> {
 }
 
 async function clipDemoFrame(page: Page): Promise<Box> {
-  const masthead = await boxOf(page, '[data-testid="demo-masthead"]');
+  const shell = await boxOf(page, '[data-testid="demo-platform"]');
   const main = await boxOf(page, 'main');
-  const profiler = (await boxOf(page, '.sf-toolbar')) ?? (await boxOf(page, '.sf-minitoolbar'));
-  if (!masthead || !main) {
-    throw new Error('Missing demo masthead or main for the AuditKit screenshot clip');
+  if (!shell || !main) {
+    throw new Error('Missing demo platform shell or main for the AuditKit screenshot clip');
   }
-  const boxes = [masthead, main, profiler].filter(Boolean) as Box[];
+  const boxes = [shell, main] as Box[];
   const x = Math.min(...boxes.map((b) => b.x));
   const y = Math.min(...boxes.map((b) => b.y));
   const right = Math.max(...boxes.map((b) => b.x + b.width));
@@ -42,22 +41,17 @@ async function clipDemoFrame(page: Page): Promise<Box> {
   };
 }
 
-async function waitProfiler(page: Page) {
-  await page
-    .locator('.sf-toolbar .sf-toolbar-block, .sf-toolbar-status, .sf-minitoolbar')
-    .first()
-    .waitFor({ state: 'visible', timeout: 10000 })
-    .catch(() => {});
+async function hideProfiler(page: Page) {
+  await page.addStyleTag({ content: '.sf-toolbar,.sf-minitoolbar,[id^="sfwdt"]{display:none!important}' });
 }
 
 async function capture(page: Page, file: string) {
   await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
   await page.evaluate(() => document.fonts.ready).catch(() => {});
-  await waitProfiler(page);
+  await hideProfiler(page);
   await page.setViewportSize({ width: 1280, height: 720 });
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   await page.setViewportSize({ width: 1280, height: Math.min(Math.max(height, 720), 1800) });
-  await waitProfiler(page);
   await page.screenshot({ path: resolve(outDir, file), clip: await clipDemoFrame(page) });
 }
 

@@ -10,12 +10,14 @@
 {% endblock %}
 
 {% block body %}
-    <section class="nowo-ui-card">
-        <div class="nowo-ui-card__body">
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'Action log', kind: 'list', entries: entries, resolver: resolver, calls_before: calls_before} %}
+        {% block section_body %}
             {{ include('@NowoAuditKitBundle/action_log/_timeline.html.twig', {entries: entries}, with_context = false) }}
+        {% endblock %}
+        {% block section_footer %}
             {% if resolver %}
                 <p class="nowo-ui-muted" data-testid="resolver-calls">Resolver calls for this timeline: {{ resolver.calls - calls_before }}</p>
             {% endif %}
-        </div>
-    </section>
+        {% endblock %}
+    {% endembed %}
 {% endblock %}
