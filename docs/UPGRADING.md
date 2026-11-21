@@ -74,6 +74,31 @@ From **2.0.0**: `composer require nowo-tech/audit-kit-bundle:^2.1`. Nothing to c
   `latestEntries()` and `pageInvolving()`. A host subclass that already declares a method with one of these names and an
   incompatible signature must rename it (no other change).
 - The reader service exists only when `action_log.entity_class` is set, like the recorder.
+- **Scope filters are exact (audit YC1-M1).** `ActionLogCriteria(scope: ...)` now returns and counts only rows whose
+  `scope` is byte-identical to a filter scope, in every read (`findByCriteria()`, `countByCriteria()`,
+  `pageByCriteria()`, the reader). On MySQL / MariaDB the `*_ci` / PAD SPACE collation of the `scope` column made
+  `Tenant-A` and `tenant-a ` match `tenant-a` before. Nothing to change. If your scopes differ only by case, accents or
+  trailing spaces, those rows are now kept apart, which is the intended tenant boundary. Detection (MySQL / MariaDB;
+  replace `user_action` with your table and column):
+
+  ```sql
+  SELECT LOWER(TRIM(TRAILING ' ' FROM scope)) AS folded, COUNT(DISTINCT HEX(scope)) AS variants
+  FROM user_action WHERE scope IS NOT NULL
+  GROUP BY folded HAVING COUNT(DISTINCT HEX(scope)) > 1;
+  ```
+
+  Optional, MySQL / MariaDB only: a binary collation on `scope` lets SQL pre-select the exact rows only, so look-alike
+  rows no longer cost extra reads (the repository is exact without it). The bundle does not change the column; restate
+  every existing attribute of the column:
+
+  ```sql
+  -- MySQL 8.0.17+
+  ALTER TABLE user_action MODIFY scope VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin DEFAULT NULL;
+  -- MariaDB: COLLATE utf8mb4_nopad_bin; MySQL 5.7: COLLATE utf8mb4_bin
+  ```
+
+  The bundle's mapping does not name a collation for `scope`, so check what a later `doctrine:migrations:diff` proposes
+  for that column and drop any statement that would revert the `ALTER`.
 
 ## To 2.0.0
 

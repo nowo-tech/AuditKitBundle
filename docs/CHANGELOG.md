@@ -73,6 +73,18 @@ Additive minor over 2.0 (no BC break). See [UPGRADING](UPGRADING.md#unreleased).
   uses the entity's repository when that extends `ActionLogRepository`, else a plain `ActionLogRepository`. Stateless
   (the repository is resolved on every call). A host no longer needs to extend the concrete repository to list rows.
 
+### Fixed
+
+- **The `scope` filter matches byte for byte (audit YC1-M1).** `scope` is the tenant / project key, but it was compared
+  only by SQL `scope IN (...)` with the column collation: on MySQL / MariaDB `*_ci` collations (and PAD SPACE ones),
+  `findByCriteria()`, `countByCriteria()` (1.x and 2.0 too) and the new `pageByCriteria()` / reader
+  returned and counted the rows of `Tenant-A`, `TENANT-A`, `ténant-a` or `tenant-a ` for the scope `tenant-a`.
+  Every read with a scope filter now re-checks each row with `===` against the filter scopes (keyset batches, as the
+  id filters of 1.15.1 do), in relation and id mode, so look-alike rows are never returned, never counted and never
+  take a slot in a page. PostgreSQL and SQLite compared exactly already. No schema change: the `scope` column keeps its
+  collation (an optional binary collation only saves reads, see UPGRADING). A count with a scope filter now reads the
+  id and scope of the SQL candidates instead of one `COUNT(*)`.
+
 ## [2.0.0] - 2026-11-21
 
 2.0.0 (REQ-ARCH-001 wave 1): removes only what 1.x announced (REQ-BC-001) and flips the two announced defaults. Read

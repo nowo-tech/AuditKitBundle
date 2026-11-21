@@ -16,6 +16,7 @@ use Nowo\AuditKitBundle\Model\ReferenceId;
 
 use function array_slice;
 use function count;
+use function in_array;
 use function max;
 use function min;
 
@@ -36,6 +37,10 @@ use function min;
  * Since 2.1 it implements {@see ActionLogReaderInterface} (snapshots, keyset paging): hosts can type-hint the port, and
  * no longer need to extend this class to list or count rows.
  *
+ * Since 2.1 (audit YC1-M1) the `scope` filter (the tenant / project key) matches byte for byte as well, in both modes:
+ * SQL `IN` only pre-selects (a `*_ci` / PAD SPACE collation returns `Tenant-A` and `tenant-a ` for `tenant-a`), and
+ * every row is re-checked with `===` before paging and counting.
+ *
  * @template T of ActionLogEntryInterface
  *
  * @extends ServiceEntityRepository<T>
@@ -44,7 +49,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
 {
     public const DEFAULT_BATCH_SIZE = KeysetDelete::DEFAULT_BATCH_SIZE;
 
-    /** Since 1.15.1: smallest batch of the exact-match loop of {@see findByCriteria()} in id mode. */
+    /** Since 1.15.1: smallest batch of the exact-match loop of {@see findByCriteria()} (id filters, since 2.1 scopes). */
     private const EXACT_BATCH_SIZE = 50;
 
     /**
@@ -66,7 +71,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             return [];
         }
 
-        $references = $this->exactReferences($criteria);
+        $references = $this->exactFilter($criteria);
         if ($references === false) {
             return [];
         }
@@ -100,7 +105,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             return 0;
         }
 
-        $references = $this->exactReferences($criteria);
+        $references = $this->exactFilter($criteria);
         if ($references === false) {
             return 0;
         }
@@ -145,8 +150,9 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
     /**
      * Since 2.1: one newest-first page of {@see ActionLogView} snapshots after `$after` (see
      * {@see ActionLogReaderInterface::pageByCriteria()}). Asks one row more than the page size to know whether a next
-     * page exists. In id mode with an actor / subject / involving filter it reads keyset batches of SQL candidates
-     * and keeps only the rows that hold the filter ids byte for byte, so look-alike rows never take a slot.
+     * page exists. With a scope filter, or in id mode with an actor / subject / involving filter, it reads keyset
+     * batches of SQL candidates and keeps only the rows that hold the filter scope / ids byte for byte, so look-alike
+     * rows never take a slot.
      *
      * Id-mode rows are read with array hydration: nothing enters the entity manager's identity map, so a long-running
      * worker does not grow it. Relation-mode rows are hydrated as entities (their user ids come from the related
@@ -158,7 +164,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             return new ActionLogPage([]);
         }
 
-        $references = $this->exactReferences($criteria);
+        $references = $this->exactFilter($criteria);
         if ($references === false) {
             return new ActionLogPage([]);
         }
@@ -173,7 +179,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
         $qb->orderBy('a.createdAt', 'DESC')
             ->addOrderBy('a.id', 'DESC');
 
-        // Without an exact-id filter SQL is final: one query of limit + 1 rows. With one, read on in batches.
+        // Without an exact filter (ids, scopes) SQL is final: one query of limit + 1 rows. With one, read on in batches.
         $batch = $references === null ? $limit + 1 : min(max($limit + 1, self::EXACT_BATCH_SIZE), self::DEFAULT_BATCH_SIZE);
         $qb->setMaxResults($batch);
 
@@ -192,7 +198,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             foreach ($chunk as $row) {
                 $view = $row instanceof ActionLogEntryInterface ? ActionLogView::fromEntry($row) : $this->viewFromArray($row);
                 $last = $view->cursor();
-                if ($references !== null && !$this->holdsExactly($view->actorId, $view->subjectId, $references)) {
+                if ($references !== null && !$this->holdsExactly($view->actorId, $view->subjectId, $view->scope, $references)) {
                     continue;
                 }
 
@@ -342,49 +348,58 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
     }
 
     /**
-     * Since 1.15.1 (REQ-SEC-006): the ids an id-mode row must hold byte for byte, `null` when the criteria filter no
-     * id column (relation mode, or no actor / subject / involving filter), `false` when a filter id is refused by
-     * {@see ReferenceId} (no row can match).
+     * The values a row must hold byte for byte, or `null` when SQL is final (no scope filter, and relation mode or no
+     * actor / subject / involving filter), or `false` when a filter id is refused by {@see ReferenceId} (no row can
+     * match).
      *
-     * @return array{actor: string|null, subject: string|null, involving: string|null}|false|null
+     * - Since 1.15.1 (REQ-SEC-006): the actor / subject / involving ids of an id-mode row.
+     * - Since 2.1 (audit YC1-M1): the scopes, in both modes (the `scope` column keeps the table collation).
+     *
+     * @return array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null}|false|null
      */
-    private function exactReferences(ActionLogCriteria $criteria): array|false|null
+    private function exactFilter(ActionLogCriteria $criteria): array|false|null
     {
-        if ($this->referencesByAssociation() || ($criteria->actor === null && $criteria->subject === null && $criteria->involving === null)) {
+        $filter = ['actor' => null, 'subject' => null, 'involving' => null, 'scopes' => $criteria->scopes];
+        if (!$this->referencesByAssociation()) {
+            foreach (['actor' => $criteria->actor, 'subject' => $criteria->subject, 'involving' => $criteria->involving] as $role => $reference) {
+                if ($reference === null) {
+                    continue;
+                }
+                $id = ReferenceId::of($reference);
+                if ($id === null) {
+                    return false;
+                }
+                $filter[$role] = $id;
+            }
+        }
+
+        if ($filter['scopes'] === null && $filter['actor'] === null && $filter['subject'] === null && $filter['involving'] === null) {
             return null;
         }
 
-        $references = [];
-        foreach (['actor' => $criteria->actor, 'subject' => $criteria->subject, 'involving' => $criteria->involving] as $role => $reference) {
-            $id = $reference === null ? null : ReferenceId::of($reference);
-            if ($reference !== null && $id === null) {
-                return false;
-            }
-            $references[$role] = $id;
-        }
-
-        return $references;
+        return $filter;
     }
 
     /**
-     * Whether an id-mode row holds the filter ids byte for byte (`===`). The SQL filter compares with the column
-     * collation, which on MySQL / MariaDB folds case, accents and (PAD SPACE) trailing spaces: `Bob`, `bób` and `bob `
-     * would otherwise match `bob`.
+     * Whether a row holds the filter ids and one of the filter scopes byte for byte (`===`). The SQL filter compares
+     * with the column collation, which on MySQL / MariaDB folds case, accents and (PAD SPACE) trailing spaces: `Bob`,
+     * `bób` and `bob ` would otherwise match `bob`, and `Tenant-A` or `tenant-a ` the scope `tenant-a`.
      *
-     * @param array{actor: string|null, subject: string|null, involving: string|null} $references
+     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null} $filter
      */
-    private function holdsExactly(mixed $actorId, mixed $subjectId, array $references): bool
+    private function holdsExactly(mixed $actorId, mixed $subjectId, mixed $scope, array $filter): bool
     {
-        return ($references['actor'] === null || $actorId === $references['actor'])
-            && ($references['subject'] === null || $subjectId === $references['subject'])
-            && ($references['involving'] === null || $actorId === $references['involving'] || $subjectId === $references['involving']);
+        return ($filter['actor'] === null || $actorId === $filter['actor'])
+            && ($filter['subject'] === null || $subjectId === $filter['subject'])
+            && ($filter['involving'] === null || $actorId === $filter['involving'] || $subjectId === $filter['involving'])
+            && ($filter['scopes'] === null || in_array($scope, $filter['scopes'], true));
     }
 
     /**
      * Keyset loop over the SQL candidates (newest first): keeps the exact rows only, skips `$offset` of them and reads
      * on until `$limit` are found, so look-alike rows never take the place of a legitimate one in a page.
      *
-     * @param array{actor: string|null, subject: string|null, involving: string|null} $references
+     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null} $references
      *
      * @return list<T>
      */
@@ -403,11 +418,11 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
                     ->setParameter('exactId', $after[1]);
             }
 
-            /** @var list<AbstractIdActionLog&T> $chunk */
+            /** @var list<ActionLogEntryInterface&T> $chunk */
             $chunk = $page->getQuery()->getResult();
             foreach ($chunk as $row) {
                 $after = [$row->getCreatedAt(), $row->getId()];
-                if (!$this->holdsExactly($row->getActorId(), $row->getSubjectId(), $references)) {
+                if (!$this->holdsExactly($row->getActorId(), $row->getSubjectId(), $row->getScope(), $references)) {
                     continue;
                 }
                 if ($offset > 0) {
@@ -427,13 +442,16 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
     }
 
     /**
-     * Counts the exact rows among the SQL candidates, reading only their id columns in keyset batches over the id.
+     * Counts the exact rows among the SQL candidates, reading only their id, user id (id mode) and scope columns in
+     * keyset batches over the id.
      *
-     * @param array{actor: string|null, subject: string|null, involving: string|null} $references
+     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null} $references
      */
     private function countExact(QueryBuilder $qb, array $references): int
     {
-        $qb->select('a.id AS id, a.actorId AS actorId, a.subjectId AS subjectId')
+        $qb->select($this->referencesByAssociation()
+            ? 'a.id AS id, a.scope AS scope'
+            : 'a.id AS id, a.actorId AS actorId, a.subjectId AS subjectId, a.scope AS scope')
             ->orderBy('a.id', 'DESC')
             ->setMaxResults(self::DEFAULT_BATCH_SIZE);
         $count = 0;
@@ -445,11 +463,11 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
                 $page->andWhere('a.id < :exactId')->setParameter('exactId', $after);
             }
 
-            /** @var list<array{id: int|string, actorId: string|null, subjectId: string|null}> $chunk */
+            /** @var list<array{id: int|string, actorId?: string|null, subjectId?: string|null, scope: string|null}> $chunk */
             $chunk = $page->getQuery()->getScalarResult();
             foreach ($chunk as $row) {
                 $after = $row['id'];
-                if ($this->holdsExactly($row['actorId'], $row['subjectId'], $references)) {
+                if ($this->holdsExactly($row['actorId'] ?? null, $row['subjectId'] ?? null, $row['scope'], $references)) {
                     ++$count;
                 }
             }

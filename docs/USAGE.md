@@ -391,7 +391,7 @@ $latest = $repository->findLatest(50);
 $mine   = $repository->findInvolving($user, $allowedActions);
 ```
 
-Results are ordered `createdAt DESC, id DESC` with actor and subject fetch-joined. `null` means "no filter"; an empty list (`actions: []`, `scope: []`) matches nothing, so a computed allow-list never widens the query. `createCriteriaQueryBuilder()` is protected for host-specific queries.
+Results are ordered `createdAt DESC, id DESC` with actor and subject fetch-joined. `null` means "no filter"; an empty list (`actions: []`, `scope: []`) matches nothing, so a computed allow-list never widens the query. Since 2.1 the `scope` filter (your tenant boundary) matches byte for byte whatever the column collation: on MySQL / MariaDB `*_ci` / PAD SPACE columns, `Tenant-A` or `tenant-a ` rows are never returned or counted for `tenant-a` (each row is re-checked with `===`). `createCriteriaQueryBuilder()` is protected for host-specific queries.
 
 #### Read port (since 2.1)
 
@@ -422,7 +422,8 @@ $mine   = $this->actionLog->pageInvolving($userId, $allowedActions, limit: 50, a
   recorded meanwhile never repeat or shift what was already listed. `ActionLogCriteria::$offset` is ignored here.
 - `limit` is clamped to 1…`ActionLogReaderInterface::MAX_LIMIT` (1000).
 - The token is not signed: it only says where to resume. Every page still applies your criteria (tenant scope,
-  allowed actions), so a crafted token cannot widen what a caller sees.
+  allowed actions), so a crafted token cannot widen what a caller sees. The scope filter compares byte for byte
+  (`===` re-check of every row), whatever the collation of the `scope` column.
 - Id mode (`AbstractIdActionLog`): filters match byte for byte (look-alike ids never match), rows are read as arrays
   and never enter the entity manager. Relation mode: user ids come from the related users; rows are hydrated as
   entities, as with `findByCriteria()`.

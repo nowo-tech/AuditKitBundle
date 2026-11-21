@@ -63,6 +63,9 @@ Read-only paths: the repository finders, the read port (`ActionLogReaderInterfac
 avatar resolver. The read port pages with a keyset cursor (`createdAt`, `id`), never an offset: rows recorded by other
 connections between two pages are newer than the cursor and never repeat or shift the rows already listed
 (`tests/Database/ConcurrentWritesDbTest.php::testReaderPagesStayStableWhileAnotherConnectionRecords`, real databases).
+Filters by scope (since 2.1, audit YC1-M1) and, in id mode, by actor / subject / involving re-check every row with
+`===` in PHP over keyset batches of the SQL candidates; the filter values live in local variables of the call, so no
+state is kept between requests or calls (`tests/Database/ScopeExactMatchDbTest.php`, real databases).
 
 ## Conflict answers and codes
 
