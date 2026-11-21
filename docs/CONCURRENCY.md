@@ -59,7 +59,13 @@ requirement REQ-RUNTIME-003). Applies from 1.17. Worker mode with the kernel res
 | `ActionLogRepository::purgeBefore()`, `KeysetDelete::run()`, `nowo:audit-kit:action-log:purge` | Batches of `batch_size` ids: a `SELECT` then a `DELETE … WHERE id IN (…)`, each in auto-commit | Idempotent: deleting by id twice deletes nothing the second time. A deadlocked or serialization-failed batch is replayed at most twice. | `ConcurrencyConflict`: `committed` true (`CONFLICT_002`) once a batch was deleted, else `CONFLICT_001`. The command prints the code and exits with 75. Inside the caller's transaction: rethrown unchanged. |
 | `AuditableEntityListener`, `PublicUuidListener` | The host's flush (they only set fields on the host's entities) | — | The host's |
 
-Read-only paths: the repository finders, the timeline and the avatar resolver.
+Read-only paths: the repository finders, the read port (`ActionLogReaderInterface`, since 2.1), the timeline and the
+avatar resolver. The read port pages with a keyset cursor (`createdAt`, `id`), never an offset: rows recorded by other
+connections between two pages are newer than the cursor and never repeat or shift the rows already listed
+(`tests/Database/ConcurrentWritesDbTest.php::testReaderPagesStayStableWhileAnotherConnectionRecords`, real databases).
+Filters by scope (since 2.1, audit YC1-M1) and, in id mode, by actor / subject / involving re-check every row with
+`===` in PHP over keyset batches of the SQL candidates; the filter values live in local variables of the call, so no
+state is kept between requests or calls (`tests/Database/ScopeExactMatchDbTest.php`, real databases).
 
 ## Conflict answers and codes
 

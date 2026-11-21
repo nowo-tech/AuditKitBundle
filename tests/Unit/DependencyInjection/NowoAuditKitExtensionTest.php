@@ -6,6 +6,8 @@ namespace Nowo\AuditKitBundle\Tests\Unit\DependencyInjection;
 
 use InvalidArgumentException;
 use Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReader;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorderInterface;
 use Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand;
@@ -258,6 +260,7 @@ final class NowoAuditKitExtensionTest extends TestCase
         $this->assertFalse($container->getParameter('nowo_audit_kit.action_log.enabled'));
         $this->assertFalse($container->hasDefinition(ActionLogRecorder::class));
         $this->assertFalse($container->hasAlias(ActionLogRecorderInterface::class));
+        $this->assertFalse($container->hasAlias(ActionLogReaderInterface::class));
         $this->assertFalse($container->hasDefinition(PurgeActionLogCommand::class));
     }
 
@@ -471,6 +474,7 @@ final class NowoAuditKitExtensionTest extends TestCase
 
         $this->assertSame(AuditEntry::class, $container->getParameter('nowo_audit_kit.action_log.entity_class'));
         $this->assertSame(ActionLogRecorder::class, (string) $container->getAlias(ActionLogIdRecorderInterface::class));
+        $this->assertSame(ActionLogReader::class, (string) $container->getAlias(ActionLogReaderInterface::class));
         $this->assertSame(ActionLogRecorder::class, (string) $container->getAlias(ActionLogRecorderInterface::class));
     }
 

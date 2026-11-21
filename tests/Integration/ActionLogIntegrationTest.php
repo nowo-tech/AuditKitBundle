@@ -12,7 +12,9 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\ObjectRepository;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReader;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
+use Nowo\AuditKitBundle\ActionLog\ActionLogView;
 use Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\AuditKitTestKernel;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\CountingClock;
@@ -218,6 +220,37 @@ final class ActionLogIntegrationTest extends TestCase
 
         $involving = $this->repository->findInvolving($this->alice, [SampleAction::Deleted], new DateTimeImmutable('-30 days'), new DateTimeImmutable('+1 day'));
         $this->assertSame(['item.deleted'], array_map(static fn (AbstractActionLog $row): string => $row->getAction(), $involving));
+    }
+
+    /** Since 2.1: the read port on the standard path goes through the host's repository and returns user ids. */
+    public function testReaderReturnsSnapshotsWithTheRelatedUserIds(): void
+    {
+        $recorder = $this->recorder();
+        $recorder->record(SampleAction::Viewed, $this->alice, null, ['project_uuid' => 'p-1']);
+        $recorder->record(SampleAction::Updated, $this->alice, $this->bob, ['project_uuid' => 'p-2']);
+        $recorder->record(SampleAction::Deleted, null, $this->alice);
+        $this->em->flush();
+        $this->em->clear();
+
+        $reader = $this->kernel->getContainer()->get('test.action_log_reader');
+        $this->assertInstanceOf(ActionLogReader::class, $reader);
+
+        $first = $reader->pageInvolving((string) $this->alice->id, limit: 2);
+        $this->assertSame(['item.deleted', 'item.updated'], array_map(static fn (ActionLogView $view): string => $view->action, $first->items));
+        $this->assertNull($first->items[0]->actorId);
+        $this->assertSame((string) $this->alice->id, $first->items[0]->subjectId);
+        $this->assertSame((string) $this->alice->id, $first->items[1]->actorId);
+        $this->assertSame((string) $this->bob->id, $first->items[1]->subjectId);
+        $this->assertSame(['project_uuid' => 'p-2'], $first->items[1]->context);
+        $this->assertSame('p-2', $first->items[1]->scope);
+        $this->assertNotNull($first->next);
+
+        $second = $reader->pageByCriteria(new ActionLogCriteria(involving: $this->alice, limit: 2), $first->next);
+        $this->assertSame(['item.viewed'], array_map(static fn (ActionLogView $view): string => $view->action, $second->items));
+        $this->assertNull($second->next);
+        $this->assertSame(3, $reader->countByCriteria(new ActionLogCriteria(involving: $this->alice)));
+        $this->assertCount(3, $reader->latestEntries());
+        $this->assertSame(['item.deleted'], array_map(static fn (ActionLogView $view): string => $view->action, $this->repository->latestEntries(1)));
     }
 
     public function testRecordIdsTurnsIdsIntoUserReferencesOnTheStandardPath(): void

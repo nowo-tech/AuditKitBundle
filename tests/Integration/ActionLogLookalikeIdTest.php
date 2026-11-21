@@ -10,7 +10,9 @@ use Doctrine\ORM\Tools\SchemaTool;
 use Doctrine\Persistence\ManagerRegistry;
 use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
 use Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRepository;
+use Nowo\AuditKitBundle\ActionLog\ActionLogView;
 use Nowo\AuditKitBundle\Tests\Integration\Ddd\DddTestKernel;
 use Nowo\AuditKitBundle\Tests\Integration\Ddd\Domain\AuditEntry;
 use Nowo\AuditKitBundle\Tests\Support\LookalikeCollation;
@@ -160,6 +162,46 @@ final class ActionLogLookalikeIdTest extends TestCase
         self::assertSame(1, $this->repository()->countByCriteria(new ActionLogCriteria(actor: 'bob')));
     }
 
+    /** Since 2.1: the read port pages and counts the exact rows only, and its cursor walks past the look-alikes. */
+    public function testTheReaderPagesTheExactRowsOnly(): void
+    {
+        $older = $this->insert('bob', 'alice');
+        foreach (self::LOOKALIKES as $lookalike) {
+            $this->insert($lookalike, $lookalike);
+        }
+        $middle = $this->insert('alice', 'bob');
+        foreach (self::LOOKALIKES as $lookalike) {
+            $this->insert('alice', $lookalike);
+        }
+        $newer = $this->insert('bob', null);
+
+        $reader = $this->reader();
+        $first  = $reader->pageByCriteria(new ActionLogCriteria(involving: 'bob', limit: 2));
+        self::assertSame([$newer, $middle], $this->viewIds($first->items));
+        self::assertNotNull($first->next);
+        $second = $reader->pageInvolving('bob', limit: 2, after: $first->next);
+        self::assertSame([$older], $this->viewIds($second->items));
+        self::assertNull($second->next);
+        self::assertSame(3, $reader->countByCriteria(new ActionLogCriteria(involving: 'bob')));
+        self::assertSame([$newer, $older], $this->viewIds($reader->pageByCriteria(new ActionLogCriteria(actor: 'bob'))->items));
+        self::assertSame([], $reader->pageByCriteria(new ActionLogCriteria(actor: 'bob '))->items, 'an unusable id matches nothing');
+        self::assertSame([], $reader->pageInvolving("bo\u{200B}b")->items);
+    }
+
+    public function testTheReaderLoopReadsPastManyLookalikes(): void
+    {
+        $bob = $this->insert('bob', null);
+        $this->connection->beginTransaction();
+        for ($i = 0; $i < 1100; ++$i) {
+            $this->insert(self::LOOKALIKES[$i % count(self::LOOKALIKES)], null, '2026-01-02 00:00:00');
+        }
+        $this->connection->commit();
+
+        $page = $this->reader()->pageByCriteria(new ActionLogCriteria(actor: 'bob', limit: 1));
+        self::assertSame([$bob], $this->viewIds($page->items));
+        self::assertNull($page->next);
+    }
+
     public function testTheRecorderStoresUnusableIdsAsNull(): void
     {
         $recorder = $this->kernel->getContainer()->get('test.action_log_id_recorder');
@@ -215,6 +257,24 @@ final class ActionLogLookalikeIdTest extends TestCase
         self::assertInstanceOf(ManagerRegistry::class, $doctrine);
 
         return new ActionLogRepository($doctrine, AuditEntry::class);
+    }
+
+    private function reader(): ActionLogReaderInterface
+    {
+        $reader = $this->kernel->getContainer()->get('test.action_log_reader');
+        self::assertInstanceOf(ActionLogReaderInterface::class, $reader);
+
+        return $reader;
+    }
+
+    /**
+     * @param list<ActionLogView> $views
+     *
+     * @return list<int>
+     */
+    private function viewIds(array $views): array
+    {
+        return array_map(static fn (ActionLogView $view): int => $view->id, $views);
     }
 
     /**

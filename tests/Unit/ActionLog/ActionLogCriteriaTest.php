@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
 use Nowo\AuditKitBundle\Tests\Support\SampleAction;
 use PHPUnit\Framework\TestCase;
+use Stringable;
 
 final class ActionLogCriteriaTest extends TestCase
 {
@@ -45,6 +46,21 @@ final class ActionLogCriteriaTest extends TestCase
         $this->assertSame(['a', 'b'], $list->scopes);
         $this->assertSame(['item.updated', 'raw'], $list->actions);
         $this->assertSame('raw', (new ActionLogCriteria(actions: 'raw'))->actions[0] ?? null);
+    }
+
+    /** Since 2.1 (audit YC1-D-L1): scopes are compared as strings, so ints and Stringables are cast here. */
+    public function testIntAndStringableScopesAreCastToString(): void
+    {
+        $uuid = new class implements Stringable {
+            public function __toString(): string
+            {
+                return '0193a4b2-7c1d-7e00-8000-000000000001';
+            }
+        };
+
+        $this->assertSame(['5'], (new ActionLogCriteria(scope: 5))->scopes);
+        $this->assertSame(['0193a4b2-7c1d-7e00-8000-000000000001'], (new ActionLogCriteria(scope: $uuid))->scopes);
+        $this->assertSame(['5', 'a', '0193a4b2-7c1d-7e00-8000-000000000001'], (new ActionLogCriteria(scope: [5, 'a', $uuid]))->scopes);
     }
 
     public function testEmptyAllowListsMatchNothing(): void

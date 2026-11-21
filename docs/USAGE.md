@@ -19,6 +19,7 @@
   - [Existing table (no migration)](#existing-table-no-migration)
   - [Recording](#recording)
   - [Querying](#querying)
+    - [Read port (since 2.1)](#read-port-since-21)
   - [Purging](#purging)
   - [Timeline partial](#timeline-partial)
   - [Timeline avatars (1.11)](#timeline-avatars-111)
@@ -390,7 +391,43 @@ $latest = $repository->findLatest(50);
 $mine   = $repository->findInvolving($user, $allowedActions);
 ```
 
-Results are ordered `createdAt DESC, id DESC` with actor and subject fetch-joined. `null` means "no filter"; an empty list (`actions: []`, `scope: []`) matches nothing, so a computed allow-list never widens the query. `createCriteriaQueryBuilder()` is protected for host-specific queries.
+Results are ordered `createdAt DESC, id DESC` with actor and subject fetch-joined. `null` means "no filter"; an empty list (`actions: []`, `scope: []`) matches nothing, so a computed allow-list never widens the query. Since 2.1 the `scope` filter (your tenant boundary) matches byte for byte whatever the column collation: on MySQL / MariaDB `*_ci` / PAD SPACE columns, `Tenant-A` or `tenant-a ` rows are never returned or counted for `tenant-a` (each row is re-checked with `===`). `createCriteriaQueryBuilder()` is protected for host-specific queries.
+
+#### Read port (since 2.1)
+
+Type-hint `ActionLogReaderInterface` instead of the repository (no subclass needed; the bundle registers it when
+`action_log.entity_class` is set). It returns `ActionLogView` snapshots, never entities, and pages with a keyset
+cursor:
+
+```php
+use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
+use Nowo\AuditKitBundle\ActionLog\ActionLogCursor;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface;
+
+public function __construct(private ActionLogReaderInterface $actionLog) {}
+
+$after = ActionLogCursor::fromToken($request->query->getString('cursor')); // null: first page (or bad token)
+$page  = $this->actionLog->pageByCriteria(new ActionLogCriteria(involving: $userId, scope: $tenant, limit: 50), $after);
+foreach ($page->items as $view) {
+    // $view->id, ->action, ->actorId, ->subjectId, ->context, ->scope, ->ipAddress, ->createdAt
+}
+$next = $page->next?->toToken();   // null on the last page
+
+$total  = $this->actionLog->countByCriteria(new ActionLogCriteria(involving: $userId));
+$latest = $this->actionLog->latestEntries(20);
+$mine   = $this->actionLog->pageInvolving($userId, $allowedActions, limit: 50, after: $after);
+```
+
+- Newest first (`createdAt DESC, id DESC`); the next page holds the rows strictly older than the cursor, so rows
+  recorded meanwhile never repeat or shift what was already listed. `ActionLogCriteria::$offset` is ignored here.
+- `limit` is clamped to 1…`ActionLogReaderInterface::MAX_LIMIT` (1000).
+- The token is not signed: it only says where to resume. Every page still applies your criteria (tenant scope,
+  allowed actions), so a crafted token cannot widen what a caller sees. The scope filter compares byte for byte
+  (`===` re-check of every row), whatever the collation of the `scope` column.
+- Id mode (`AbstractIdActionLog`): filters match byte for byte (look-alike ids never match), rows are read as arrays
+  and never enter the entity manager. Relation mode: user ids come from the related users; rows are hydrated as
+  entities, as with `findByCriteria()`.
+
 
 ### Purging
 
@@ -532,6 +569,7 @@ no bundle type, no Doctrine attribute and no user entity in your domain.
 | Action log entity | extends `AbstractActionLog` (actor / subject relations) | extends `AbstractIdActionLog` (`actor_id` / `subject_id` id columns, no foreign key) |
 | Superclass mapping | attributes (`action_log.mapping: attribute`) | shipped XML (`action_log.mapping: xml`) |
 | Recording | `ActionLogRecorderInterface::record($action, $user, $subject)` | `ActionLogIdRecorderInterface::recordIds($action, $actorId, $subjectId)` |
+| Listing / counting | `ActionLogRepository` (or `ActionLogReaderInterface`) | `ActionLogReaderInterface` (snapshots, keyset cursor), since 2.1 |
 | Who is acting | Symfony Security token (`CurrentUserResolverInterface`, default) | your `CurrentActorProviderInterface` returning an `AuditActor` (id + profile name), since 1.15; no Symfony Security needed |
 | Blame port | `BlameValueResolverInterface` (Doctrine reference) | `BlameIdResolverInterface` (id string, no `ObjectManager`), since 1.15 |
 | Entity managers | the default one | any (a dedicated one: `register_mapping: false`) |

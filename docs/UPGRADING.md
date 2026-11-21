@@ -63,6 +63,44 @@
 
 ## Unreleased
 
+From **2.0.0**: `composer require nowo-tech/audit-kit-bundle:^2.1`. Nothing to change; 2.1 only adds API.
+
+- **Read port (optional).** Type-hint `Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface` to list or count
+  action log rows instead of extending `ActionLogRepository` or writing DQL over your log entity. It returns
+  `ActionLogView` snapshots (ids, scalars) and pages with a keyset cursor (`ActionLogPage::$next`, `toToken()` for an
+  HTTP parameter, `ActionLogCursor::fromToken()` to read it back; a malformed token gives `null`). Offsets are not used
+  by the port: `ActionLogCriteria::$offset` is ignored there (`findByCriteria()` still honours it).
+- **Repository subclasses.** `ActionLogRepository` now implements the port and gains `pageByCriteria()`,
+  `latestEntries()` and `pageInvolving()`. A host subclass that already declares a method with one of these names and an
+  incompatible signature must rename it (no other change).
+- The reader service exists only when `action_log.entity_class` is set, like the recorder.
+- **Scope filters are exact (audit YC1-M1).** `ActionLogCriteria(scope: ...)` now returns and counts only rows whose
+  `scope` is byte-identical to a filter scope, in every read (`findByCriteria()`, `countByCriteria()`,
+  `pageByCriteria()`, the reader). On MySQL / MariaDB the `*_ci` / PAD SPACE collation of the `scope` column made
+  `Tenant-A` and `tenant-a ` match `tenant-a` before. Nothing to change. If your scopes differ only by case, accents or
+  trailing spaces, those rows are now kept apart, which is the intended tenant boundary. Int and `Stringable` scope
+  filters (`scope: 5`, `scope: $uuid`) are cast to string and keep matching the stored string. Detection (MySQL /
+  MariaDB; replace `user_action` with your table and column):
+
+  ```sql
+  SELECT LOWER(TRIM(TRAILING ' ' FROM scope)) AS folded, COUNT(DISTINCT HEX(scope)) AS variants
+  FROM user_action WHERE scope IS NOT NULL
+  GROUP BY folded HAVING COUNT(DISTINCT HEX(scope)) > 1;
+  ```
+
+  Optional, MySQL / MariaDB only: a binary collation on `scope` lets SQL pre-select the exact rows only, so look-alike
+  rows no longer cost extra reads (the repository is exact without it). The bundle does not change the column; restate
+  every existing attribute of the column:
+
+  ```sql
+  -- MySQL 8.0.17+
+  ALTER TABLE user_action MODIFY scope VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_bin DEFAULT NULL;
+  -- MariaDB: COLLATE utf8mb4_nopad_bin; MySQL 5.7: COLLATE utf8mb4_bin
+  ```
+
+  The bundle's mapping does not name a collation for `scope`, so check what a later `doctrine:migrations:diff` proposes
+  for that column and drop any statement that would revert the `ALTER`.
+
 ## To 2.0.0
 
 From **1.18.1**:

@@ -6,6 +6,7 @@ namespace Nowo\AuditKitBundle\Tests\Integration\Ddd;
 
 use Doctrine\Bundle\DoctrineBundle\DoctrineBundle;
 use Nowo\AuditKitBundle\ActionLog\ActionLogIdRecorderInterface;
+use Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\NowoAuditKitBundle;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\CountingClock;
@@ -20,15 +21,16 @@ use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInt
 /**
  * Since 1.14: a strict DDD host. Every entity is mapped in XML (no Doctrine or bundle attribute in the domain), the
  * firewall user is not an entity, blame fields and the action log store user ids (`blame_mode: id`, no `user_class`,
- * `AbstractIdActionLog` with `action_log.mapping: xml`).
+ * `AbstractIdActionLog` with `action_log.mapping: xml`). Since 2.1 `$databaseUrl` points the kernel at a real database
+ * instead of in-memory SQLite (tests/Database).
  */
 final class DddTestKernel extends Kernel
 {
     use MicroKernelTrait;
 
-    public function __construct()
+    public function __construct(private readonly ?string $databaseUrl = null)
     {
-        parent::__construct('ddd', false);
+        parent::__construct($databaseUrl === null ? 'ddd' : 'ddddb', false);
     }
 
     public function registerBundles(): iterable
@@ -45,7 +47,7 @@ final class DddTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-audit-kit-ddd-kernel/cache';
+        return sys_get_temp_dir() . '/nowo-audit-kit-ddd-kernel/cache/' . $this->environment;
     }
 
     public function getLogDir(): string
@@ -62,7 +64,7 @@ final class DddTestKernel extends Kernel
             'php_errors'           => ['log' => true],
         ]);
         $container->loadFromExtension('doctrine', [
-            'dbal' => ['driver' => 'pdo_sqlite', 'memory' => true],
+            'dbal' => $this->databaseUrl === null ? ['driver' => 'pdo_sqlite', 'memory' => true] : ['url' => $this->databaseUrl],
             'orm'  => [
                 'mappings' => [
                     'DddDomain' => [
@@ -91,6 +93,7 @@ final class DddTestKernel extends Kernel
             ],
         ]);
         $container->setAlias('test.action_log_id_recorder', ActionLogIdRecorderInterface::class)->setPublic(true);
+        $container->setAlias('test.action_log_reader', ActionLogReaderInterface::class)->setPublic(true);
         $container->setAlias('test.blame_value_resolver', BlameValueResolverInterface::class)->setPublic(true);
 
         $container->register('security.token_storage', TokenStorage::class)->setPublic(true);
