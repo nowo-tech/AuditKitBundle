@@ -134,6 +134,10 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 - **FR-KEY-001** (1.15.1/1.16.0, REQ-SEC-006): `ReferenceCollationListener` puts a binary NO PAD collation on `actor_id` / `subject_id` of id-mode entities and `ActionLogExactKeyColumns` declares them as identity keys for the MigrationsKit key-collation gate.
 - **FR-AVATAR-001** (1.11): the timeline shows actor/subject pictures through `ActionLogAvatarResolverInterface` (default `NullActionLogAvatarResolver`), keyed by `AuditAvatarKey`; `ActionLogAvatars` batches and memoises URLs per request (`nowo_audit_kit_prime_avatars` in `ActionLogAvatarExtension`), `ActionLogAvatarsResetSubscriber` empties the memo at every unit-of-work boundary (worker mode), `AvatarUrlPolicy` filters unsafe URLs and `_avatar.html.twig` renders the picture or initials.
 
+### Read port (2.1)
+
+- **FR-READ-001** (2.1, REQ-ARCH-001 / DDD-host B7): `ActionLogReaderInterface` (default `ActionLogReader`) lists, counts and pages newest-first action log rows as immutable `ActionLogView` snapshots with keyset `ActionLogCursor` / `ActionLogPage`, without host DQL over the log entity.
+
 ### Documentation
 
 - **FR-DOC-001**: Migration examples for adding audit columns to existing entities.
@@ -143,7 +147,7 @@ Independent of AuthKitBundle and UserKitBundle; only requires a resolvable `user
 
 ## Success Criteria
 
-- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**70/70** units under `src/` as of 2026-11-16; `git ls-files src | wc -l`).
+- **SC-001**: All production files listed in `code-inventory.md` implemented and mapped (**75/75** units under `src/` as of 2026-11-22; `find src -type f ! -name '*.test.*' | wc -l`).
 - **SC-002**: Persist with authenticated user sets all four fields (functional test).
 - **SC-003**: Update changes only `updatedAt` / `updatedBy` (functional test).
 - **SC-004**: CLI persist leaves blame null, sets timestamps (functional test).
