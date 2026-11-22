@@ -57,6 +57,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- CI: new `release-gates` job in `.github/workflows/ci.yml` runs the `make release-check` gates (`rector-dry`, `validate-phpdoc`, `validate-translations`, `check-twig-extra`) on every full-mode push and PR, so they no longer fail only at release time. CI only, no bundle change.
+- `ActionLogCriteria::scopeValue()` (private) is an instance method now (Rector `LocallyCalledStaticMethodToNonStaticRector`, needed for `make rector-dry` to pass). No behaviour change.
+
 ## [2.1.0] - 2026-11-21
 
 Additive minor over 2.0 (no BC break). See [UPGRADING](UPGRADING.md#to-210).
