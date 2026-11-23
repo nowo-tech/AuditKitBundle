@@ -51,7 +51,7 @@ final readonly class ActionLogCriteria
         public int $offset = 0,
     ) {
         /** @var list<string>|null $scopes ints and Stringables cast; other values (outside the documented types) as given */
-        $scopes        = $scope === null ? null : array_values(array_map(self::scopeValue(...), is_array($scope) ? $scope : [$scope]));
+        $scopes        = $scope === null ? null : array_values(array_map($this->scopeValue(...), is_array($scope) ? $scope : [$scope]));
         $this->scopes  = $scopes;
         $this->actions = $actions === null ? null : array_values(array_map(
             AbstractActionLog::actionValue(...),
@@ -63,7 +63,7 @@ final readonly class ActionLogCriteria
      * Since 2.1: the string form of a scope (an int or a `Stringable` is cast), so the exact re-check of the repository
      * compares strings. Any other value is kept as given (outside the documented types; it matches no stored scope).
      */
-    private static function scopeValue(mixed $scope): mixed
+    private function scopeValue(mixed $scope): mixed
     {
         return is_int($scope) || $scope instanceof Stringable ? (string) $scope : $scope;
     }
