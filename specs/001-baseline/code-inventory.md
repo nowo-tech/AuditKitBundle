@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-11-22 (2.1 read port added; 1.11–1.16 sources added 2026-11-16; 2026-10-28: specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
+**Last audited**: 2026-11-27 (2.1 read port added; 1.11–1.16 sources added 2026-11-16; 2026-10-28: specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
 **Status**: Implemented
 
 ## Symfony config, views and translations (`src/Resources/`)
@@ -134,4 +134,4 @@
 | PHP — attributes | 1 | 1 |
 | **Total production sources** | **75** | **75** |
 
-Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **75** (2026-11-22; 70 on 2026-11-16).
+Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **75** (2026-11-27, 2.1.0; 75 on 2026-11-22; 70 on 2026-11-16).
