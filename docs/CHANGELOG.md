@@ -59,6 +59,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- PHP 8.6: `composer.json` allows PHP below 8.7 (was below 8.6). CI adds a forward-compatibility workflow with a
+  PHP 8.6 cell and a Symfony 8.2 cell (release candidates, allowed to fail until 8.2.0 is stable).
 - CI: new `release-gates` job in `.github/workflows/ci.yml` runs the `make release-check` gates (`rector-dry`, `validate-phpdoc`, `validate-translations`, `check-twig-extra`) on every full-mode push and PR, so they no longer fail only at release time. CI only, no bundle change.
 - `ActionLogCriteria::scopeValue()` (private) is an instance method now (Rector `LocallyCalledStaticMethodToNonStaticRector`, needed for `make rector-dry` to pass). No behaviour change.
 

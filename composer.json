@@ -33,7 +33,7 @@
         }
     ],
     "require": {
-        "php": ">=8.2 <8.6",
+        "php": ">=8.2 <8.7",
         "doctrine/doctrine-bundle": "^2.10 || ^3.0",
         "doctrine/orm": "^2.15 || ^3.0",
         "nowo-tech/migrations-kit-contracts": "^1.0",
