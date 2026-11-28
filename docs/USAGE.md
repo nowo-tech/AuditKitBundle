@@ -588,7 +588,10 @@ recorded), unless your application or another package binds it.
 | Messenger middleware, receive | steps aside: restoring the id is your provider's job | runs the handler under the stamped id (or a root id), ends it in a `finally` |
 | Rows, log records, outgoing requests, e-mails | read your provider on every call | read the holder on every call |
 | State kept by the bundle | none | the holder's context stack, emptied at every boundary and by `kernel.reset` |
+| `inbound_headers`, `inbound_trusted_proxies_only`, `response_header_paths`, `messenger_child_ids` | **no effect**: inbound adoption, response headers and child ids (`caused_by`) are your provider's job | applied |
 
+With your own provider, the host owns inbound adoption, the response header and Messenger child ids; implement
+`CorrelationContextProviderInterface` to supply `caused_by` to the recorder and log records.
 Your provider resets itself (for example `ResetInterface` + the `kernel.reset` tag, and its own terminate listener).
 Binding your own provider while `provider: true` fails the container build.
 

@@ -69,6 +69,10 @@
 
 From **2.1.0**:
 
+> With your own `CorrelationIdProviderInterface` (an alias, `provider: false`), the options `inbound_headers`,
+> `inbound_trusted_proxies_only`, `response_header_paths` and `messenger_child_ids` have no effect: your provider owns
+> inbound adoption, the response header and child ids. See USAGE, "What the bundle does in each mode".
+
 ```bash
 composer update nowo-tech/audit-kit-bundle
 ```
