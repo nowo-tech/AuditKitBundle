@@ -58,6 +58,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Documentation
+
+- The correlation options that apply only with the bundle's provider (`inbound_headers`, `inbound_trusted_proxies_only`, `response_header_paths`, `messenger_child_ids`) are now marked as having no effect with a host provider, in USAGE and UPGRADING.
+
 ## [2.2.0] - 2026-11-28
 
 Additive minor over 2.1 (no BC break; everything new is opt-in). See [UPGRADING](UPGRADING.md#to-220).
