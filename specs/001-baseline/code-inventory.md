@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/audit-kit-bundle`  
-**Last audited**: 2026-11-27 (2.1 read port added; 1.11–1.16 sources added 2026-11-16; 2026-10-28: specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
+**Last audited**: 2026-11-28 (2.2 traceability part A, spec [`006`](../006-traceability/spec.md); 2026-11-27 2.1 read port added; 1.11–1.16 sources added 2026-11-16; 2026-10-28: specs [`002`](../002-doctrine-helpers/spec.md)–[`005`](../005-sql-fulltext/spec.md) included)  
 **Status**: Implemented
 
 ## Symfony config, views and translations (`src/Resources/`)
@@ -33,6 +33,8 @@
 | `DependencyInjection/NowoAuditKitExtension.php` | DI extension | FR-CFG-002, FR-CFG-003 | Mapped |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | `@NowoAuditKitBundle` Twig namespace, app override first | FR-TWIG-001 | Mapped |
 | `DependencyInjection/Compiler/BlamePortsPass.php` | BC for 1.14 port overrides in id mode | FR-BLAME-ID-001 | Mapped |
+| `DependencyInjection/Compiler/CorrelationMiddlewareOrderPass.php` | Correlation middleware before `dispatch_after_current_bus` (2.2) | 006 FR-TR-013 | Mapped |
+| `DependencyInjection/Compiler/CorrelationProviderPass.php` | Null correlation provider only when nothing binds the port (2.2) | 006 FR-TR-001 | Mapped |
 
 ## PHP — contracts & traits
 
@@ -102,6 +104,34 @@
 | `ActionLog/ActionLogRecorderInterface.php` | Recording port | FR-ID-001, 003 FR-AL-004 | Mapped |
 | `ActionLog/ActionLogIdRecorderInterface.php` | Id recording port | FR-ID-001 | Mapped |
 
+## PHP — traceability (2.2)
+
+| Source file | Spec section | Requirement IDs | Status |
+| --- | --- | --- | --- |
+| `ActionLog/TraceableActionLogInterface.php` | Opt-in traceability columns | 006 FR-TR-005 | Mapped |
+| `ActionLog/TraceableActionLogTrait.php` | Properties / accessors of the columns | 006 FR-TR-005 | Mapped |
+| `Doctrine/TraceableActionLogMetadataListener.php` | Maps the columns and the `correlation_id` index | 006 FR-TR-005 | Mapped |
+| `Change/ChangeSet.php` | Before → after value | 006 FR-TR-007 | Mapped |
+| `Change/ChangeSetBuilder.php` | Masking and bounds | 006 FR-TR-007 | Mapped |
+| `Change/UnsafeTraceableFieldException.php` | Guard on secret-looking `plain` fields | 006 FR-TR-007 | Mapped |
+| `Correlation/CorrelationContextProviderInterface.php` | Optional causation port | 006 FR-TR-001, FR-TR-006 | Mapped |
+| `Correlation/CorrelationIdHolder.php` | Opt-in reset-safe provider | 006 FR-TR-001, FR-TR-003 | Mapped |
+| `Correlation/InboundCorrelationId.php` | Trusted inbound id | 006 FR-TR-002 | Mapped |
+| `Correlation/CorrelationRequestSubscriber.php` | Id per main request, response header | 006 FR-TR-002, FR-TR-003 | Mapped |
+| `Correlation/CorrelationConsoleSubscriber.php` | Id per command | 006 FR-TR-003 | Mapped |
+| `Correlation/Messenger/CorrelationMiddleware.php` | Stamp / restore | 006 FR-TR-004 | Mapped |
+| `Correlation/Monolog/CorrelationLogProcessor.php` | Log record fields | 006 FR-TR-003 | Mapped |
+| `Correlation/HttpClient/CorrelationHttpClient.php` | Outgoing header | 006 FR-TR-003 | Mapped |
+| `Correlation/Mailer/CorrelationMailerListener.php` | E-mail header | 006 FR-TR-011 | Mapped |
+| `Timeline/TimelineSourceInterface.php` | Contributor contract | 006 FR-TR-009 | Mapped |
+| `Timeline/TimelineEvent.php` | Entry value | 006 FR-TR-009 | Mapped |
+| `Timeline/TimelineSubject.php` | Subject value | 006 FR-TR-009 | Mapped |
+| `Timeline/TimelineCriteria.php` | Filters | 006 FR-TR-009 | Mapped |
+| `Timeline/TimelineCursor.php` | Keyset cursor | 006 FR-TR-009 | Mapped |
+| `Timeline/TimelinePage.php` | Page value | 006 FR-TR-009 | Mapped |
+| `Timeline/TimelineMerger.php` | Stable merge | 006 FR-TR-009 | Mapped |
+| `Timeline/ActionLogTimelineSource.php` | Action log as a source | 006 FR-TR-008, FR-TR-009 | Mapped |
+
 ## PHP — avatars and Twig
 
 | Source file | Spec section | Requirement IDs | Status |
@@ -125,13 +155,14 @@
 | Category | Files | Mapped |
 | --- | ---: | ---: |
 | Symfony config, views and translations | 14 | 14 |
-| PHP — bundle core | 5 | 5 |
+| PHP — bundle core | 7 | 7 |
 | PHP — contracts & traits | 11 | 11 |
 | PHP — profiles | 3 | 3 |
 | PHP — Doctrine & security | 20 | 20 |
 | PHP — action log | 14 | 14 |
+| PHP — traceability (2.2) | 23 | 23 |
 | PHP — avatars and Twig | 7 | 7 |
 | PHP — attributes | 1 | 1 |
-| **Total production sources** | **75** | **75** |
+| **Total production sources** | **100** | **100** |
 
-Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **75** (2026-11-27, 2.1.0; 75 on 2026-11-22; 70 on 2026-11-16).
+Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **100** (2026-11-28, 2.2 traceability A; 75 on 2026-11-27, 2.1.0; 75 on 2026-11-22; 70 on 2026-11-16).

@@ -41,6 +41,9 @@ use function min;
  * SQL `IN` only pre-selects (a `*_ci` / PAD SPACE collation returns `Tenant-A` and `tenant-a ` for `tenant-a`), and
  * every row is re-checked with `===` before paging and counting.
  *
+ * Since 2.2 the `correlationId` filter (entities implementing {@see TraceableActionLogInterface}) matches byte for byte
+ * the same way; on an entity without the column it matches nothing. Views carry the traceability columns.
+ *
  * @template T of ActionLogEntryInterface
  *
  * @extends ServiceEntityRepository<T>
@@ -193,12 +196,12 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
                     ->setParameter('pageId', $last->id);
             }
 
-            /** @var list<ActionLogEntryInterface>|list<array{id: int|string, action: string, actorId: string|null, subjectId: string|null, context: array<string, mixed>|null, scope: string|null, ipAddress: string|null, createdAt: DateTimeImmutable}> $chunk */
+            /** @var list<ActionLogEntryInterface>|list<array{id: int|string, action: string, actorId: string|null, subjectId: string|null, context: array<string, mixed>|null, scope: string|null, ipAddress: string|null, createdAt: DateTimeImmutable, correlationId?: string|null, causedBy?: string|null, changes?: array<string, mixed>|null}> $chunk */
             $chunk = $byAssociation ? $page->getQuery()->getResult() : $page->getQuery()->getArrayResult();
             foreach ($chunk as $row) {
                 $view = $row instanceof ActionLogEntryInterface ? ActionLogView::fromEntry($row) : $this->viewFromArray($row);
                 $last = $view->cursor();
-                if ($references !== null && !$this->holdsExactly($view->actorId, $view->subjectId, $view->scope, $references)) {
+                if ($references !== null && !$this->holdsExactly($view->actorId, $view->subjectId, $view->scope, $view->correlationId, $references)) {
                     continue;
                 }
 
@@ -313,6 +316,10 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             $qb->andWhere('a.createdAt <= :to')->setParameter('to', $criteria->to, Types::DATETIME_IMMUTABLE);
         }
 
+        if ($criteria->correlationId !== null && $this->tracesCorrelation()) {
+            $qb->andWhere('a.correlationId = :correlationId')->setParameter('correlationId', $criteria->correlationId);
+        }
+
         return $qb;
     }
 
@@ -322,10 +329,17 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
         return $this->getClassMetadata()->hasAssociation('actor');
     }
 
+    /** Since 2.2: true when the entity maps the `correlationId` field ({@see TraceableActionLogInterface}). */
+    protected function tracesCorrelation(): bool
+    {
+        return $this->getClassMetadata()->hasField('correlationId');
+    }
+
     /**
-     * Snapshot of an array-hydrated id-mode row (field names and types as mapped by {@see AbstractIdActionLog}).
+     * Snapshot of an array-hydrated id-mode row (field names and types as mapped by {@see AbstractIdActionLog}; since 2.2
+     * the traceability fields when mapped).
      *
-     * @param array{id: int|string, action: string, actorId: string|null, subjectId: string|null, context: array<string, mixed>|null, scope: string|null, ipAddress: string|null, createdAt: DateTimeImmutable} $row
+     * @param array{id: int|string, action: string, actorId: string|null, subjectId: string|null, context: array<string, mixed>|null, scope: string|null, ipAddress: string|null, createdAt: DateTimeImmutable, correlationId?: string|null, causedBy?: string|null, changes?: array<string, mixed>|null} $row
      */
     private function viewFromArray(array $row): ActionLogView
     {
@@ -338,6 +352,9 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             $row['scope'],
             $row['ipAddress'],
             $row['createdAt'],
+            $row['correlationId'] ?? null,
+            $row['causedBy'] ?? null,
+            $row['changes'] ?? null,
         );
     }
 
@@ -354,12 +371,16 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
      *
      * - Since 1.15.1 (REQ-SEC-006): the actor / subject / involving ids of an id-mode row.
      * - Since 2.1 (audit YC1-M1): the scopes, in both modes (the `scope` column keeps the table collation).
+     * - Since 2.2: the correlation id (`false` when the entity has no such column or the filter is empty).
      *
-     * @return array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null}|false|null
+     * @return array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null, correlation: string|null}|false|null
      */
     private function exactFilter(ActionLogCriteria $criteria): array|false|null
     {
-        $filter = ['actor' => null, 'subject' => null, 'involving' => null, 'scopes' => $criteria->scopes];
+        $filter = ['actor' => null, 'subject' => null, 'involving' => null, 'scopes' => $criteria->scopes, 'correlation' => $criteria->correlationId];
+        if ($criteria->correlationId !== null && ($criteria->correlationId === '' || !$this->tracesCorrelation())) {
+            return false;
+        }
         if (!$this->referencesByAssociation()) {
             foreach (['actor' => $criteria->actor, 'subject' => $criteria->subject, 'involving' => $criteria->involving] as $role => $reference) {
                 if ($reference === null) {
@@ -373,7 +394,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             }
         }
 
-        if ($filter['scopes'] === null && $filter['actor'] === null && $filter['subject'] === null && $filter['involving'] === null) {
+        if ($filter['scopes'] === null && $filter['correlation'] === null && $filter['actor'] === null && $filter['subject'] === null && $filter['involving'] === null) {
             return null;
         }
 
@@ -385,11 +406,12 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
      * with the column collation, which on MySQL / MariaDB folds case, accents and (PAD SPACE) trailing spaces: `Bob`,
      * `bób` and `bob ` would otherwise match `bob`, and `Tenant-A` or `tenant-a ` the scope `tenant-a`.
      *
-     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null} $filter
+     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null, correlation: string|null} $filter
      */
-    private function holdsExactly(mixed $actorId, mixed $subjectId, mixed $scope, array $filter): bool
+    private function holdsExactly(mixed $actorId, mixed $subjectId, mixed $scope, mixed $correlationId, array $filter): bool
     {
-        return ($filter['actor'] === null || $actorId === $filter['actor'])
+        return ($filter['correlation'] === null || $correlationId === $filter['correlation'])
+            && ($filter['actor'] === null || $actorId === $filter['actor'])
             && ($filter['subject'] === null || $subjectId === $filter['subject'])
             && ($filter['involving'] === null || $actorId === $filter['involving'] || $subjectId === $filter['involving'])
             && ($filter['scopes'] === null || in_array($scope, $filter['scopes'], true));
@@ -399,7 +421,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
      * Keyset loop over the SQL candidates (newest first): keeps the exact rows only, skips `$offset` of them and reads
      * on until `$limit` are found, so look-alike rows never take the place of a legitimate one in a page.
      *
-     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null} $references
+     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null, correlation: string|null} $references
      *
      * @return list<T>
      */
@@ -422,7 +444,7 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
             $chunk = $page->getQuery()->getResult();
             foreach ($chunk as $row) {
                 $after = [$row->getCreatedAt(), $row->getId()];
-                if (!$this->holdsExactly($row->getActorId(), $row->getSubjectId(), $row->getScope(), $references)) {
+                if (!$this->holdsExactly($row->getActorId(), $row->getSubjectId(), $row->getScope(), $row instanceof TraceableActionLogInterface ? $row->getCorrelationId() : null, $references)) {
                     continue;
                 }
                 if ($offset > 0) {
@@ -445,13 +467,14 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
      * Counts the exact rows among the SQL candidates, reading only their id, user id (id mode) and scope columns in
      * keyset batches over the id.
      *
-     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null} $references
+     * @param array{actor: string|null, subject: string|null, involving: string|null, scopes: list<string>|null, correlation: string|null} $references
      */
     private function countExact(QueryBuilder $qb, array $references): int
     {
-        $qb->select($this->referencesByAssociation()
+        $qb->select(($this->referencesByAssociation()
             ? 'a.id AS id, a.scope AS scope'
             : 'a.id AS id, a.actorId AS actorId, a.subjectId AS subjectId, a.scope AS scope')
+            . ($references['correlation'] === null ? '' : ', a.correlationId AS correlationId'))
             ->orderBy('a.id', 'DESC')
             ->setMaxResults(self::DEFAULT_BATCH_SIZE);
         $count = 0;
@@ -463,11 +486,11 @@ class ActionLogRepository extends ServiceEntityRepository implements ActionLogRe
                 $page->andWhere('a.id < :exactId')->setParameter('exactId', $after);
             }
 
-            /** @var list<array{id: int|string, actorId?: string|null, subjectId?: string|null, scope: string|null}> $chunk */
+            /** @var list<array{id: int|string, actorId?: string|null, subjectId?: string|null, scope: string|null, correlationId?: string|null}> $chunk */
             $chunk = $page->getQuery()->getScalarResult();
             foreach ($chunk as $row) {
                 $after = $row['id'];
-                if ($this->holdsExactly($row['actorId'] ?? null, $row['subjectId'] ?? null, $row['scope'], $references)) {
+                if ($this->holdsExactly($row['actorId'] ?? null, $row['subjectId'] ?? null, $row['scope'], $row['correlationId'] ?? null, $references)) {
                     ++$count;
                 }
             }

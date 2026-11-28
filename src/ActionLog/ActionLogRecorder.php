@@ -13,7 +13,12 @@ use Doctrine\Persistence\ManagerRegistry;
 use Doctrine\Persistence\Proxy;
 use InvalidArgumentException;
 use LogicException;
+use Nowo\AuditKitBundle\Change\ChangeSet;
+use Nowo\AuditKitBundle\Correlation\CorrelationContextProviderInterface;
 use Nowo\AuditKitBundle\Model\ReferenceId;
+use Nowo\CorrelationContract\CorrelationContext;
+use Nowo\CorrelationContract\CorrelationIdProviderInterface;
+use Nowo\CorrelationContract\NullCorrelationIdProvider;
 use Nowo\TransactionContract\TransientStorageFailure;
 use Nowo\TransactionDoctrine\DoctrineTransactionRunner;
 use Nowo\TransactionDoctrine\HostFlushProbe;
@@ -64,6 +69,13 @@ use function strlen;
  *
  * 1.18 ran transaction-doctrine's {@see HostFlushProbe} before the host-mode flush while `flush_mode` was unset; 2.0
  * removed it: the default no longer flushes the host's entity manager, and an explicit `host` is a supported choice.
+ *
+ * Since 2.2, on an entity that implements {@see TraceableActionLogInterface}, every row gets the `correlation_id` of the
+ * current unit of work from the bound nowo-tech/correlation-contract provider (none with the default
+ * {@see NullCorrelationIdProvider}) and its `caused_by` when the provider implements
+ * {@see CorrelationContextProviderInterface}; the values are set on the entity being persisted (no extra query). The
+ * four record methods accept an optional {@see ChangeSet} (stored in `changes`; an empty set stores null). A non-empty
+ * set given for an entity that does not implement the interface is dropped with a warning (its content is not logged).
  */
 final readonly class ActionLogRecorder implements ActionLogRecorderInterface, ActionLogIdRecorderInterface
 {
@@ -101,6 +113,8 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      * @param LoggerInterface|null $logger since 1.15.1: warned when an unusable user id is stored as `null`
      * @param HostFlushProbe|null $hostFlushProbe @deprecated since 2.0, ignored (the host-flush probe was removed);
      *                                            removed in 3.0
+     * @param CorrelationIdProviderInterface|null $correlation since 2.2: source of `correlation_id` / `caused_by`
+     *                                                         (null: {@see NullCorrelationIdProvider}, no id)
      */
     public function __construct(
         private ManagerRegistry $registry,
@@ -111,6 +125,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         private string $flushMode = self::FLUSH_HOST,
         private ?LoggerInterface $logger = null,
         ?HostFlushProbe $hostFlushProbe = null,
+        private ?CorrelationIdProviderInterface $correlation = null,
     ) {
         unset($hostFlushProbe);
         if ($flushMode !== self::FLUSH_HOST && $flushMode !== self::FLUSH_ISOLATED) {
@@ -122,6 +137,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      * Creates and persists a row (not flushed).
      *
      * @param array<string, mixed> $context UI-facing metadata (names, roles, UUIDs, …)
+     * @param ChangeSet|null $changes since 2.2: what the action changed ({@see TraceableActionLogInterface} entities)
      */
     public function record(
         string|BackedEnum $action,
@@ -129,6 +145,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         ?object $subject = null,
         array $context = [],
         ?string $scope = null,
+        ?ChangeSet $changes = null,
     ): AbstractActionLog {
         $closed  = !$this->entityManager()->isOpen();
         $manager = $this->writableEntityManager();
@@ -138,7 +155,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             $subject = $this->reattached($manager, $subject);
         }
 
-        return $this->persist($manager, $this->newObjectEntry($actor, $subject), $action, $context, $scope);
+        return $this->persist($manager, $this->newObjectEntry($actor, $subject), $action, $context, $scope, $changes);
     }
 
     /**
@@ -152,16 +169,17 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         ?object $subject = null,
         array $context = [],
         ?string $scope = null,
+        ?ChangeSet $changes = null,
     ): AbstractActionLog {
         if ($this->flushMode === self::FLUSH_ISOLATED) {
-            return $this->isolated(function (EntityManagerInterface $own, EntityManagerInterface $host) use ($action, $actor, $subject, $context, $scope): AbstractActionLog {
+            return $this->isolated(function (EntityManagerInterface $own, EntityManagerInterface $host) use ($action, $actor, $subject, $context, $scope, $changes): AbstractActionLog {
                 $entry = $this->newObjectEntry($this->isolatedReference($own, $host, 'actor', $actor), $this->isolatedReference($own, $host, 'subject', $subject));
 
-                return $this->referencedByIds($own, $host, $this->persist($own, $entry, $action, $context, $scope));
+                return $this->referencedByIds($own, $host, $this->persist($own, $entry, $action, $context, $scope, $changes));
             });
         }
 
-        $entry = $this->record($action, $actor, $subject, $context, $scope);
+        $entry = $this->record($action, $actor, $subject, $context, $scope, $changes);
         $this->entityManager()->flush();
 
         return $entry;
@@ -178,8 +196,9 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         mixed $subjectId = null,
         array $context = [],
         ?string $scope = null,
+        ?ChangeSet $changes = null,
     ): ActionLogEntryInterface {
-        return $this->persistIds($this->writableEntityManager(), $action, $actorId, $subjectId, $context, $scope);
+        return $this->persistIds($this->writableEntityManager(), $action, $actorId, $subjectId, $context, $scope, $changes);
     }
 
     /**
@@ -193,12 +212,13 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         mixed $subjectId = null,
         array $context = [],
         ?string $scope = null,
+        ?ChangeSet $changes = null,
     ): ActionLogEntryInterface {
         if ($this->flushMode === self::FLUSH_ISOLATED) {
-            return $this->isolated(fn (EntityManagerInterface $own, EntityManagerInterface $host): ActionLogEntryInterface => $this->referencedByIds($own, $host, $this->persistIds($own, $action, $actorId, $subjectId, $context, $scope)));
+            return $this->isolated(fn (EntityManagerInterface $own, EntityManagerInterface $host): ActionLogEntryInterface => $this->referencedByIds($own, $host, $this->persistIds($own, $action, $actorId, $subjectId, $context, $scope, $changes)));
         }
 
-        $entry = $this->recordIds($action, $actorId, $subjectId, $context, $scope);
+        $entry = $this->recordIds($action, $actorId, $subjectId, $context, $scope, $changes);
         $this->entityManager()->flush();
 
         return $entry;
@@ -226,7 +246,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
     /**
      * @param array<string, mixed> $context
      */
-    private function persistIds(EntityManagerInterface $manager, string|BackedEnum $action, mixed $actorId, mixed $subjectId, array $context, ?string $scope): ActionLogEntryInterface
+    private function persistIds(EntityManagerInterface $manager, string|BackedEnum $action, mixed $actorId, mixed $subjectId, array $context, ?string $scope, ?ChangeSet $changes): ActionLogEntryInterface
     {
         $entry = new ($this->entityClass)();
         if ($entry instanceof AbstractIdActionLog) {
@@ -237,7 +257,7 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
             $entry->setSubject($this->userReference($manager, 'subject', $subjectId));
         }
 
-        return $this->persist($manager, $entry, $action, $context, $scope);
+        return $this->persist($manager, $entry, $action, $context, $scope, $changes);
     }
 
     /**
@@ -400,11 +420,12 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
      *
      * @return E
      */
-    private function persist(EntityManagerInterface $manager, AbstractActionLog|AbstractIdActionLog $entry, string|BackedEnum $action, array $context, ?string $scope): AbstractActionLog|AbstractIdActionLog
+    private function persist(EntityManagerInterface $manager, AbstractActionLog|AbstractIdActionLog $entry, string|BackedEnum $action, array $context, ?string $scope, ?ChangeSet $changes): AbstractActionLog|AbstractIdActionLog
     {
         $entry->setAction($action);
         $entry->setContext($context);
         $entry->setScope($scope ?? $this->scopeFromContext($context));
+        $this->trace($entry, $changes);
 
         if ($this->captureIp) {
             $request = $this->requestStack->getCurrentRequest();
@@ -416,6 +437,28 @@ final readonly class ActionLogRecorder implements ActionLogRecorderInterface, Ac
         $manager->persist($entry);
 
         return $entry;
+    }
+
+    /**
+     * Since 2.2: the correlation id, `caused_by` and changes of a {@see TraceableActionLogInterface} row. The provider is
+     * asked on every row (never kept), so a long-running worker never writes one unit's id on another's row.
+     */
+    private function trace(ActionLogEntryInterface $entry, ?ChangeSet $changes): void
+    {
+        if (!$entry instanceof TraceableActionLogInterface) {
+            if ($changes instanceof ChangeSet && !$changes->isEmpty()) {
+                $this->logger?->warning('Action log changes dropped: the entity "{class}" does not implement {interface}.', ['bundle' => 'NowoAuditKitBundle', 'class' => $entry::class, 'interface' => TraceableActionLogInterface::class]);
+            }
+
+            return;
+        }
+
+        $provider = $this->correlation ?? new NullCorrelationIdProvider();
+        $context  = $provider instanceof CorrelationContextProviderInterface ? $provider->currentContext() : null;
+        $id       = $context instanceof CorrelationContext ? $context->correlationId : $provider->current();
+        $entry->setCorrelationId($id?->toString());
+        $entry->setCausedBy($context?->causedBy?->toString());
+        $entry->setChanges($changes);
     }
 
     /**

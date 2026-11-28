@@ -38,6 +38,8 @@ final readonly class ActionLogCriteria
      * @param array<BackedEnum|string>|BackedEnum|string|null $actions one action or an allow-list
      * @param DateTimeImmutable|null $from inclusive lower bound on `createdAt`
      * @param DateTimeImmutable|null $to inclusive upper bound on `createdAt`
+     * @param string|null $correlationId since 2.2: rows of this unit of work (byte-for-byte match; an entity that does
+     *                                   not implement {@see TraceableActionLogInterface} has none)
      */
     public function __construct(
         public object|int|string|null $actor = null,
@@ -49,6 +51,7 @@ final readonly class ActionLogCriteria
         public ?DateTimeImmutable $to = null,
         public int $limit = 100,
         public int $offset = 0,
+        public ?string $correlationId = null,
     ) {
         /** @var list<string>|null $scopes ints and Stringables cast; other values (outside the documented types) as given */
         $scopes        = $scope === null ? null : array_values(array_map($this->scopeValue(...), is_array($scope) ? $scope : [$scope]));

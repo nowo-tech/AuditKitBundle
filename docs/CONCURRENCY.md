@@ -67,6 +67,12 @@ Filters by scope (since 2.1, audit YC1-M1) and, in id mode, by actor / subject /
 `===` in PHP over keyset batches of the SQL candidates; the filter values live in local variables of the call, so no
 state is kept between requests or calls (`tests/Database/ScopeExactMatchDbTest.php`, real databases).
 
+Since 2.2 the traceability columns add no write path: `correlation_id`, `caused_by` and `changes` are set on the row
+before it is persisted by the paths above (same transaction, same conflict answers), with no extra query and no unique
+key, so rows of the same unit of work written by several connections never block each other
+(`tests/Database/TraceabilityDbTest.php::testAnOpenTransactionWithTheSameCorrelationIdNeverBlocksTheRecorder`). The
+`correlationId` filter re-checks every row with `===` like the scope filter.
+
 ## Conflict answers and codes
 
 A **lock conflict** is a deadlock, a lock wait timeout or a serialization failure: MySQL 1213 / 1205, MariaDB 1020,

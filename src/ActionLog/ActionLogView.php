@@ -15,12 +15,16 @@ use DateTimeImmutable;
  * ({@see AbstractActionLog}, through {@see ActionLogEntryInterface::getActorId()}). Treat `ipAddress` and `context`
  * as personal data.
  *
+ * Since 2.2 it also carries the traceability columns of a {@see TraceableActionLogInterface} entity (`correlationId`,
+ * `causedBy`, `changes`; null for other entities). Treat `changes` as personal data too.
+ *
  * @since 2.1.0
  */
 final readonly class ActionLogView
 {
     /**
      * @param array<string, mixed> $context
+     * @param array<string, mixed>|null $changes since 2.2
      */
     public function __construct(
         public int $id,
@@ -31,6 +35,9 @@ final readonly class ActionLogView
         public ?string $scope,
         public ?string $ipAddress,
         public DateTimeImmutable $createdAt,
+        public ?string $correlationId = null,
+        public ?string $causedBy = null,
+        public ?array $changes = null,
     ) {
     }
 
@@ -46,6 +53,9 @@ final readonly class ActionLogView
             $entry->getScope(),
             $entry->getIpAddress(),
             $entry->getCreatedAt(),
+            $entry instanceof TraceableActionLogInterface ? $entry->getCorrelationId() : null,
+            $entry instanceof TraceableActionLogInterface ? $entry->getCausedBy() : null,
+            $entry instanceof TraceableActionLogInterface ? $entry->getChanges() : null,
         );
     }
 

@@ -8,6 +8,10 @@ services:
         resource: '../../'
         exclude:
             - '../../ActionLog/'
+            - '../../Change/'
+            - '../../Correlation/'
+            - '../../Timeline/'
+            - '../../Doctrine/TraceableActionLogMetadataListener.php'
             - '../../DependencyInjection/'
             - '../../Model/'
             - '../../Attribute/'
@@ -68,3 +72,9 @@ services:
             $logger: '@?logger'
         tags:
             - { name: kernel.reset, method: reset }
+
+    # Since 2.2: maps correlation_id / caused_by / changes (+ index) on action log entities implementing
+    # TraceableActionLogInterface that do not map them themselves.
+    Nowo\AuditKitBundle\Doctrine\TraceableActionLogMetadataListener:
+        tags:
+            - { name: doctrine.event_listener, event: loadClassMetadata }

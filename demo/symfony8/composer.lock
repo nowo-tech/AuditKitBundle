@@ -939,11 +939,12 @@
             "dist": {
                 "type": "path",
                 "url": "/var/audit-kit-bundle",
-                "reference": "fe1c16af4748f0fd2ef257303de0bdab9fb518a2"
+                "reference": "4770300bf90d17c699041f9cad1c085d996a5924"
             },
             "require": {
                 "doctrine/doctrine-bundle": "^2.10 || ^3.0",
                 "doctrine/orm": "^2.15 || ^3.0",
+                "nowo-tech/correlation-contract": "^0.1",
                 "nowo-tech/migrations-kit-contracts": "^1.0",
                 "nowo-tech/transaction-contract": "^1.0",
                 "nowo-tech/transaction-doctrine": "^1.9",
@@ -965,7 +966,8 @@
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.0",
-                "igor-php/igor-php": "^0.10.0",
+                "igor-php/igor-php": "^0.10.0 || ^0.11.0",
+                "monolog/monolog": "^3.0",
                 "nowo-tech/phpstan-frankenphp": "^1.0",
                 "phpstan/extension-installer": "^1.0",
                 "phpstan/phpstan": "^2.0",
@@ -974,13 +976,17 @@
                 "phpunit/phpunit": "^11.0",
                 "rector/rector": "^2.0",
                 "symfony/clock": "^7.4 || ^8.0",
+                "symfony/http-client": "^7.4 || ^8.0",
                 "symfony/messenger": "^7.4 || ^8.0",
                 "symfony/yaml": "^7.4 || ^8.0",
                 "twig/twig": "^3.12"
             },
             "suggest": {
+                "monolog/monolog": "Adds correlation_id / caused_by to every log record (CorrelationLogProcessor)",
                 "nowo-tech/migrations-kit-bundle": "Runs nowo:migrations:check-key-collations, which asserts the declared action log id columns against the live schema (REQ-SEC-006)",
-                "nowo-tech/ui-kit-bundle": "Styles the action log timeline partial (nowo-ui-* classes)."
+                "nowo-tech/ui-kit-bundle": "Styles the action log timeline partial (nowo-ui-* classes).",
+                "symfony/http-client": "Sends X-Correlation-Id on outgoing requests (correlation.http_client)",
+                "symfony/messenger": "Carries the correlation id across message buses (CorrelationMiddleware, CorrelationIdStamp)"
             },
             "type": "symfony-bundle",
             "autoload": {
@@ -1065,6 +1071,95 @@
             "transport-options": {
                 "relative": false
             }
+        },
+        {
+            "name": "nowo-tech/correlation-contract",
+            "version": "v0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/nowo-tech/correlation-contract.git",
+                "reference": "b21e9b2452e25395346992f6f0a4fa31fa26a002"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/nowo-tech/correlation-contract/zipball/b21e9b2452e25395346992f6f0a4fa31fa26a002",
+                "reference": "b21e9b2452e25395346992f6f0a4fa31fa26a002",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=8.2 <8.6"
+            },
+            "conflict": {
+                "symfony/messenger": "<7.4"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.64",
+                "igor-php/igor-php": "^0.10.0 || ^0.11.0",
+                "nowo-tech/phpstan-frankenphp": "^1.4",
+                "phpstan/phpstan": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
+                "phpunit/phpunit": "^11.0",
+                "rector/rector": "^2.0",
+                "symfony/messenger": "^7.4 || ^8.0"
+            },
+            "suggest": {
+                "symfony/messenger": "For Messenger\\CorrelationIdStamp (carry the correlation id across message buses); ^7.4 || ^8.0"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-main": "0.1.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Nowo\\CorrelationContract\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Héctor Franco Aceituno",
+                    "email": "hectorfranco@nowo.tech",
+                    "homepage": "https://github.com/HecFranco",
+                    "role": "Developer"
+                },
+                {
+                    "name": "Nowo.tech",
+                    "homepage": "https://nowo.tech"
+                }
+            ],
+            "description": "Framework-free correlation id contract: the CorrelationId value object, CorrelationIdProviderInterface (current id per request, message or command, FrankenPHP worker safe), a Null provider, header names (X-Correlation-Id, W3C traceparent) and an optional Symfony Messenger stamp. No dependencies beyond PHP.",
+            "homepage": "https://github.com/nowo-tech/correlation-contract",
+            "keywords": [
+                "contracts",
+                "correlation-id",
+                "ddd",
+                "frankenphp",
+                "hexagonal",
+                "observability",
+                "port",
+                "request-id",
+                "traceparent",
+                "tracing"
+            ],
+            "support": {
+                "changelog": "https://github.com/nowo-tech/correlation-contract/blob/main/docs/CHANGELOG.md",
+                "docs": "https://github.com/nowo-tech/correlation-contract/tree/main/docs",
+                "issues": "https://github.com/nowo-tech/correlation-contract/issues",
+                "source": "https://github.com/nowo-tech/correlation-contract"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/HecFranco",
+                    "type": "github"
+                }
+            ],
+            "time": "2026-11-28T07:10:35+00:00",
+            "published-time": "2026-11-28T07:43:57+00:00"
         },
         {
             "name": "nowo-tech/migrations-kit-contracts",
