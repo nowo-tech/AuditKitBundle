@@ -5,13 +5,21 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\DependencyInjection;
 
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
+use Nowo\AuditKitBundle\Change\ChangeSetBuilder;
+use Nowo\AuditKitBundle\Correlation\InboundCorrelationId;
+use Nowo\CorrelationContract\Headers;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+
+use function is_string;
 
 /** Defines the {@see Configuration::ALIAS} configuration tree for audit field options. */
 final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_audit_kit';
+
+    /** Since 2.2: an HTTP header name (RFC 9110 token). */
+    public const HTTP_TOKEN = "/\\A[!#$%&'*+.^_`|~0-9A-Za-z-]+\\z/";
 
     /** Builds the validated configuration schema for the bundle extension. */
     public function getConfigTreeBuilder(): TreeBuilder
@@ -108,6 +116,57 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                     ->end()
                 ->end()
+                ->arrayNode('correlation')
+                    ->info('Since 2.2: correlation id (nowo-tech/correlation-contract). The action log, the log processor and the outgoing-request header read the CorrelationIdProviderInterface service: alias it to your provider, or set provider: true to use the bundle\'s.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('provider')
+                            ->info('Register the bundle\'s provider (CorrelationIdHolder) and its listeners: one id per main request (inbound header or new), per console command and per received message. Off by default: hosts with a provider of their own alias it instead.')
+                            ->defaultFalse()
+                        ->end()
+                        ->scalarNode('header_name')
+                            ->info('Header that carries the id on responses (response_header_paths) and outgoing requests (http_client); an HTTP token. Inbound headers are configured separately (inbound_headers).')
+                            ->defaultValue(Headers::CORRELATION_ID)
+                            ->example('X-Request-Id')
+                            ->validate()
+                                ->ifTrue(static fn (mixed $name): bool => !is_string($name) || preg_match(self::HTTP_TOKEN, $name) !== 1)
+                                ->thenInvalid('The correlation header name %s is not a valid HTTP header name (token characters only).')
+                            ->end()
+                        ->end()
+                        ->arrayNode('inbound_headers')
+                            ->info('With provider: true, request headers adopted as the incoming id, in order (traceparent gives its trace-id). Default [] (off): every request gets a new id. If you opt in, your edge proxy MUST strip or overwrite these headers on requests from the internet, otherwise clients can choose the id their requests are recorded under.')
+                            ->example(InboundCorrelationId::SUPPORTED_HEADERS)
+                            ->scalarPrototype()->cannotBeEmpty()->end()
+                            ->defaultValue(InboundCorrelationId::DEFAULT_HEADERS)
+                        ->end()
+                        ->booleanNode('inbound_trusted_proxies_only')
+                            ->info('With provider: true and inbound_headers set, read them only from trusted proxies (framework.trusted_proxies). This checks the connection, not the header: the proxy must still strip or overwrite client-sent values.')
+                            ->defaultTrue()
+                        ->end()
+                        ->arrayNode('response_header_paths')
+                            ->info('With provider: true, path prefixes whose responses carry X-Correlation-Id (none by default).')
+                            ->example(['/api'])
+                            ->scalarPrototype()->cannotBeEmpty()->end()
+                            ->defaultValue([])
+                        ->end()
+                        ->booleanNode('messenger_child_ids')
+                            ->info('With provider: true, a received message runs under a new id with caused_by = the dispatching id, instead of the dispatching id itself.')
+                            ->defaultFalse()
+                        ->end()
+                        ->booleanNode('http_client')
+                            ->info('Decorate http_client so outgoing requests carry X-Correlation-Id (needs symfony/http-client).')
+                            ->defaultFalse()
+                        ->end()
+                        ->booleanNode('mailer')
+                            ->info('Add header_name with the current id to outgoing e-mails (needs symfony/mailer), unless already set.')
+                            ->defaultFalse()
+                        ->end()
+                        ->booleanNode('monolog')
+                            ->info('Add correlation_id / caused_by to Monolog records (when monolog/monolog 3 is installed).')
+                            ->defaultTrue()
+                        ->end()
+                    ->end()
+                ->end()
                 ->arrayNode('action_log')
                     ->info('Opt-in action log (who did what, to whom). Enabled when entity_class is set.')
                     ->addDefaultsIfNotSet()
@@ -138,6 +197,33 @@ final class Configuration implements ConfigurationInterface
                             ->info('Since 1.15: what recordAndFlush() / recordIdsAndFlush() flush. "isolated" (default since 2.0, REQ-ARCH-001 rule 6): only the new row, through a short-lived entity manager of the bundle on the same connection; the application unit of work is neither flushed nor cleared, so your pending changes stay pending. "host" (the 1.x default, kept as an explicit choice): the entity manager that maps the action log class, with every pending change of the application.')
                             ->values([ActionLogRecorder::FLUSH_HOST, ActionLogRecorder::FLUSH_ISOLATED])
                             ->defaultValue(ActionLogRecorder::FLUSH_ISOLATED)
+                        ->end()
+                        ->arrayNode('changes')
+                            ->info('Since 2.2: how ChangeSetBuilder masks and bounds the before -> after changes stored in the `changes` column.')
+                            ->addDefaultsIfNotSet()
+                            ->children()
+                                ->arrayNode('secret_fields')
+                                    ->info('Field names always stored as secrets ({changed: true} only), whatever the policy says (case-insensitive).')
+                                    ->example(['iban', 'smtp_login'])
+                                    ->scalarPrototype()->cannotBeEmpty()->end()
+                                    ->defaultValue([])
+                                ->end()
+                                ->scalarNode('secret_pattern')
+                                    ->info('Regular expression of secret-looking field names: masked without a policy, refused as "plain" in a policy, masked as nested array keys.')
+                                    ->defaultValue(ChangeSetBuilder::DEFAULT_SECRET_PATTERN)
+                                    ->cannotBeEmpty()
+                                ->end()
+                                ->integerNode('max_string_length')
+                                    ->info('Strings longer than this (characters) are stored as their lengths only.')
+                                    ->defaultValue(ChangeSetBuilder::DEFAULT_MAX_STRING_LENGTH)
+                                    ->min(1)
+                                ->end()
+                                ->integerNode('max_bytes')
+                                    ->info('Largest JSON of one change set; fields beyond it are cut field by field.')
+                                    ->defaultValue(ChangeSetBuilder::DEFAULT_MAX_BYTES)
+                                    ->min(64)
+                                ->end()
+                            ->end()
                         ->end()
                         ->arrayNode('purge')
                             ->addDefaultsIfNotSet()

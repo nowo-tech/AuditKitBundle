@@ -23,6 +23,14 @@
   - [Purging](#purging)
   - [Timeline partial](#timeline-partial)
   - [Timeline avatars (1.11)](#timeline-avatars-111)
+- [Traceability (since 2.2)](#traceability-since-22)
+  - [Columns](#columns)
+  - [Correlation id](#correlation-id)
+  - [Changes (before → after)](#changes-before--after)
+  - [Reading by correlation id](#reading-by-correlation-id)
+  - [Timeline contract](#timeline-contract)
+  - [Worker mode](#worker-mode)
+  - [Not in 2.2: the hash chain](#not-in-22-the-hash-chain)
 - [Overriding templates](#overriding-templates)
 - [Doctrine migrations](#doctrine-migrations)
 - [Behaviour summary](#behaviour-summary)
@@ -494,6 +502,230 @@ services:
   one falls back to the initials. Without UiKit the initials sit next to the picture and a broken picture paints
   nothing.
 - `nowo_audit_kit_avatar_url(user)` returns the memoised URL (or null) for hosts that render their own avatar.
+
+## Traceability (since 2.2)
+
+Three opt-in additions tie the action log rows of one unit of work together and say what changed. Nothing changes for a
+host that does not opt in: no new column is mapped and no listener is registered.
+
+### Columns
+
+Implement `TraceableActionLogInterface` on your log entity with `TraceableActionLogTrait`:
+
+```php
+use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
+use Nowo\AuditKitBundle\ActionLog\TraceableActionLogInterface;
+use Nowo\AuditKitBundle\ActionLog\TraceableActionLogTrait;
+
+#[ORM\Entity(repositoryClass: UserActionRepository::class)]
+#[ORM\Table(name: 'user_action')]
+class UserAction extends AbstractActionLog implements TraceableActionLogInterface
+{
+    use TraceableActionLogTrait;
+}
+```
+
+The bundle then maps three nullable columns and one index on that entity (attribute and XML mappings alike), unless you
+map a field yourself (for example to rename its column):
+
+| Field | Column | Type |
+| --- | --- | --- |
+| `correlationId` | `correlation_id` | string 64, nullable, indexed (`idx_audit_corr_<hash>`, unless you declare an index that starts with the column) |
+| `causedBy` | `caused_by` | string 64, nullable |
+| `changes` | `changes` | json, nullable |
+
+Run `doctrine:migrations:diff` (the DDL is also in [UPGRADING](UPGRADING.md#to-220)).
+
+### Correlation id
+
+The bundle consumes the [nowo-tech/correlation-contract](https://github.com/nowo-tech/correlation-contract) port
+`CorrelationIdProviderInterface`. By default it is bound to the contract's `NullCorrelationIdProvider` (no id is
+recorded), unless your application or another package binds it.
+
+- **Your application has a provider:** alias it, and every row gets its id. If it also implements
+  `Nowo\AuditKitBundle\Correlation\CorrelationContextProviderInterface` (`currentContext(): ?CorrelationContext`), rows
+  get `caused_by` too.
+
+  ```yaml
+  # config/services.yaml
+  Nowo\CorrelationContract\CorrelationIdProviderInterface: '@App\Observability\CorrelationIdProvider'
+  ```
+
+- **It has none:** turn on the bundle's provider (`CorrelationIdHolder`):
+
+  ```yaml
+  nowo_audit_kit:
+      correlation:
+          provider: true
+          response_header_paths: [/api]   # optional: these responses carry X-Correlation-Id
+          http_client: true               # optional: outgoing requests carry X-Correlation-Id
+  ```
+
+  It starts one id per main request (sub-requests share it), per console command and per received Messenger message,
+  and clears it at `kernel.terminate`.
+
+  **Inbound ids are off by default** (`inbound_headers: []`): every request gets a new id, so a value sent by a client
+  never becomes the correlation id (your HTTP logger can still store it, as an upstream id). To adopt the id of an edge
+  proxy, list the headers (`inbound_headers: [X-Correlation-Id, traceparent]`; a `traceparent` gives its trace-id). They
+  are then read only from trusted proxies (`framework.trusted_proxies`, option `inbound_trusted_proxies_only`), which
+  checks which machine opened the connection, not who wrote the header. **Your edge proxy MUST strip or overwrite these
+  headers on requests from the internet**, otherwise clients choose the id their requests are recorded under, for
+  example with nginx:
+
+  ```nginx
+  proxy_set_header X-Correlation-Id $request_id;   # overwrite with the proxy's own id
+  proxy_set_header traceparent "";                 # or drop what the client sent
+  ```
+
+  Invalid values are ignored, never echoed.
+
+**What the bundle does in each mode:**
+
+| | Your provider (alias, `provider: false`) | The bundle's (`provider: true`) |
+| --- | --- | --- |
+| Request / console listeners | none registered | start and clear the id in `CorrelationIdHolder` |
+| Messenger middleware, dispatch | stamps your provider's current id (none outside a unit of work) | stamps the current context |
+| Messenger middleware, receive | steps aside: restoring the id is your provider's job | runs the handler under the stamped id (or a root id), ends it in a `finally` |
+| Rows, log records, outgoing requests, e-mails | read your provider on every call | read the holder on every call |
+| State kept by the bundle | none | the holder's context stack, emptied at every boundary and by `kernel.reset` |
+
+Your provider resets itself (for example `ResetInterface` + the `kernel.reset` tag, and its own terminate listener).
+Binding your own provider while `provider: true` fails the container build.
+
+**Header name.** Responses (`response_header_paths`), outgoing requests (`http_client`) and e-mails (`mailer`) use
+`correlation.header_name` (default `X-Correlation-Id`; any HTTP token, e.g. `X-Request-Id`), so one id appears under
+the same name everywhere. A header the caller already set under that name (any case) is kept.
+
+**Messenger** (opt-in per bus): add the middleware to the buses that should carry the id.
+
+```yaml
+# config/packages/messenger.yaml
+framework:
+    messenger:
+        buses:
+            messenger.bus.default:
+                middleware:
+                    - nowo_audit_kit.correlation.messenger_middleware
+```
+
+On dispatch inside a unit of work it adds a `Nowo\CorrelationContract\Messenger\CorrelationIdStamp` with the current
+context; a stamp you set is kept, and retries keep it. A message dispatched outside any unit of work gets no stamp. With
+the bundle's provider, a received stamped message runs under the stamped id (restored afterwards, even when the handler
+fails); with `correlation.messenger_child_ids: true` it runs under a new id with `caused_by` = the stamped id instead,
+so each handled message is its own unit of work linked to its parent. A message without a stamp (a Scheduler tick, a
+message dispatched outside any unit of work) runs under a fresh root id with `caused_by` null in both modes:
+`caused_by` comes only from a parent stamp. A stamp that does not hold a valid id (a tampered transport message) counts
+as no stamp.
+
+Messages a handler dispatches with `DispatchAfterCurrentBusStamp` (domain events, the `doctrine_transaction` flow) are
+stamped with the received message's context: the bundle moves its middleware in front of FrameworkBundle's
+`dispatch_after_current_bus` on every bus that lists it (`CorrelationMiddlewareOrderPass`), so the context stays open
+until the queued messages have been handled. With `default_middleware: false`, list it before
+`dispatch_after_current_bus` yourself.
+
+**Monolog** (when monolog/monolog 3 is installed; `correlation.monolog`, default true): records written inside a unit
+of work get `extra.correlation_id` (and `extra.caused_by`).
+
+**Outgoing HTTP** (`correlation.http_client: true`, needs symfony/http-client): `http_client` adds
+`<header_name>: <current id>` unless the caller set that header.
+
+**Outgoing e-mail** (`correlation.mailer: true`, needs symfony/mailer): every e-mail sent inside a unit of work gets
+`<header_name>: <current id>` unless it already has it (a queued e-mail gets it when queued).
+
+Both send your internal id to third parties (every API called, every e-mail recipient): enable them for services you
+own, and never adopt inbound ids from the internet (see above), or a recipient could replay one.
+
+### Changes (before → after)
+
+Build a `ChangeSet` with the configured `Nowo\AuditKitBundle\Change\ChangeSetBuilder` service (or
+`ChangeSet::between()` with the defaults) and pass it as the last argument of `record()`, `recordAndFlush()`,
+`recordIds()` or `recordIdsAndFlush()` of `ActionLogRecorder`:
+
+```php
+$changes = $changeSetBuilder->between(
+    ['title' => $old->title, 'status' => $old->status, 'smtp_password' => $old->smtpPassword, 'body' => $old->body],
+    ['title' => $new->title, 'status' => $new->status, 'smtp_password' => $new->smtpPassword, 'body' => $new->body],
+    ['title' => ChangeSet::PLAIN, 'status' => ChangeSet::PLAIN, 'smtp_password' => ChangeSet::SECRET, 'body' => ChangeSet::LONG_TEXT],
+);
+if (!$changes->isEmpty()) {
+    $recorder->recordAndFlush('project.updated', $actor, null, ['project' => $name], $scope, $changes);
+}
+// changes = {"title": {"from": "Old", "to": "New"}, "smtp_password": {"changed": true}, "body": {"changed": true, "from_len": 120, "to_len": 140}}
+```
+
+| Entry | When |
+| --- | --- |
+| `{from, to}` | a `plain` / `public` field (values presented: dates ISO-8601, enums by value, `Stringable` as string, arrays such as `{label, id}` as given) |
+| `{changed: true}` | a `secret` field: the fixed mask, never the value, a hash or a length (a `long_text` policy on a secret-looking or configured secret field is a secret too) |
+| `{changed: true, from_len, to_len}` | a `long_text` field, or any string over `max_string_length` (500) characters |
+| `{changed: true, truncated: true}` | a field cut because the set went over `max_bytes` (16 KB, measured on the unescaped UTF-8 JSON; the text a database stores can be larger, except in a binary JSON column); fields that do not fit even so are left out and `_truncated: true` is set |
+
+Masking rules:
+
+- With a policy (the third argument, your allowlist) only those fields are compared. A field whose name matches
+  `secret_pattern` (default `password|passwd|passphrase|pwd|secret|token|key|dsn|credential|private|auth|cookie|session|bearer|otp|salt|signature|cvv`,
+  case-insensitive) declared `plain` throws `UnsafeTraceableFieldException` (the message names the field, never a
+  value): declare it `secret`, or `public` when the name only looks like a secret. Declared `long_text`, it is stored as
+  a secret (no lengths).
+- The pattern is a heuristic and masks generously (`auth` also matches `author`, `key` matches `issue_key`, `otp`
+  matches `hotpot`): use `public` for such fields. A policy plus `secret_fields` is the safe path; the pattern is the
+  safety net.
+- Without a policy every top-level field is compared and secret-looking names are stored as secrets.
+- `action_log.changes.secret_fields` are always stored as secrets, whatever the policy says.
+- Keys of nested arrays that look like secrets are replaced by `[masked]`.
+- Values are made storable: invalid UTF-8 (in values, keys and field names) is replaced, and NaN / INF floats become
+  the strings `NaN`, `INF`, `-INF`, so a value never makes the JSON column fail at flush.
+- `ChangeSet`'s constructor and `setChanges(array)` store what they are given (no masking, no cap): build sets with
+  `ChangeSetBuilder` or `ChangeSet::between()`.
+
+An empty set stores `null`. A set passed for an entity that does not implement `TraceableActionLogInterface` is dropped
+with a warning (the warning does not contain the changes). Treat `changes` as personal data, like `context`. MySQL's
+`JSON` type does not keep the key order of `changes`: read it as a map.
+
+### Reading by correlation id
+
+`ActionLogCriteria(correlationId: ...)` filters every read (`findByCriteria()`, `countByCriteria()`,
+`pageByCriteria()`, the reader port) byte for byte, also under a case-insensitive collation. `ActionLogView` carries
+`correlationId`, `causedBy` and `changes`. On an entity without the column the filter matches nothing.
+
+### Timeline contract
+
+`Nowo\AuditKitBundle\Timeline\TimelineSourceInterface` lets any package contribute entries to a history page:
+`page(TimelineSubject $subject, TimelineCriteria $criteria, ?TimelineCursor $after, int $limit): list<TimelineEvent>`.
+Services implementing it are tagged `nowo_audit_kit.timeline_source` when autoconfigured. `TimelineMerger::page()` asks
+every source for `limit + 1` entries and merges them newest first (ties: source name, then each source's own order),
+with a stable keyset cursor (`TimelineCursor`, `toToken()` / `fromToken()`). A source applies its own visibility rules
+and returns `[]` for a subject type it does not know; `TimelineCursor::boundFor($sourceName)` tells it which entries
+come after the cursor.
+
+The action log contributes through `ActionLogTimelineSource` (subject types `user`, `scope`, `correlation`). It applies
+no permission of its own. The subject `correlation` re-checks every row's id with `===` but reads every scope that
+shares it: keep it for operators. **Tenant-facing views** use `TimelineSubject('scope', $tenant)` with
+`TimelineCriteria(correlationId: $id)`.
+
+Pages are stable (no entry repeated or skipped) when every source honours `boundFor()` at the precision and in the
+timezone it stores. The action log stores whole seconds in the server's timezone: it converts a cursor to that timezone
+and treats a cursor with a fraction of a second (another source's) as just after its whole second.
+
+```php
+$page = $timelineMerger->page(new TimelineSubject('scope', $projectUuid), new TimelineCriteria(kinds: ['task.updated']), TimelineCursor::fromToken($cursorParam ?? ''), 50);
+```
+
+### Worker mode
+
+FrankenPHP worker mode with the kernel kept alive and no services resetter, and Messenger consumers: the only state is
+the context stack of `CorrelationIdHolder`, emptied when a main request starts, at `kernel.terminate`, after every
+received message (`finally`) and by `kernel.reset`, and bounded in depth. Every other new service is stateless and asks
+the provider on every call. The recorder sets the id on the entity it persists (no extra query).
+
+`messenger:consume` without `--no-reset` resets services after each message, the holder included: log lines the
+worker writes between messages then carry no id (the messages themselves do).
+
+### Not in 2.2: the hash chain
+
+Sealing the log (hash chain, checkpoints, `verify`, `redact()`) is planned for a later release. It will add a
+`redacted_at` column on the traceable entity and separate seal / checkpoint tables keyed by the row id; the 2.2 columns
+and the canonical form it will hash (`correlation_id`, `caused_by`, the keys of `changes`) stay as they are.
 
 ## Overriding templates
 

@@ -114,8 +114,12 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 | State | Emptied at | Registered by |
 |-------|------------|---------------|
 | `ActionLogAvatars::$urls` | `kernel.request` and `kernel.finish_request` of the main request (sub-requests keep it), `WorkerMessageReceivedEvent`, `WorkerMessageHandledEvent`, `WorkerMessageFailedEvent`, `console.terminate`; also `kernel.reset` | the bundle (`ActionLogAvatarsResetSubscriber`, autoconfigured; Messenger event names as strings, Messenger optional) |
+| `CorrelationIdHolder` context stack (since 2.2, only with `correlation.provider: true`; at most 32 nested units) | emptied at `kernel.request` of the main request and at `kernel.terminate`; one entry popped at `console.terminate` and in a `finally` after every received Messenger message; also `kernel.reset` | the bundle (`CorrelationRequestSubscriber`, `CorrelationConsoleSubscriber`, `CorrelationMiddleware`) |
 
-Blame needs no boundary: `CurrentUserResolver` reads the token per Doctrine event (W-01).
+Blame needs no boundary: `CurrentUserResolver` reads the token per Doctrine event (W-01). The other 2.2 services
+(`CorrelationMiddleware`, `CorrelationLogProcessor`, `CorrelationHttpClient`, `CorrelationMailerListener`, `ChangeSetBuilder`,
+`TraceableActionLogMetadataListener`, `TimelineMerger`, `ActionLogTimelineSource`) are stateless and ask the provider on
+every call; the recorder never keeps the id it writes.
 
 ## Worker tests
 
@@ -129,6 +133,15 @@ Blame needs no boundary: `CurrentUserResolver` reads the token per Doctrine even
   `tests/Unit/Avatar/ActionLogAvatarsTest.php` (`reset()`, bound).
 - Read port (since 2.1): `tests/Integration/ActionLogReaderDddTest.php::testReadsLeaveTheEntityManagerUntouched` (300
   alternating-user reads in one kernel; identity map and unit of work stay empty, no transaction left open).
+- Correlation id (since 2.2): `tests/Integration/Traceability/TraceabilityKernelTest.php` drives the HTTP kernel of
+  **one** booted kernel without `services_resetter`: two requests get different ids, the rows carry their own request's
+  id, the holder is empty after `kernel.terminate`; a spoofed inbound id from an untrusted client is ignored; two console
+  runs get different ids; a received message runs under its stamped id and the outer id is current again afterwards.
+  `tests/Unit/Correlation/CorrelationMiddlewareTest.php` covers the serialised stamp round trip and a failing handler.
+  With a host provider (`testWithAHostProviderTheBundleOnlyReadsItAndKeepsNoState`) the bundle registers no holder or
+  listener, three requests keep the host's own ids, and receiving a message leaves the host provider untouched.
+  `testMessagesDispatchedAfterTheCurrentBusKeepTheReceivedContext` checks that a `DispatchAfterCurrentBusStamp`
+  follow-up is stamped with the received context and that the holder is empty afterwards.
 - Blame: `CurrentUserResolverWorkerTest`, `AuditableEntityListenerTest::testSecondRequestOutsideFirewallIsNotBlamedOnPreviousUser`.
 
 Static checks: `composer igor` and the `nowo-tech/phpstan-frankenphp` classic + worker rulesets pass in CI.

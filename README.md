@@ -38,6 +38,10 @@ This bundle is **FrankenPHP worker mode friendly**, including the strict case wh
 - `KeysetDelete` helper: delete matching rows in short primary-key batches (portable DBAL, keyset over the id)
 - Doctrine entity listener (`prePersist` / `preUpdate`)
 - **Action log** (opt-in): `AbstractActionLog` mapped superclass, `ActionLogRecorder`, filterable repository with keyset purge, `nowo:audit-kit:action-log:purge` and an optional Twig timeline — maps onto existing tables with no migration
+- **Traceability** (since 2.2, opt-in): one correlation id per request, message or command
+  ([nowo-tech/correlation-contract](https://github.com/nowo-tech/correlation-contract)) on every action log row, in log
+  records, on outgoing HTTP requests and across Messenger; masked, size-bounded before → after `changes`; `caused_by`;
+  a timeline contract other packages contribute to
 - **Named profiles** — separate field mapping and flags per user entity (`User`, `Admin`, …) with O(1) class resolution
 - Configurable property names and `user_class`
 - Per-entity opt-out via `#[Auditable(enabled: false)]`

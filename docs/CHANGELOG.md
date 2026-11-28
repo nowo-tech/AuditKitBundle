@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.2.0] - 2026-11-28](#220---2026-11-28)
 - [[2.1.0] - 2026-11-21](#210---2026-11-21)
 - [[2.0.0] - 2026-11-21](#200---2026-11-21)
 - [[1.18.1] - 2026-11-21](#1181---2026-11-21)
@@ -57,12 +58,78 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-11-28
+
+Additive minor over 2.1 (no BC break; everything new is opt-in). See [UPGRADING](UPGRADING.md#to-220).
+
+### Added
+
+- **Correlation id** on top of the new dependency `nowo-tech/correlation-contract` `^0.1`. The bundle consumes
+  `CorrelationIdProviderInterface` as an optional port: by default the contract's `NullCorrelationIdProvider` (bound by
+  `CorrelationProviderPass` only when nothing else binds the interface), or the host's own provider through an alias.
+  `CorrelationContextProviderInterface` (optional) adds `caused_by`.
+- **`correlation.provider: true`** (opt-in): the bundle's `Correlation\CorrelationIdHolder` (reset-safe stack,
+  `kernel.reset`, bounded depth) with `CorrelationRequestSubscriber` (one id per main request; inbound ids are off by
+  default, `inbound_headers` opts in to `X-Correlation-Id` / `traceparent` read from trusted proxies only, and the edge
+  proxy must then strip or overwrite those headers; optional response header under
+  `correlation.response_header_paths`, cleared at `kernel.terminate`) and `CorrelationConsoleSubscriber` (one id per
+  command run).
+- **Messenger** `Correlation\Messenger\CorrelationMiddleware` (service `nowo_audit_kit.correlation.messenger_middleware`,
+  opt-in per bus): stamps `CorrelationIdStamp` on dispatch, restores the stamped id while a received message is handled
+  (or, with `correlation.messenger_child_ids`, a new id with `caused_by` = the stamped one).
+- **Monolog** `Correlation\Monolog\CorrelationLogProcessor` (`monolog.processor`, `correlation.monolog`): adds
+  `extra.correlation_id` / `extra.caused_by`.
+- **Outgoing HTTP** `Correlation\HttpClient\CorrelationHttpClient` (`correlation.http_client: true`): `http_client` sends
+  the correlation header unless the caller set it.
+- **Outgoing e-mail** `Correlation\Mailer\CorrelationMailerListener` (`correlation.mailer: true`, needs symfony/mailer):
+  adds the correlation header to every e-mail sent inside a unit of work, unless already set.
+- **`correlation.header_name`** (default `X-Correlation-Id`, validated as an HTTP token, e.g. `X-Request-Id`): the
+  header of responses, outgoing requests and e-mails, so one id appears under the same name everywhere; the
+  caller-set checks use it.
+- **`correlation.inbound_headers`** defaults to `[]`: no inbound header is read, every request gets a new id, so a
+  client-sent value never becomes the correlation id (keep it as an upstream id in your HTTP log). Opting in requires
+  the edge proxy to strip or overwrite those headers.
+- `CorrelationMiddlewareOrderPass` moves the correlation middleware in front of `dispatch_after_current_bus`, so
+  messages dispatched with `DispatchAfterCurrentBusStamp` from a handler keep the received context and `caused_by`. A
+  received stamp without a valid id counts as no stamp.
+- `ChangeSetBuilder` makes values storable (invalid UTF-8 replaced, NaN / INF as `NaN` / `INF` / `-INF`), stores a
+  `long_text` secret as a secret (no lengths), and its default secret pattern also covers `passphrase`, `pwd`, `auth`,
+  `cookie`, `session`, `bearer`, `otp`, `salt`, `signature` and `cvv` (a generous heuristic; `public` opts a field out).
+- `ActionLogTimelineSource` re-checks the correlation id of every row, and converts other sources' cursors to the
+  server's timezone at whole seconds, so no row is skipped across sources.
+- Messages without a parent stamp (a Scheduler tick, a message dispatched outside any unit of work) run under a fresh
+  root id with `caused_by` null, with or without `messenger_child_ids`; `caused_by` is set only from a stamp. Messages
+  dispatched outside any unit of work are not stamped.
+- With a provider of the host's, the bundle registers no holder and no listener: the middleware only stamps on
+  dispatch and steps aside on receive. `correlation.provider: true` together with a host binding of
+  `CorrelationIdProviderInterface` fails the container build.
+- **Traceability columns** (opt-in): `ActionLog\TraceableActionLogInterface` + `TraceableActionLogTrait`;
+  `Doctrine\TraceableActionLogMetadataListener` maps nullable `correlation_id` (string 64, indexed), `caused_by`
+  (string 64) and `changes` (json) on entities that implement the interface and do not map the fields themselves
+  (attribute and XML mappings). The recorder fills `correlation_id` / `caused_by` on every row of such an entity, with no
+  extra query.
+- **Before → after changes**: `Change\ChangeSet` + `Change\ChangeSetBuilder` (configured by
+  `action_log.changes.*`): allowlist policies `plain` / `public` / `secret` / `long_text`; secrets stored as
+  `{changed: true}` only (configured `secret_fields` always; secret-looking names without a policy; nested keys masked);
+  a secret-looking name declared `plain` throws `UnsafeTraceableFieldException` (no value in the message); strings over
+  500 characters stored as lengths; sets over 16 KB (unescaped UTF-8 JSON) cut field by field. `ActionLogRecorder::record()`,
+  `recordAndFlush()`, `recordIds()` and `recordIdsAndFlush()` take an optional trailing `?ChangeSet $changes`.
+- **Reads**: `ActionLogCriteria(correlationId: ...)` (byte-for-byte match, also under case-insensitive collations;
+  matches nothing on an entity without the column); `ActionLogView` gains `correlationId`, `causedBy`, `changes`.
+- **Timeline contract**: `Timeline\TimelineSourceInterface` (tag `nowo_audit_kit.timeline_source`, autoconfigured),
+  `TimelineEvent`, `TimelineSubject`, `TimelineCriteria`, keyset `TimelineCursor`, `TimelinePage`, `TimelineMerger`
+  (stable merge of `limit + 1` per source) and `ActionLogTimelineSource` (subjects `user`, `scope`, `correlation`).
+- Not in this release: the hash chain (sealing, checkpoints, verification, redaction). The schema leaves room for it
+  (a later `redacted_at` column and separate seal / checkpoint tables), see [USAGE](USAGE.md#not-in-22-the-hash-chain).
+
 ### Changed
 
 - PHP 8.6: `composer.json` allows PHP below 8.7 (was below 8.6). CI adds a forward-compatibility workflow with a
-  PHP 8.6 cell and a Symfony 8.2 cell (release candidates, allowed to fail until 8.2.0 is stable).
+  PHP 8.6 cell and a Symfony 8.2 cell (stable Symfony 8.2.0).
 - CI: new `release-gates` job in `.github/workflows/ci.yml` runs the `make release-check` gates (`rector-dry`, `validate-phpdoc`, `validate-translations`, `check-twig-extra`) on every full-mode push and PR, so they no longer fail only at release time. CI only, no bundle change.
 - `ActionLogCriteria::scopeValue()` (private) is an instance method now (Rector `LocallyCalledStaticMethodToNonStaticRector`, needed for `make rector-dry` to pass). No behaviour change.
+
+[2.2.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v2.2.0
 
 ## [2.1.0] - 2026-11-21
 

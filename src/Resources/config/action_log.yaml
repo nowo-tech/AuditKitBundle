@@ -14,6 +14,7 @@ services:
             $captureIp: '%nowo_audit_kit.action_log.capture_ip%'
             $flushMode: '%nowo_audit_kit.action_log.flush_mode%'
             $logger: '@?logger'
+            $correlation: '@Nowo\CorrelationContract\CorrelationIdProviderInterface'
 
     Nowo\AuditKitBundle\ActionLog\Command\PurgeActionLogCommand:
         arguments:
@@ -39,6 +40,13 @@ services:
             $entityClass: '%nowo_audit_kit.action_log.entity_class%'
 
     Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface: '@Nowo\AuditKitBundle\ActionLog\ActionLogReader'
+
+    # Since 2.2: the action log as a timeline source (subjects user / scope / correlation).
+    Nowo\AuditKitBundle\Timeline\ActionLogTimelineSource:
+        arguments:
+            $reader: '@Nowo\AuditKitBundle\ActionLog\ActionLogReaderInterface'
+        tags:
+            - { name: nowo_audit_kit.timeline_source }
 
     # Since 1.15.1 (REQ-SEC-006): binary NO PAD collation on actor_id / subject_id of an id-mode log (MySQL / MariaDB).
     Nowo\AuditKitBundle\Doctrine\ReferenceCollationListener:
