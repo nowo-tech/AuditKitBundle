@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[2.2.0] - 2026-11-28](#220---2026-11-28)
 - [[2.1.0] - 2026-11-21](#210---2026-11-21)
 - [[2.0.0] - 2026-11-21](#200---2026-11-21)
 - [[1.18.1] - 2026-11-21](#1181---2026-11-21)
@@ -57,7 +58,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-Additive minor over 2.1 (no BC break; everything new is opt-in). See [UPGRADING](UPGRADING.md#unreleased).
+## [2.2.0] - 2026-11-28
+
+Additive minor over 2.1 (no BC break; everything new is opt-in). See [UPGRADING](UPGRADING.md#to-220).
 
 ### Added
 
@@ -123,6 +126,8 @@ Additive minor over 2.1 (no BC break; everything new is opt-in). See [UPGRADING]
 
 - CI: new `release-gates` job in `.github/workflows/ci.yml` runs the `make release-check` gates (`rector-dry`, `validate-phpdoc`, `validate-translations`, `check-twig-extra`) on every full-mode push and PR, so they no longer fail only at release time. CI only, no bundle change.
 - `ActionLogCriteria::scopeValue()` (private) is an instance method now (Rector `LocallyCalledStaticMethodToNonStaticRector`, needed for `make rector-dry` to pass). No behaviour change.
+
+[2.2.0]: https://github.com/nowo-tech/AuditKitBundle/releases/tag/v2.2.0
 
 ## [2.1.0] - 2026-11-21
 

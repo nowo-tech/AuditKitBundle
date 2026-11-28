@@ -534,7 +534,7 @@ map a field yourself (for example to rename its column):
 | `causedBy` | `caused_by` | string 64, nullable |
 | `changes` | `changes` | json, nullable |
 
-Run `doctrine:migrations:diff` (the DDL is also in [UPGRADING](UPGRADING.md#unreleased)).
+Run `doctrine:migrations:diff` (the DDL is also in [UPGRADING](UPGRADING.md#to-220)).
 
 ### Correlation id
 

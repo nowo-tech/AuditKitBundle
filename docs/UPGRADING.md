@@ -3,6 +3,7 @@
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 2.2.0](#to-220)
 - [To 2.1.0](#to-210)
 - [To 2.0.0](#to-200)
   - [Before you upgrade](#before-you-upgrade)
@@ -63,6 +64,14 @@
   - [1.0.0](#100)
 
 ## Unreleased
+
+## To 2.2.0
+
+From **2.1.0**:
+
+```bash
+composer update nowo-tech/audit-kit-bundle
+```
 
 From **2.1.x**: `composer update nowo-tech/audit-kit-bundle`. It now requires `nowo-tech/correlation-contract` `^0.1`
 (installed with it). Nothing to change: every addition is opt-in, and an action log entity that does not implement
