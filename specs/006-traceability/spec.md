@@ -72,6 +72,10 @@ Packages implement `TimelineSourceInterface`; `TimelineMerger` returns stable ke
   length limit stored as lengths; sets over the byte limit cut field by field.
 - **FR-TR-008** The correlation filter matches byte for byte under any collation.
 - **FR-TR-009** Timeline merge is newest first, ties by source then source order, pages stable.
+- **FR-TR-011** One configurable header name (`correlation.header_name`) for responses, outgoing requests and e-mails
+  (`correlation.mailer`); caller-set headers are kept. `inbound_headers: []` disables inbound adoption.
+- **FR-TR-012** A message without a parent stamp runs under a fresh root id, `caused_by` null; with a host provider the
+  bundle keeps no state (no holder, no listeners, receive steps aside); bundle provider + host binding is refused.
 - **FR-TR-010** Writes keep REQ-RUNTIME-003: no new write path, no unique key, no host entity manager cleared or reset.
 
 ---

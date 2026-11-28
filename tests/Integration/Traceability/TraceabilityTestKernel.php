@@ -15,12 +15,14 @@ use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelActionLog;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity\KernelUser;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Repository\KernelActionLogRepository;
 use Nowo\AuditKitBundle\Timeline\TimelineMerger;
+use Nowo\CorrelationContract\CorrelationIdProviderInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\Kernel;
+use Symfony\Component\Mailer\Event\MessageEvent;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorage;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
@@ -33,9 +35,15 @@ final class TraceabilityTestKernel extends Kernel
 {
     use MicroKernelTrait;
 
-    public function __construct()
-    {
-        parent::__construct('trace', false);
+    /**
+     * @param array<string, mixed> $correlation overrides of `nowo_audit_kit.correlation`
+     * @param bool $hostProvider bind `CorrelationIdProviderInterface` to the host's {@see HostCorrelationProvider}
+     */
+    public function __construct(
+        private readonly array $correlation = [],
+        private readonly bool $hostProvider = false,
+    ) {
+        parent::__construct('trace' . substr(md5(serialize([$correlation, $hostProvider])), 0, 8), false);
     }
 
     public function registerBundles(): iterable
@@ -52,7 +60,7 @@ final class TraceabilityTestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-audit-kit-trace-kernel/cache';
+        return sys_get_temp_dir() . '/nowo-audit-kit-trace-kernel/cache/' . $this->environment;
     }
 
     public function getLogDir(): string
@@ -64,6 +72,7 @@ final class TraceabilityTestKernel extends Kernel
     {
         $routes->add('trace_api', '/api/trace')->controller(TraceController::class);
         $routes->add('trace_page', '/page')->controller(TraceController::class);
+        $routes->add('trace_notify', '/api/notify')->controller(NotifyController::class);
     }
 
     protected function configureContainer(ContainerBuilder $container): void
@@ -74,7 +83,8 @@ final class TraceabilityTestKernel extends Kernel
             'http_method_override' => false,
             'php_errors'           => ['log' => true],
             'router'               => ['utf8' => true],
-            'http_client'          => true,
+            'http_client'          => ['mock_response_factory' => HttpRecorder::class],
+            'mailer'               => ['dsn' => 'null://null'],
             'messenger'            => [
                 'default_bus' => 'trace.bus',
                 'buses'       => ['trace.bus' => ['middleware' => [NowoAuditKitExtension::MESSENGER_MIDDLEWARE]]],
@@ -95,7 +105,7 @@ final class TraceabilityTestKernel extends Kernel
         $container->loadFromExtension('nowo_audit_kit', [
             'user_class'  => KernelUser::class,
             'action_log'  => ['entity_class' => KernelActionLog::class, 'flush_mode' => ActionLogRecorder::FLUSH_ISOLATED],
-            'correlation' => ['provider' => true, 'response_header_paths' => ['/api'], 'http_client' => true],
+            'correlation' => $this->correlation + ['provider' => !$this->hostProvider, 'response_header_paths' => ['/api'], 'http_client' => true, 'mailer' => true],
         ]);
 
         $container->register(KernelActionLogRepository::class)
@@ -113,7 +123,25 @@ final class TraceabilityTestKernel extends Kernel
             ->setArguments([new Reference(CorrelationIdHolder::class)])
             ->addTag('messenger.message_handler', ['handles' => TraceMessage::class]);
 
-        $container->setAlias('test.correlation_holder', CorrelationIdHolder::class)->setPublic(true);
+        $container->register(HttpRecorder::class)->setPublic(true);
+        $container->register(MailRecorder::class)
+            ->setPublic(true)
+            ->addTag('kernel.event_listener', ['event' => MessageEvent::class, 'priority' => -255]);
+        $container->register(NotifyController::class)
+            ->setAutowired(true)
+            ->setPublic(true)
+            ->addTag('controller.service_arguments');
+        if ($this->hostProvider) {
+            $container->register(HostCorrelationProvider::class)
+                ->setPublic(true)
+                ->addTag('kernel.event_listener', ['event' => 'kernel.request', 'method' => 'onRequest', 'priority' => 4096])
+                ->addTag('kernel.event_listener', ['event' => 'kernel.terminate', 'method' => 'reset', 'priority' => -4096])
+                ->addTag('kernel.reset', ['method' => 'reset']);
+            $container->setAlias(CorrelationIdProviderInterface::class, HostCorrelationProvider::class);
+            $container->getDefinition(TraceHandler::class)->setArguments([new Reference(CorrelationIdProviderInterface::class)]);
+        } else {
+            $container->setAlias('test.correlation_holder', CorrelationIdHolder::class)->setPublic(true);
+        }
         $container->setAlias('test.action_log_reader', ActionLogReaderInterface::class)->setPublic(true);
         $container->setAlias('test.timeline', TimelineMerger::class)->setPublic(true);
         $container->setAlias('test.bus', 'trace.bus')->setPublic(true);

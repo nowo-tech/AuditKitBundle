@@ -7,13 +7,19 @@ namespace Nowo\AuditKitBundle\DependencyInjection;
 use Nowo\AuditKitBundle\ActionLog\ActionLogRecorder;
 use Nowo\AuditKitBundle\Change\ChangeSetBuilder;
 use Nowo\AuditKitBundle\Correlation\InboundCorrelationId;
+use Nowo\CorrelationContract\Headers;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
+
+use function is_string;
 
 /** Defines the {@see Configuration::ALIAS} configuration tree for audit field options. */
 final class Configuration implements ConfigurationInterface
 {
     public const ALIAS = 'nowo_audit_kit';
+
+    /** Since 2.2: an HTTP header name (RFC 9110 token). */
+    public const HTTP_TOKEN = "/\\A[!#$%&'*+.^_`|~0-9A-Za-z-]+\\z/";
 
     /** Builds the validated configuration schema for the bundle extension. */
     public function getConfigTreeBuilder(): TreeBuilder
@@ -118,8 +124,17 @@ final class Configuration implements ConfigurationInterface
                             ->info('Register the bundle\'s provider (CorrelationIdHolder) and its listeners: one id per main request (inbound header or new), per console command and per received message. Off by default: hosts with a provider of their own alias it instead.')
                             ->defaultFalse()
                         ->end()
+                        ->scalarNode('header_name')
+                            ->info('Header that carries the id on responses (response_header_paths) and outgoing requests (http_client); an HTTP token. Inbound headers are configured separately (inbound_headers).')
+                            ->defaultValue(Headers::CORRELATION_ID)
+                            ->example('X-Request-Id')
+                            ->validate()
+                                ->ifTrue(static fn (mixed $name): bool => !is_string($name) || preg_match(self::HTTP_TOKEN, $name) !== 1)
+                                ->thenInvalid('The correlation header name %s is not a valid HTTP header name (token characters only).')
+                            ->end()
+                        ->end()
                         ->arrayNode('inbound_headers')
-                            ->info('With provider: true, request headers read for an incoming id, in order (traceparent gives its trace-id). [] never reads one.')
+                            ->info('With provider: true, request headers read for an incoming id, in order (traceparent gives its trace-id). [] reads none: every request gets a new id, so inbound ids never become the correlation id.')
                             ->scalarPrototype()->cannotBeEmpty()->end()
                             ->defaultValue(InboundCorrelationId::DEFAULT_HEADERS)
                         ->end()
@@ -139,6 +154,10 @@ final class Configuration implements ConfigurationInterface
                         ->end()
                         ->booleanNode('http_client')
                             ->info('Decorate http_client so outgoing requests carry X-Correlation-Id (needs symfony/http-client).')
+                            ->defaultFalse()
+                        ->end()
+                        ->booleanNode('mailer')
+                            ->info('Add header_name with the current id to outgoing e-mails (needs symfony/mailer), unless already set.')
                             ->defaultFalse()
                         ->end()
                         ->booleanNode('monolog')

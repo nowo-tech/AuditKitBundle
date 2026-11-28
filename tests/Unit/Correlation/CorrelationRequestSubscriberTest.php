@@ -66,6 +66,21 @@ final class CorrelationRequestSubscriberTest extends TestCase
         $this->assertNull($this->respond($subscriber, '/api')->headers->get('X-Correlation-Id'));
     }
 
+    public function testAConfiguredHeaderName(): void
+    {
+        $holder = new CorrelationIdHolder();
+        $holder->begin(new CorrelationContext(CorrelationId::fromString('req-2')));
+        $subscriber = new CorrelationRequestSubscriber($holder, new InboundCorrelationId(), ['/api'], 'X-Request-Id');
+
+        $response = $this->respond($subscriber, '/api/x');
+        $this->assertSame('req-2', $response->headers->get('X-Request-Id'));
+        $this->assertFalse($response->headers->has('X-Correlation-Id'));
+
+        $own = new Response();
+        $own->headers->set('x-request-id', 'mine');
+        $this->assertSame('mine', $this->respond($subscriber, '/api', HttpKernelInterface::MAIN_REQUEST, $own)->headers->get('X-Request-Id'));
+    }
+
     private function respond(CorrelationRequestSubscriber $subscriber, string $path, int $type = HttpKernelInterface::MAIN_REQUEST, Response $response = new Response()): Response
     {
         $subscriber->onResponse(new ResponseEvent($this->createStub(HttpKernelInterface::class), Request::create($path), $type, $response));

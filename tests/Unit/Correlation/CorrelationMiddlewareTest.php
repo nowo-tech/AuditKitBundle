@@ -11,6 +11,7 @@ use Nowo\CorrelationContract\CorrelationId;
 use Nowo\CorrelationContract\CorrelationIdProviderInterface;
 use Nowo\CorrelationContract\Messenger\CorrelationIdStamp;
 use Nowo\CorrelationContract\NullCorrelationIdProvider;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use stdClass;
@@ -40,11 +41,10 @@ final class CorrelationMiddlewareTest extends TestCase
         $this->assertSame([['request-1', 'parent-0']], $this->seen, 'a synchronously handled message keeps the dispatching context');
     }
 
-    public function testDispatchOutsideAUnitOfWorkStampsANewIdAndKeepsACallerStamp(): void
+    public function testDispatchOutsideAUnitOfWorkAddsNoParentAndKeepsACallerStamp(): void
     {
-        $stamp = $this->bus(new NullCorrelationIdProvider())->dispatch(new stdClass())->last(CorrelationIdStamp::class);
-        $this->assertInstanceOf(CorrelationIdStamp::class, $stamp);
-        $this->assertNull($stamp->causedBy);
+        $this->assertNull($this->bus(new NullCorrelationIdProvider())->dispatch(new stdClass())->last(CorrelationIdStamp::class));
+        $this->assertNull($this->bus(new CorrelationIdHolder())->dispatch(new stdClass())->last(CorrelationIdStamp::class));
 
         $own  = new CorrelationIdStamp(CorrelationId::fromString('mine'));
         $kept = $this->bus(new CorrelationIdHolder())->dispatch(new stdClass(), [$own])->last(CorrelationIdStamp::class);
@@ -102,6 +102,48 @@ final class CorrelationMiddlewareTest extends TestCase
 
         $this->assertNotNull($this->seen[0][0]);
         $this->assertSame(0, $worker->depth());
+    }
+
+    /**
+     * A message with no parent stamp (a Scheduler tick, a message dispatched outside any unit of work) runs under a fresh
+     * root id with no caused_by, in both modes; caused_by comes only from a stamp.
+     */
+    #[DataProvider('modes')]
+    public function testAMessageWithoutParentRunsUnderAFreshRootId(bool $childIds): void
+    {
+        $sender = new CorrelationIdHolder();
+        $sent   = $this->bus($sender, $childIds, false)->dispatch(new stdClass());
+        $worker = new CorrelationIdHolder();
+
+        $this->bus($worker, $childIds)->dispatch($sent->with(new ReceivedStamp('scheduler_default')));
+        $this->bus($worker, $childIds)->dispatch(new Envelope(new stdClass(), [new ReceivedStamp('scheduler_default')]));
+
+        $this->assertCount(2, $this->seen);
+        foreach ($this->seen as [$id, $causedBy]) {
+            $this->assertNotNull($id);
+            $this->assertNull($causedBy);
+        }
+        $this->assertNotSame($this->seen[0][0], $this->seen[1][0]);
+        $this->assertSame(0, $worker->depth());
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function modes(): iterable
+    {
+        yield 'chain' => [false];
+        yield 'child ids' => [true];
+    }
+
+    public function testAHostProviderWithoutCausationStampsItsCurrentIdOnly(): void
+    {
+        $provider = $this->createStub(CorrelationIdProviderInterface::class);
+        $provider->method('current')->willReturnOnConsecutiveCalls(CorrelationId::fromString('host-1'), null);
+        $bus = new MessageBus([new CorrelationMiddleware($provider)]);
+
+        $this->assertSame('host-1', $bus->dispatch(new stdClass())->last(CorrelationIdStamp::class)?->correlationId->toString());
+        $this->assertNull($bus->dispatch(new stdClass())->last(CorrelationIdStamp::class));
     }
 
     public function testWithAHostProviderReceivingIsLeftToTheHost(): void

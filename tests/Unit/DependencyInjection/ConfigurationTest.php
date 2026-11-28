@@ -7,6 +7,7 @@ namespace Nowo\AuditKitBundle\Tests\Unit\DependencyInjection;
 use Nowo\AuditKitBundle\Change\ChangeSetBuilder;
 use Nowo\AuditKitBundle\DependencyInjection\Configuration;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\Definition\Processor;
 
 final class ConfigurationTest extends TestCase
@@ -126,12 +127,25 @@ final class ConfigurationTest extends TestCase
 
         $this->assertSame([
             'provider'                     => false,
+            'header_name'                  => 'X-Correlation-Id',
             'inbound_headers'              => ['X-Correlation-Id', 'traceparent'],
             'inbound_trusted_proxies_only' => true,
             'response_header_paths'        => [],
             'messenger_child_ids'          => false,
             'http_client'                  => false,
+            'mailer'                       => false,
             'monolog'                      => true,
         ], $config['correlation']);
+    }
+
+    public function testEmptyInboundHeadersStayEmptyAndTheHeaderNameIsValidated(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [['correlation' => ['inbound_headers' => [], 'header_name' => 'X-Request-Id']]]);
+        $this->assertSame([], $config['correlation']['inbound_headers']);
+        $this->assertSame('X-Request-Id', $config['correlation']['header_name']);
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('is not a valid HTTP header name');
+        (new Processor())->processConfiguration(new Configuration(), [['correlation' => ['header_name' => "X-Bad: x\r\n"]]]);
     }
 }

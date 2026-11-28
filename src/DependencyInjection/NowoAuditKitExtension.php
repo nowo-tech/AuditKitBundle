@@ -19,6 +19,7 @@ use Nowo\AuditKitBundle\Correlation\CorrelationIdHolder;
 use Nowo\AuditKitBundle\Correlation\CorrelationRequestSubscriber;
 use Nowo\AuditKitBundle\Correlation\HttpClient\CorrelationHttpClient;
 use Nowo\AuditKitBundle\Correlation\InboundCorrelationId;
+use Nowo\AuditKitBundle\Correlation\Mailer\CorrelationMailerListener;
 use Nowo\AuditKitBundle\Correlation\Messenger\CorrelationMiddleware;
 use Nowo\AuditKitBundle\Correlation\Monolog\CorrelationLogProcessor;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
@@ -37,6 +38,7 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Mailer\Event\MessageEvent;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
@@ -65,6 +67,9 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
 
     /** Since 2.2: Monolog 3 record class (the log processor is registered only when it exists). */
     public const MONOLOG_RECORD_CLASS = LogRecord::class;
+
+    /** Since 2.2: Mailer event (the mailer listener is registered only when it exists). */
+    public const MAILER_MESSAGE_EVENT = MessageEvent::class;
 
     /** Since 2.2: Messenger middleware interface (the middleware is registered only when it exists). */
     public const MESSENGER_MIDDLEWARE_INTERFACE = MiddlewareInterface::class;
@@ -295,7 +300,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
      * bundle's {@see CorrelationIdHolder} and registers its listeners. The Messenger middleware, the log processor and the
      * outgoing-request decorator exist only when their package is installed.
      *
-     * @param array{provider: bool, inbound_headers: list<string>, inbound_trusted_proxies_only: bool, response_header_paths: list<string>, messenger_child_ids: bool, http_client: bool, monolog: bool} $config
+     * @param array{provider: bool, header_name: string, inbound_headers: list<string>, inbound_trusted_proxies_only: bool, response_header_paths: list<string>, messenger_child_ids: bool, http_client: bool, mailer: bool, monolog: bool} $config
      */
     private function loadCorrelation(array $config, ContainerBuilder $container): void
     {
@@ -310,7 +315,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
             $container->register(InboundCorrelationId::class, InboundCorrelationId::class)
                 ->setArguments([$config['inbound_headers'], $config['inbound_trusted_proxies_only']]);
             $container->register(CorrelationRequestSubscriber::class, CorrelationRequestSubscriber::class)
-                ->setArguments([new Reference(CorrelationIdHolder::class), new Reference(InboundCorrelationId::class), $config['response_header_paths']])
+                ->setArguments([new Reference(CorrelationIdHolder::class), new Reference(InboundCorrelationId::class), $config['response_header_paths'], $config['header_name']])
                 ->addTag('kernel.event_subscriber');
             $container->register(CorrelationConsoleSubscriber::class, CorrelationConsoleSubscriber::class)
                 ->setArguments([new Reference(CorrelationIdHolder::class)])
@@ -328,11 +333,17 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
                 ->addTag('monolog.processor');
         }
 
+        if ($config['mailer'] && class_exists(self::MAILER_MESSAGE_EVENT)) {
+            $container->register(CorrelationMailerListener::class, CorrelationMailerListener::class)
+                ->setArguments([$provider, $config['header_name']])
+                ->addTag('kernel.event_listener', ['event' => self::MAILER_MESSAGE_EVENT, 'priority' => 255]);
+        }
+
         // Without symfony/http-client there is no `http_client` service and the decorator is dropped.
         if ($config['http_client']) {
             $container->register(CorrelationHttpClient::class, CorrelationHttpClient::class)
                 ->setDecoratedService('http_client', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
-                ->setArguments([new Reference('.inner'), $provider]);
+                ->setArguments([new Reference('.inner'), $provider, $config['header_name']]);
         }
     }
 

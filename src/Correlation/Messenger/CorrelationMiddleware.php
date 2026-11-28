@@ -20,14 +20,20 @@ use Symfony\Component\Messenger\Stamp\StampInterface;
  * Since 2.2: carries the correlation id across a message bus (opt-in per bus: add the service
  * `nowo_audit_kit.correlation.messenger_middleware` to the bus `middleware` list).
  *
- * - Dispatch: an envelope without a {@see CorrelationIdStamp} gets one with the current context (correlation id and
- *   `causedBy` when the provider tracks causation), or a new id outside any unit of work. A stamp the caller set is
- *   kept. Retries keep the stamp, so a retried message keeps its id.
- * - Receive (the envelope has a `ReceivedStamp`): with the bundle's {@see CorrelationIdHolder} the handler runs under
- *   the stamped context, restored in a `finally` (the outer one, if any, is current again afterwards, even when the
- *   handler throws). With `$childIds` the handler runs under a new id instead, with `causedBy` = the stamped id, so
- *   every handled message is its own unit of work linked to the one that dispatched it. A message without a stamp
- *   gets a new id. With a provider of the host's, receiving is left to the host's own integration.
+ * - Dispatch inside a unit of work: an envelope without a {@see CorrelationIdStamp} gets one with the current context
+ *   (correlation id, and `causedBy` when the provider tracks causation). A stamp the caller set is kept. Retries keep
+ *   the stamp, so a retried message keeps its id.
+ * - Dispatch outside any unit of work (a script, a Scheduler tick): no stamp is added, the message has no parent.
+ * - Receive (the envelope has a `ReceivedStamp`), with the bundle's {@see CorrelationIdHolder} only:
+ *   - a message without a stamp (a Scheduler message, a message dispatched outside any unit of work) runs under a
+ *     fresh root id with `causedBy` null, whatever `$childIds` says;
+ *   - a stamped message runs under the stamped context, or with `$childIds` under a new id with `causedBy` = the stamped
+ *     id, so each handled message is its own unit of work linked to its parent. `causedBy` is set only from a stamp.
+ *
+ *   The context is ended in a `finally`: the outer one, if any, is current again afterwards, even when the handler
+ *   throws.
+ * - Receive with a provider of the host's (an alias of `CorrelationIdProviderInterface`): the middleware steps aside
+ *   (no context is pushed anywhere); restoring the id is the host provider's job. It still stamps on dispatch.
  *
  * Messages handled synchronously (no `ReceivedStamp`) run in the dispatching unit of work and keep its context.
  *
@@ -47,8 +53,9 @@ final readonly class CorrelationMiddleware implements MiddlewareInterface
     {
         $stamp = $envelope->last(CorrelationIdStamp::class);
         if (!$envelope->last(ReceivedStamp::class) instanceof StampInterface) {
-            if (!$stamp instanceof CorrelationIdStamp) {
-                $envelope = $envelope->with(CorrelationIdStamp::fromContext($this->dispatchContext()));
+            $context = $stamp instanceof CorrelationIdStamp ? null : $this->dispatchContext();
+            if ($context instanceof CorrelationContext) {
+                $envelope = $envelope->with(CorrelationIdStamp::fromContext($context));
             }
 
             return $stack->next()->handle($envelope, $stack);
@@ -67,11 +74,16 @@ final readonly class CorrelationMiddleware implements MiddlewareInterface
         }
     }
 
-    private function dispatchContext(): CorrelationContext
+    /** The context of the dispatching unit of work, null outside any (the message then carries no parent). */
+    private function dispatchContext(): ?CorrelationContext
     {
-        $context = $this->provider instanceof CorrelationContextProviderInterface ? $this->provider->currentContext() : null;
+        if ($this->provider instanceof CorrelationContextProviderInterface) {
+            return $this->provider->currentContext();
+        }
 
-        return $context ?? new CorrelationContext($this->provider->currentOrGenerate());
+        $id = $this->provider->current();
+
+        return $id instanceof CorrelationId ? new CorrelationContext($id) : null;
     }
 
     private function receiveContext(?CorrelationIdStamp $stamp): CorrelationContext

@@ -76,7 +76,20 @@ Additive minor over 2.1 (no BC break; everything new is opt-in). See [UPGRADING]
 - **Monolog** `Correlation\Monolog\CorrelationLogProcessor` (`monolog.processor`, `correlation.monolog`): adds
   `extra.correlation_id` / `extra.caused_by`.
 - **Outgoing HTTP** `Correlation\HttpClient\CorrelationHttpClient` (`correlation.http_client: true`): `http_client` sends
-  `X-Correlation-Id` unless the caller set it.
+  the correlation header unless the caller set it.
+- **Outgoing e-mail** `Correlation\Mailer\CorrelationMailerListener` (`correlation.mailer: true`, needs symfony/mailer):
+  adds the correlation header to every e-mail sent inside a unit of work, unless already set.
+- **`correlation.header_name`** (default `X-Correlation-Id`, validated as an HTTP token, e.g. `X-Request-Id`): the
+  header of responses, outgoing requests and e-mails, so one id appears under the same name everywhere; the
+  caller-set checks use it.
+- **`correlation.inbound_headers: []`** reads no inbound header: every request gets a new id, so inbound ids never
+  become the correlation id (keep them as upstream ids in your HTTP log).
+- Messages without a parent stamp (a Scheduler tick, a message dispatched outside any unit of work) run under a fresh
+  root id with `caused_by` null, with or without `messenger_child_ids`; `caused_by` is set only from a stamp. Messages
+  dispatched outside any unit of work are not stamped.
+- With a provider of the host's, the bundle registers no holder and no listener: the middleware only stamps on
+  dispatch and steps aside on receive. `correlation.provider: true` together with a host binding of
+  `CorrelationIdProviderInterface` fails the container build.
 - **Traceability columns** (opt-in): `ActionLog\TraceableActionLogInterface` + `TraceableActionLogTrait`;
   `Doctrine\TraceableActionLogMetadataListener` maps nullable `correlation_id` (string 64, indexed), `caused_by`
   (string 64) and `changes` (json) on entities that implement the interface and do not map the fields themselves

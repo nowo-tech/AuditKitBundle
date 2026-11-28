@@ -17,6 +17,9 @@ use function strcasecmp;
  * trace-id ({@see CorrelationId::tryFromTraceparent()}), any other header its value when it is a valid correlation id
  * ({@see CorrelationId::tryFromString()}). Invalid values are ignored, never echoed.
  *
+ * `correlation.inbound_headers: []` reads no header at all: every request gets a new id, so an inbound id never becomes
+ * the correlation id (keep it elsewhere, for example as an upstream id in the host's HTTP log).
+ *
  * With `$trustedProxiesOnly` (the default) the headers are read only when the request comes from a trusted proxy
  * (`framework.trusted_proxies`): a client calling the application directly cannot choose the id its requests are
  * recorded under, and so cannot mix its rows into another request's trail.

@@ -567,6 +567,26 @@ recorded), unless your application or another package binds it.
   `inbound_trusted_proxies_only`), so a client cannot choose the id its requests are recorded under. Invalid values are
   ignored, never echoed.
 
+  To keep inbound ids out of the correlation id entirely, set `inbound_headers: []`: every request then gets a new id
+  (your HTTP logger can still store the inbound value, as an upstream id).
+
+**What the bundle does in each mode:**
+
+| | Your provider (alias, `provider: false`) | The bundle's (`provider: true`) |
+| --- | --- | --- |
+| Request / console listeners | none registered | start and clear the id in `CorrelationIdHolder` |
+| Messenger middleware, dispatch | stamps your provider's current id (none outside a unit of work) | stamps the current context |
+| Messenger middleware, receive | steps aside: restoring the id is your provider's job | runs the handler under the stamped id (or a root id), ends it in a `finally` |
+| Rows, log records, outgoing requests, e-mails | read your provider on every call | read the holder on every call |
+| State kept by the bundle | none | the holder's context stack, emptied at every boundary and by `kernel.reset` |
+
+Your provider resets itself (for example `ResetInterface` + the `kernel.reset` tag, and its own terminate listener).
+Binding your own provider while `provider: true` fails the container build.
+
+**Header name.** Responses (`response_header_paths`), outgoing requests (`http_client`) and e-mails (`mailer`) use
+`correlation.header_name` (default `X-Correlation-Id`; any HTTP token, e.g. `X-Request-Id`), so one id appears under
+the same name everywhere. A header the caller already set under that name (any case) is kept.
+
 **Messenger** (opt-in per bus): add the middleware to the buses that should carry the id.
 
 ```yaml
@@ -579,17 +599,22 @@ framework:
                     - nowo_audit_kit.correlation.messenger_middleware
 ```
 
-On dispatch it adds a `Nowo\CorrelationContract\Messenger\CorrelationIdStamp` with the current context (a new id outside
-any unit of work); a stamp you set is kept, and retries keep it. With the bundle's provider, a received message runs
-under the stamped id (restored afterwards, even when the handler fails). With `correlation.messenger_child_ids: true` it
-runs under a new id with `caused_by` = the dispatching id instead, so each handled message is its own unit of work
-linked to its parent.
+On dispatch inside a unit of work it adds a `Nowo\CorrelationContract\Messenger\CorrelationIdStamp` with the current
+context; a stamp you set is kept, and retries keep it. A message dispatched outside any unit of work gets no stamp. With
+the bundle's provider, a received stamped message runs under the stamped id (restored afterwards, even when the handler
+fails); with `correlation.messenger_child_ids: true` it runs under a new id with `caused_by` = the stamped id instead,
+so each handled message is its own unit of work linked to its parent. A message without a stamp (a Scheduler tick, a
+message dispatched outside any unit of work) runs under a fresh root id with `caused_by` null in both modes:
+`caused_by` comes only from a parent stamp.
 
 **Monolog** (when monolog/monolog 3 is installed; `correlation.monolog`, default true): records written inside a unit
 of work get `extra.correlation_id` (and `extra.caused_by`).
 
 **Outgoing HTTP** (`correlation.http_client: true`, needs symfony/http-client): `http_client` adds
-`X-Correlation-Id: <current id>` unless the caller set that header.
+`<header_name>: <current id>` unless the caller set that header.
+
+**Outgoing e-mail** (`correlation.mailer: true`, needs symfony/mailer): every e-mail sent inside a unit of work gets
+`<header_name>: <current id>` unless it already has it (a queued e-mail gets it when queued).
 
 ### Changes (before → after)
 

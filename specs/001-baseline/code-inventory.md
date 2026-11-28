@@ -121,6 +121,7 @@
 | `Correlation/Messenger/CorrelationMiddleware.php` | Stamp / restore | 006 FR-TR-004 | Mapped |
 | `Correlation/Monolog/CorrelationLogProcessor.php` | Log record fields | 006 FR-TR-003 | Mapped |
 | `Correlation/HttpClient/CorrelationHttpClient.php` | Outgoing header | 006 FR-TR-003 | Mapped |
+| `Correlation/Mailer/CorrelationMailerListener.php` | E-mail header | 006 FR-TR-011 | Mapped |
 | `Timeline/TimelineSourceInterface.php` | Contributor contract | 006 FR-TR-009 | Mapped |
 | `Timeline/TimelineEvent.php` | Entry value | 006 FR-TR-009 | Mapped |
 | `Timeline/TimelineSubject.php` | Subject value | 006 FR-TR-009 | Mapped |
@@ -158,9 +159,9 @@
 | PHP — profiles | 3 | 3 |
 | PHP — Doctrine & security | 20 | 20 |
 | PHP — action log | 14 | 14 |
-| PHP — traceability (2.2) | 22 | 22 |
+| PHP — traceability (2.2) | 23 | 23 |
 | PHP — avatars and Twig | 7 | 7 |
 | PHP — attributes | 1 | 1 |
-| **Total production sources** | **98** | **98** |
+| **Total production sources** | **99** | **99** |
 
-Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **98** (2026-11-28, 2.2 traceability A; 75 on 2026-11-27, 2.1.0; 75 on 2026-11-22; 70 on 2026-11-16).
+Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **99** (2026-11-28, 2.2 traceability A; 75 on 2026-11-27, 2.1.0; 75 on 2026-11-22; 70 on 2026-11-16).

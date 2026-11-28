@@ -19,7 +19,7 @@ use function str_starts_with;
  *
  * - `kernel.request` (main request, first): forgets whatever a previous request left, then starts a context with the
  *   inbound id ({@see InboundCorrelationId}) or a new one. Sub-requests share the main request's id.
- * - `kernel.response` (main request): adds `X-Correlation-Id` to responses whose path starts with one of
+ * - `kernel.response` (main request): adds `X-Correlation-Id` (or `correlation.header_name`) to responses whose path starts with one of
  *   `correlation.response_header_paths` (none by default), unless the response already carries one.
  * - `kernel.terminate` (last): clears the holder, so a worker never carries the id into its next request. Log lines
  *   written by other terminate listeners still carry it.
@@ -33,12 +33,14 @@ use function str_starts_with;
 final readonly class CorrelationRequestSubscriber implements EventSubscriberInterface
 {
     /**
-     * @param list<string> $responseHeaderPaths path prefixes whose responses carry `X-Correlation-Id`
+     * @param list<string> $responseHeaderPaths path prefixes whose responses carry the header
+     * @param string $headerName the response header (`correlation.header_name`, default `X-Correlation-Id`)
      */
     public function __construct(
         private CorrelationIdHolder $holder,
         private InboundCorrelationId $inbound,
         private array $responseHeaderPaths = [],
+        private string $headerName = Headers::CORRELATION_ID,
     ) {
     }
 
@@ -67,14 +69,14 @@ final readonly class CorrelationRequestSubscriber implements EventSubscriberInte
     public function onResponse(ResponseEvent $event): void
     {
         $id = $this->holder->current();
-        if (!$event->isMainRequest() || !$id instanceof CorrelationId || $event->getResponse()->headers->has(Headers::CORRELATION_ID)) {
+        if (!$event->isMainRequest() || !$id instanceof CorrelationId || $event->getResponse()->headers->has($this->headerName)) {
             return;
         }
 
         $path = $event->getRequest()->getPathInfo();
         foreach ($this->responseHeaderPaths as $prefix) {
             if (str_starts_with($path, $prefix)) {
-                $event->getResponse()->headers->set(Headers::CORRELATION_ID, $id->toString());
+                $event->getResponse()->headers->set($this->headerName, $id->toString());
 
                 return;
             }

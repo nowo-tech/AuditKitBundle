@@ -21,7 +21,8 @@ use function trim;
 
 /**
  * Since 2.2 (opt-in, `correlation.http_client: true`): decorates `http_client` so every outgoing request made inside a
- * unit of work carries `X-Correlation-Id: <current id>`, unless the caller set that header. Outside any unit of work
+ * unit of work carries `X-Correlation-Id: <current id>` (or the configured `correlation.header_name`), unless the caller
+ * set that header (compared case-insensitively). Outside any unit of work
  * nothing is added (no id is generated for it).
  *
  * Only the `http_client` service is decorated; a scoped client built with `withOptions()` keeps the decoration.
@@ -33,9 +34,13 @@ final class CorrelationHttpClient implements HttpClientInterface, ResetInterface
 {
     use DecoratorTrait;
 
+    /**
+     * @param string $headerName the header to send (`correlation.header_name`, default `X-Correlation-Id`)
+     */
     public function __construct(
         HttpClientInterface $client,
         private readonly CorrelationIdProviderInterface $provider,
+        private readonly string $headerName = Headers::CORRELATION_ID,
     ) {
         $this->client = $client;
     }
@@ -46,10 +51,10 @@ final class CorrelationHttpClient implements HttpClientInterface, ResetInterface
     public function request(string $method, string $url, array $options = []): ResponseInterface
     {
         $id = $this->provider->current();
-        if ($id instanceof CorrelationId && !self::hasHeader($options['headers'] ?? [], Headers::CORRELATION_ID)) {
-            $headers                          = is_array($options['headers'] ?? null) ? $options['headers'] : [];
-            $headers[Headers::CORRELATION_ID] = $id->toString();
-            $options['headers']               = $headers;
+        if ($id instanceof CorrelationId && !self::hasHeader($options['headers'] ?? [], $this->headerName)) {
+            $headers                    = is_array($options['headers'] ?? null) ? $options['headers'] : [];
+            $headers[$this->headerName] = $id->toString();
+            $options['headers']         = $headers;
         }
 
         return $this->client->request($method, $url, $options);

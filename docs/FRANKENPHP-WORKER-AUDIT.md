@@ -117,7 +117,7 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 | `CorrelationIdHolder` context stack (since 2.2, only with `correlation.provider: true`; at most 32 nested units) | emptied at `kernel.request` of the main request and at `kernel.terminate`; one entry popped at `console.terminate` and in a `finally` after every received Messenger message; also `kernel.reset` | the bundle (`CorrelationRequestSubscriber`, `CorrelationConsoleSubscriber`, `CorrelationMiddleware`) |
 
 Blame needs no boundary: `CurrentUserResolver` reads the token per Doctrine event (W-01). The other 2.2 services
-(`CorrelationMiddleware`, `CorrelationLogProcessor`, `CorrelationHttpClient`, `ChangeSetBuilder`,
+(`CorrelationMiddleware`, `CorrelationLogProcessor`, `CorrelationHttpClient`, `CorrelationMailerListener`, `ChangeSetBuilder`,
 `TraceableActionLogMetadataListener`, `TimelineMerger`, `ActionLogTimelineSource`) are stateless and ask the provider on
 every call; the recorder never keeps the id it writes.
 
@@ -138,6 +138,8 @@ every call; the recorder never keeps the id it writes.
   id, the holder is empty after `kernel.terminate`; a spoofed inbound id from an untrusted client is ignored; two console
   runs get different ids; a received message runs under its stamped id and the outer id is current again afterwards.
   `tests/Unit/Correlation/CorrelationMiddlewareTest.php` covers the serialised stamp round trip and a failing handler.
+  With a host provider (`testWithAHostProviderTheBundleOnlyReadsItAndKeepsNoState`) the bundle registers no holder or
+  listener, three requests keep the host's own ids, and receiving a message leaves the host provider untouched.
 - Blame: `CurrentUserResolverWorkerTest`, `AuditableEntityListenerTest::testSecondRequestOutsideFirewallIsNotBlamedOnPreviousUser`.
 
 Static checks: `composer igor` and the `nowo-tech/phpstan-frankenphp` classic + worker rulesets pass in CI.

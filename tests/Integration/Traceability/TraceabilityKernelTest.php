@@ -43,8 +43,19 @@ final class TraceabilityKernelTest extends TestCase
 
     protected function setUp(): void
     {
+        $this->boot();
+    }
+
+    /**
+     * @param array<string, mixed> $correlation
+     */
+    private function boot(array $correlation = [], bool $hostProvider = false): void
+    {
+        if (isset($this->kernel)) {
+            $this->kernel->shutdown();
+        }
         (new Filesystem())->remove(sys_get_temp_dir() . '/nowo-audit-kit-trace-kernel');
-        $this->kernel = new TraceabilityTestKernel();
+        $this->kernel = new TraceabilityTestKernel($correlation, $hostProvider);
         $this->kernel->boot();
 
         $em = $this->kernel->getContainer()->get('doctrine.orm.entity_manager');
@@ -137,6 +148,68 @@ final class TraceabilityKernelTest extends TestCase
         $holder->reset();
     }
 
+    public function testTheSameIdIsOnTheResponseTheOutgoingRequestAndTheMailWithAConfiguredHeaderName(): void
+    {
+        $this->boot(['header_name' => 'X-Request-Id']);
+
+        $response = $this->handle(Request::create('/api/notify'));
+
+        $id = $response->headers->get('X-Request-Id');
+        $this->assertNotNull($id);
+        $this->assertFalse($response->headers->has('X-Correlation-Id'));
+        $this->assertContains('X-Request-Id: ' . $id, $this->service(HttpRecorder::class)->sent[0]);
+        $this->assertSame([$id], $this->service(MailRecorder::class)->headers);
+    }
+
+    public function testEmptyInboundHeadersNeverAdoptAnInboundIdEvenFromATrustedProxy(): void
+    {
+        $this->boot(['inbound_headers' => []]);
+        Request::setTrustedProxies(['127.0.0.1'], Request::HEADER_X_FORWARDED_FOR);
+
+        $response = $this->handle(Request::create('/api/trace', server: ['HTTP_X_CORRELATION_ID' => 'edge-id-0001', 'HTTP_TRACEPARENT' => '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01']));
+
+        $id = $response->headers->get('X-Correlation-Id');
+        $this->assertNotNull($id);
+        $this->assertNotSame('edge-id-0001', $id);
+        $this->assertNotSame('4bf92f3577b34da6a3ce929d0e0e4736', $id);
+        $this->assertSame($id, $this->rows()[0]->correlationId);
+    }
+
+    /**
+     * With a host provider the bundle registers no holder and no listener: rows, outgoing requests and e-mails read the
+     * host's id, the middleware only stamps, and nothing of the bundle survives a request or a message.
+     */
+    public function testWithAHostProviderTheBundleOnlyReadsItAndKeepsNoState(): void
+    {
+        $this->boot(hostProvider: true);
+        $host                                           = $this->service(HostCorrelationProvider::class);
+        $this->service(MailRecorder::class)->headerName = 'X-Correlation-Id';
+
+        $first  = $this->handle(Request::create('/api/trace'));
+        $second = $this->handle(Request::create('/api/notify'));
+        $this->handle(Request::create('/api/trace'));
+
+        $this->assertFalse($first->headers->has('X-Correlation-Id'), 'no bundle request subscriber');
+        $this->assertFalse($second->headers->has('X-Correlation-Id'));
+        $this->assertSame(['host-3', 'host-1'], array_map(static fn (ActionLogView $v): ?string => $v->correlationId, $this->rows()));
+        $this->assertContains('X-Correlation-Id: host-2', $this->service(HttpRecorder::class)->sent[0]);
+        $this->assertSame(['host-2'], $this->service(MailRecorder::class)->headers);
+        $this->assertNull($host->current(), 'the host provider reset itself at terminate');
+        $this->assertFalse($this->kernel->getContainer()->has('test.correlation_holder'));
+
+        $bus = $this->service('test.bus');
+        self::assertInstanceOf(MessageBusInterface::class, $bus);
+        $handler = $this->service(TraceHandler::class);
+        $host->onRequest();
+        $sent = $bus->dispatch(new TraceMessage());
+        $bus->dispatch(new Envelope(new TraceMessage(), [new CorrelationIdStamp(CorrelationId::fromString('queued-9')), new ReceivedStamp('async')]));
+
+        $this->assertSame('host-4', $sent->last(CorrelationIdStamp::class)?->correlationId->toString());
+        $this->assertSame([['host-4', null], ['host-4', null]], $handler->seen, 'receiving steps aside: the host restores ids itself');
+        $this->assertSame('host-4', $host->current()?->toString());
+        $host->reset();
+    }
+
     public function testHttpClientIsDecorated(): void
     {
         $this->assertInstanceOf(CorrelationHttpClient::class, $this->kernel->getContainer()->get('test.http_client'));
@@ -171,6 +244,18 @@ final class TraceabilityKernelTest extends TestCase
         self::assertInstanceOf(ActionLogReaderInterface::class, $reader);
 
         return $reader;
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T>|string $id
+     *
+     * @return ($id is class-string<T> ? T : object)
+     */
+    private function service(string $id): object
+    {
+        return $this->kernel->getContainer()->get($id);
     }
 
     private function holder(): CorrelationIdHolder

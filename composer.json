@@ -68,6 +68,7 @@
         "rector/rector": "^2.0",
         "symfony/clock": "^7.4 || ^8.0",
         "symfony/http-client": "^7.4 || ^8.0",
+        "symfony/mailer": "^7.4 || ^8.0",
         "symfony/messenger": "^7.4 || ^8.0",
         "symfony/yaml": "^7.4 || ^8.0",
         "twig/twig": "^3.12"
@@ -77,6 +78,7 @@
         "nowo-tech/migrations-kit-bundle": "Runs nowo:migrations:check-key-collations, which asserts the declared action log id columns against the live schema (REQ-SEC-006)",
         "nowo-tech/ui-kit-bundle": "Styles the action log timeline partial (nowo-ui-* classes).",
         "symfony/http-client": "Sends X-Correlation-Id on outgoing requests (correlation.http_client)",
+        "symfony/mailer": "Adds the correlation header to outgoing e-mails (correlation.mailer)",
         "symfony/messenger": "Carries the correlation id across message buses (CorrelationMiddleware, CorrelationIdStamp)"
     },
     "autoload": {

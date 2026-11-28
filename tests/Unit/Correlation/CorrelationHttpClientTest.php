@@ -46,6 +46,22 @@ final class CorrelationHttpClientTest extends TestCase
         $this->assertFalse(CorrelationHttpClient::hasHeader('X-Correlation-Id: x', 'X-Correlation-Id'));
     }
 
+    public function testAConfiguredHeaderNameIsSentAndChecked(): void
+    {
+        $holder = new CorrelationIdHolder();
+        $holder->begin(new CorrelationContext(CorrelationId::fromString('req-7')));
+        $client = new CorrelationHttpClient($this->mock(), $holder, 'X-Request-Id');
+
+        $client->request('GET', 'https://example.test/a');
+        $client->request('GET', 'https://example.test/b', ['headers' => ['x-request-id' => 'caller']]);
+        $client->request('GET', 'https://example.test/c', ['headers' => ['X-Correlation-Id' => 'other']]);
+
+        $this->assertContains('X-Request-Id: req-7', $this->sent[0]);
+        $this->assertNotContains('X-Request-Id: req-7', $this->sent[1]);
+        $this->assertContains('x-request-id: caller', $this->sent[1]);
+        $this->assertContains('X-Request-Id: req-7', $this->sent[2], 'only the configured name counts as caller-set');
+    }
+
     private function mock(): MockHttpClient
     {
         return new MockHttpClient(function (string $method, string $url, array $options): MockResponse {
