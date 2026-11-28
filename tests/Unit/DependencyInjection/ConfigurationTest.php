@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\AuditKitBundle\Tests\Unit\DependencyInjection;
 
+use Nowo\AuditKitBundle\Change\ChangeSetBuilder;
 use Nowo\AuditKitBundle\DependencyInjection\Configuration;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Config\Definition\Processor;
@@ -42,6 +43,7 @@ final class ConfigurationTest extends TestCase
             'scope_context_key' => null,
             'capture_ip'        => true,
             'flush_mode'        => 'isolated',
+            'changes'           => ['secret_fields' => [], 'secret_pattern' => ChangeSetBuilder::DEFAULT_SECRET_PATTERN, 'max_string_length' => 500, 'max_bytes' => 16384],
             'purge'             => ['older_than_days' => 90, 'batch_size' => 1000, 'actions' => []],
         ], $config['action_log']);
     }
@@ -116,5 +118,20 @@ final class ConfigurationTest extends TestCase
 
         $this->assertSame('admin', $config['default_profile']);
         $this->assertFalse($config['profiles']['app_user']['timestampable']);
+    }
+
+    public function testCorrelationDefaults(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[]]);
+
+        $this->assertSame([
+            'provider'                     => false,
+            'inbound_headers'              => ['X-Correlation-Id', 'traceparent'],
+            'inbound_trusted_proxies_only' => true,
+            'response_header_paths'        => [],
+            'messenger_child_ids'          => false,
+            'http_client'                  => false,
+            'monolog'                      => true,
+        ], $config['correlation']);
     }
 }

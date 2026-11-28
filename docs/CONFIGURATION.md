@@ -13,6 +13,7 @@ A commented default template ships at `src/Resources/config/packages/nowo_audit_
 - [Timestamp-only or blame-only](#timestamp-only-or-blame-only)
 - [Action log](#action-log)
   - [DDD host: ids instead of relations (since 1.14)](#ddd-host-ids-instead-of-relations-since-114)
+- [Correlation and changes (since 2.2)](#correlation-and-changes-since-22)
 
 ## Profiles
 
@@ -128,6 +129,10 @@ Since **1.5.0**, opt-in: nothing is registered (services, Doctrine mapping, comm
 | `action_log.scope_context_key` | string\|null | `null` | Context key copied into `scope` by the recorder when no scope is passed (e.g. `project_uuid`). |
 | `action_log.capture_ip` | bool | `true` | Store the client IP of the current request. |
 | `action_log.flush_mode` | `host`\|`isolated` | `isolated` | Since 1.15: what `recordAndFlush()` / `recordIdsAndFlush()` flush. `isolated` (default since 2.0, REQ-ARCH-001 rule 6): only the new row, through a short-lived entity manager of the bundle on the same connection; the application unit of work is neither flushed nor cleared, so your pending changes stay pending. Use DBAL savepoints (`use_savepoints: true`, always on with DBAL 4) so a failed isolated write inside your transaction does not mark it rollback-only. `host` (the 1.x default, an explicit choice since 2.0): the entity manager that maps the action log class, with every pending change of the application. See [Usage — Action log flush mode](USAGE.md#action-log-flush-mode-since-115). |
+| `action_log.changes.secret_fields` | list of strings | `[]` | Since 2.2: field names always stored as secrets (`{changed: true}`), whatever the policy says (case-insensitive). See [Correlation and changes](#correlation-and-changes-since-22). |
+| `action_log.changes.secret_pattern` | regex | `/password\|passwd\|secret\|token\|key\|dsn\|credential\|private/i` | Since 2.2: secret-looking field names: masked without a policy, refused as `plain`, masked as nested array keys. |
+| `action_log.changes.max_string_length` | int ≥ 1 | `500` | Since 2.2: longer strings are stored as their lengths only. |
+| `action_log.changes.max_bytes` | int ≥ 64 | `16384` | Since 2.2: largest JSON of one change set; further fields are cut field by field. |
 | `action_log.purge.older_than_days` | int ≥ 1 | `90` | Default `--older-than-days`. |
 | `action_log.purge.batch_size` | int ≥ 1 | `1000` | Default `--batch-size` (rows per keyset batch). |
 | `action_log.purge.actions` | list of strings | `[]` | Actions purged when the command gets no `--action` (e.g. page views). Empty: `--action` or `--all-actions` is required. |
@@ -163,3 +168,33 @@ nowo_audit_kit:
 ```
 
 See [Usage — Using it from a DDD / hexagonal application](USAGE.md#using-it-from-a-ddd--hexagonal-application).
+
+## Correlation and changes (since 2.2)
+
+See [Usage — Traceability](USAGE.md#traceability-since-22).
+
+| Key | Type | Default | Description |
+| --- | --- | --- | --- |
+| `correlation.provider` | bool | `false` | Register the bundle's `CorrelationIdHolder` as `Nowo\CorrelationContract\CorrelationIdProviderInterface` with its listeners (one id per main request, console command and received message). Leave `false` and alias the interface when your application has a provider; with neither, the contract's `NullCorrelationIdProvider` is used (no id). |
+| `correlation.inbound_headers` | list of strings | `[X-Correlation-Id, traceparent]` | With `provider: true`: request headers read for an incoming id, in order (`traceparent` gives its trace-id). `[]` never reads one. |
+| `correlation.inbound_trusted_proxies_only` | bool | `true` | With `provider: true`: read the inbound headers only from trusted proxies (`framework.trusted_proxies`). |
+| `correlation.response_header_paths` | list of strings | `[]` | With `provider: true`: path prefixes whose main responses carry `X-Correlation-Id`. |
+| `correlation.messenger_child_ids` | bool | `false` | With `provider: true`: a received message runs under a new id with `caused_by` = the dispatching id (default: under the dispatching id). |
+| `correlation.http_client` | bool | `false` | Decorate `http_client` so outgoing requests carry `X-Correlation-Id` (needs symfony/http-client). |
+| `correlation.monolog` | bool | `true` | Add `correlation_id` / `caused_by` to Monolog 3 records (`monolog.processor` tag; only when monolog/monolog is installed). |
+
+```yaml
+nowo_audit_kit:
+    correlation:
+        provider: true
+        response_header_paths: [/api]
+        http_client: true
+    action_log:
+        entity_class: App\Entity\UserAction   # implements TraceableActionLogInterface
+        changes:
+            secret_fields: [iban]
+```
+
+Services: `nowo_audit_kit.correlation.messenger_middleware` (when symfony/messenger is installed; add it to a bus),
+`Nowo\AuditKitBundle\Change\ChangeSetBuilder`, `Nowo\AuditKitBundle\Timeline\TimelineMerger` (tag
+`nowo_audit_kit.timeline_source`), and with the action log `Nowo\AuditKitBundle\Timeline\ActionLogTimelineSource`.

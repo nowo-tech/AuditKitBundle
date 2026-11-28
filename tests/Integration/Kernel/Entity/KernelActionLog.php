@@ -6,6 +6,8 @@ namespace Nowo\AuditKitBundle\Tests\Integration\Kernel\Entity;
 
 use Doctrine\ORM\Mapping as ORM;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
+use Nowo\AuditKitBundle\ActionLog\TraceableActionLogInterface;
+use Nowo\AuditKitBundle\ActionLog\TraceableActionLogTrait;
 use Nowo\AuditKitBundle\Tests\Integration\Kernel\Repository\KernelActionLogRepository;
 use ReflectionProperty;
 
@@ -15,8 +17,10 @@ use ReflectionProperty;
 #[ORM\Index(name: 'idx_kernel_action_log_actor_created', columns: ['actor_id', 'created_at'])]
 #[ORM\Index(name: 'idx_kernel_action_log_created', columns: ['created_at'])]
 #[ORM\Index(name: 'idx_kernel_action_log_scope_created', columns: ['scope', 'created_at'])]
-class KernelActionLog extends AbstractActionLog
+class KernelActionLog extends AbstractActionLog implements TraceableActionLogInterface
 {
+    use TraceableActionLogTrait;
+
     /** Test helper: backdate a row (the trait keeps createdAt append-only for application code). */
     public function backdate(string $modifier): void
     {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle;
 
 use Nowo\AuditKitBundle\DependencyInjection\Compiler\BlamePortsPass;
+use Nowo\AuditKitBundle\DependencyInjection\Compiler\CorrelationProviderPass;
 use Nowo\AuditKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\AuditKitBundle\DependencyInjection\NowoAuditKitExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -14,7 +15,7 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 /** Symfony bundle entry point for automatic Doctrine audit fields. */
 final class NowoAuditKitBundle extends Bundle
 {
-    /** Registers {@see TwigPathsPass} (`@NowoAuditKitBundle` Twig namespace, application overrides first) and, since 1.15, {@see BlamePortsPass}. */
+    /** Registers {@see TwigPathsPass} (`@NowoAuditKitBundle` Twig namespace, application overrides first) since 1.15, {@see BlamePortsPass} and, since 2.2, {@see CorrelationProviderPass}. */
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
@@ -23,6 +24,8 @@ final class NowoAuditKitBundle extends Bundle
         $container->addCompilerPass(new TwigPathsPass());
         // @igor-ignore - Container compile-time DI mutation; not runtime worker state.
         $container->addCompilerPass(new BlamePortsPass());
+        // @igor-ignore - Container compile-time DI mutation; not runtime worker state.
+        $container->addCompilerPass(new CorrelationProviderPass());
     }
 
     /** Returns the DI extension that loads {@see NowoAuditKitExtension}. */

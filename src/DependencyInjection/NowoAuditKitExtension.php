@@ -5,26 +5,44 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use Monolog\LogRecord;
 use Nowo\AuditKitBundle\ActionLog\AbstractActionLog;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Nowo\AuditKitBundle\Blame\BlameIdResolverInterface;
 use Nowo\AuditKitBundle\Blame\BlameValueResolverInterface;
 use Nowo\AuditKitBundle\Blame\UserIdBlameValueResolver;
+use Nowo\AuditKitBundle\Change\ChangeSetBuilder;
 use Nowo\AuditKitBundle\Collation\ActionLogExactKeyColumns;
+use Nowo\AuditKitBundle\Correlation\CorrelationConsoleSubscriber;
+use Nowo\AuditKitBundle\Correlation\CorrelationContextProviderInterface;
+use Nowo\AuditKitBundle\Correlation\CorrelationIdHolder;
+use Nowo\AuditKitBundle\Correlation\CorrelationRequestSubscriber;
+use Nowo\AuditKitBundle\Correlation\HttpClient\CorrelationHttpClient;
+use Nowo\AuditKitBundle\Correlation\InboundCorrelationId;
+use Nowo\AuditKitBundle\Correlation\Messenger\CorrelationMiddleware;
+use Nowo\AuditKitBundle\Correlation\Monolog\CorrelationLogProcessor;
 use Nowo\AuditKitBundle\Doctrine\AuditableDoctrineListener;
 use Nowo\AuditKitBundle\Doctrine\AuditableEntityListener;
 use Nowo\AuditKitBundle\Model\AuditUserInterface;
 use Nowo\AuditKitBundle\Profile\ProfileRegistry;
+use Nowo\AuditKitBundle\Timeline\TimelineMerger;
+use Nowo\AuditKitBundle\Timeline\TimelineSourceInterface;
+use Nowo\CorrelationContract\CorrelationIdProviderInterface;
+use Nowo\CorrelationContract\NullCorrelationIdProvider;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\DependencyInjection\Argument\TaggedIteratorArgument;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
 use function array_keys;
 use function class_exists;
+use function interface_exists;
 use function is_array;
 use function is_string;
 use function ltrim;
@@ -35,6 +53,21 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
 {
     /** Doctrine mapping name registered for {@see AbstractActionLog}. */
     public const ACTION_LOG_MAPPING = 'NowoAuditKitActionLog';
+
+    /** Since 2.2: fallback `CorrelationIdProviderInterface` service (see {@see Compiler\CorrelationProviderPass}). */
+    public const NULL_CORRELATION_PROVIDER = 'nowo_audit_kit.correlation.null_provider';
+
+    /** Since 2.2: Messenger middleware id to add to a bus `middleware` list. */
+    public const MESSENGER_MIDDLEWARE = 'nowo_audit_kit.correlation.messenger_middleware';
+
+    /** Since 2.2: tag of the timeline sources merged by {@see TimelineMerger}. */
+    public const TIMELINE_SOURCE_TAG = 'nowo_audit_kit.timeline_source';
+
+    /** Since 2.2: Monolog 3 record class (the log processor is registered only when it exists). */
+    public const MONOLOG_RECORD_CLASS = LogRecord::class;
+
+    /** Since 2.2: Messenger middleware interface (the middleware is registered only when it exists). */
+    public const MESSENGER_MIDDLEWARE_INTERFACE = MiddlewareInterface::class;
 
     /** Maps {@see AuditUserInterface} (BlameableTrait association target) to the default profile user class. */
     public function prepend(ContainerBuilder $container): void
@@ -126,6 +159,9 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
 
         $this->loadActionLog($config['action_log'], $container);
         $this->registerExactKeyColumns($container);
+        $this->loadChanges($config['action_log']['changes'], $container);
+        $this->loadCorrelation($config['correlation'], $container);
+        $this->loadTimeline($container);
 
         $registry = new ProfileRegistry($profiles, $defaultProfileName);
 
@@ -215,7 +251,7 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
      *
      * Since 2.0 `flush_mode` defaults to `isolated`; an explicit `host` keeps the 1.x behaviour (no probe, no notice).
      *
-     * @param array{entity_class: ?string, register_mapping: bool, scope_context_key: ?string, capture_ip: bool, flush_mode: string, purge: array{older_than_days: int, batch_size: int, actions: list<string>}} $config
+     * @param array{entity_class: ?string, register_mapping: bool, scope_context_key: ?string, capture_ip: bool, flush_mode: string, changes: array<string, mixed>, purge: array{older_than_days: int, batch_size: int, actions: list<string>}} $config
      */
     private function loadActionLog(array $config, ContainerBuilder $container): void
     {
@@ -240,6 +276,72 @@ final class NowoAuditKitExtension extends Extension implements PrependExtensionI
 
         $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('action_log.yaml');
+    }
+
+    /**
+     * Since 2.2: the configured {@see ChangeSetBuilder}.
+     *
+     * @param array{secret_fields: list<string>, secret_pattern: string, max_string_length: int, max_bytes: int} $config
+     */
+    private function loadChanges(array $config, ContainerBuilder $container): void
+    {
+        $container->register(ChangeSetBuilder::class, ChangeSetBuilder::class)
+            ->setArguments([$config['secret_fields'], $config['secret_pattern'], $config['max_string_length'], $config['max_bytes']]);
+    }
+
+    /**
+     * Since 2.2: correlation id services. The fallback provider (null) is always registered and bound by
+     * {@see Compiler\CorrelationProviderPass} only when nothing else binds the interface; `provider: true` binds the
+     * bundle's {@see CorrelationIdHolder} and registers its listeners. The Messenger middleware, the log processor and the
+     * outgoing-request decorator exist only when their package is installed.
+     *
+     * @param array{provider: bool, inbound_headers: list<string>, inbound_trusted_proxies_only: bool, response_header_paths: list<string>, messenger_child_ids: bool, http_client: bool, monolog: bool} $config
+     */
+    private function loadCorrelation(array $config, ContainerBuilder $container): void
+    {
+        $container->register(self::NULL_CORRELATION_PROVIDER, NullCorrelationIdProvider::class);
+        $provider = new Reference(CorrelationIdProviderInterface::class);
+
+        if ($config['provider']) {
+            $container->register(CorrelationIdHolder::class, CorrelationIdHolder::class)
+                ->addTag('kernel.reset', ['method' => 'reset']);
+            $container->setAlias(CorrelationIdProviderInterface::class, CorrelationIdHolder::class);
+            $container->setAlias(CorrelationContextProviderInterface::class, CorrelationIdHolder::class);
+            $container->register(InboundCorrelationId::class, InboundCorrelationId::class)
+                ->setArguments([$config['inbound_headers'], $config['inbound_trusted_proxies_only']]);
+            $container->register(CorrelationRequestSubscriber::class, CorrelationRequestSubscriber::class)
+                ->setArguments([new Reference(CorrelationIdHolder::class), new Reference(InboundCorrelationId::class), $config['response_header_paths']])
+                ->addTag('kernel.event_subscriber');
+            $container->register(CorrelationConsoleSubscriber::class, CorrelationConsoleSubscriber::class)
+                ->setArguments([new Reference(CorrelationIdHolder::class)])
+                ->addTag('kernel.event_subscriber');
+        }
+
+        if (interface_exists(self::MESSENGER_MIDDLEWARE_INTERFACE)) {
+            $container->register(self::MESSENGER_MIDDLEWARE, CorrelationMiddleware::class)
+                ->setArguments([$provider, $config['messenger_child_ids']]);
+        }
+
+        if ($config['monolog'] && class_exists(self::MONOLOG_RECORD_CLASS)) {
+            $container->register(CorrelationLogProcessor::class, CorrelationLogProcessor::class)
+                ->setArguments([$provider])
+                ->addTag('monolog.processor');
+        }
+
+        // Without symfony/http-client there is no `http_client` service and the decorator is dropped.
+        if ($config['http_client']) {
+            $container->register(CorrelationHttpClient::class, CorrelationHttpClient::class)
+                ->setDecoratedService('http_client', null, 0, ContainerInterface::IGNORE_ON_INVALID_REFERENCE)
+                ->setArguments([new Reference('.inner'), $provider]);
+        }
+    }
+
+    /** Since 2.2: the {@see TimelineMerger} over every service tagged {@see self::TIMELINE_SOURCE_TAG}. */
+    private function loadTimeline(ContainerBuilder $container): void
+    {
+        $container->registerForAutoconfiguration(TimelineSourceInterface::class)->addTag(self::TIMELINE_SOURCE_TAG);
+        $container->register(TimelineMerger::class, TimelineMerger::class)
+            ->setArguments([new TaggedIteratorArgument(self::TIMELINE_SOURCE_TAG)]);
     }
 
     public function getAlias(): string

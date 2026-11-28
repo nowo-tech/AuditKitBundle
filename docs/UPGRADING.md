@@ -64,6 +64,49 @@
 
 ## Unreleased
 
+From **2.1.x**: `composer update nowo-tech/audit-kit-bundle`. It now requires `nowo-tech/correlation-contract` `^0.1`
+(installed with it). Nothing to change: every addition is opt-in, and an action log entity that does not implement
+`TraceableActionLogInterface` maps no new column.
+
+- **ActionLogRecorder subclasses / decorators.** `record()`, `recordAndFlush()`, `recordIds()` and `recordIdsAndFlush()`
+  of the (final) `ActionLogRecorder` take an optional trailing `?ChangeSet $changes`; the interfaces are unchanged, so
+  your own implementations of `ActionLogRecorderInterface` / `ActionLogIdRecorderInterface` keep working. Type-hint
+  `ActionLogRecorder` to pass changes.
+- **`CorrelationIdProviderInterface`.** The bundle binds the contract's `NullCorrelationIdProvider` only when nothing
+  else binds `Nowo\CorrelationContract\CorrelationIdProviderInterface`. To record ids, alias it to your provider or
+  set `nowo_audit_kit.correlation.provider: true`. If your provider tracks causation, implement
+  `Nowo\AuditKitBundle\Correlation\CorrelationContextProviderInterface` too.
+- **Opting in to the columns.** Add `implements TraceableActionLogInterface` and `use TraceableActionLogTrait;` to your
+  log entity, then generate the migration (`doctrine:migrations:diff`). We recommend naming the index yourself on the
+  entity (`#[ORM\Index(name: 'idx_user_action_correlation', columns: ['correlation_id'])]`); otherwise the bundle adds
+  `idx_audit_corr_<hash of the table name>`. Reference DDL for a `user_action` table (all columns nullable, existing
+  rows untouched):
+
+  ```sql
+  -- MySQL 8 / MariaDB 10.6+
+  ALTER TABLE user_action
+      ADD correlation_id VARCHAR(64) DEFAULT NULL,
+      ADD caused_by VARCHAR(64) DEFAULT NULL,
+      ADD changes JSON DEFAULT NULL;
+  CREATE INDEX idx_user_action_correlation ON user_action (correlation_id);
+
+  -- PostgreSQL
+  ALTER TABLE user_action
+      ADD correlation_id VARCHAR(64) DEFAULT NULL,
+      ADD caused_by VARCHAR(64) DEFAULT NULL,
+      ADD changes JSON DEFAULT NULL;
+  CREATE INDEX idx_user_action_correlation ON user_action (correlation_id);
+  ```
+
+  Deploy the migration before the code that implements the interface (the ORM then writes the new columns). Correlation
+  ids are case-sensitive: reads re-check them byte for byte, so the column collation does not matter.
+- **Messenger.** Add `nowo_audit_kit.correlation.messenger_middleware` to the `middleware` list of the buses that should
+  carry the id (see [Usage](USAGE.md#correlation-id)).
+- **Monolog.** With monolog/monolog 3 installed, records written inside a unit of work get `extra.correlation_id`; set
+  `nowo_audit_kit.correlation.monolog: false` if your own processor already adds it.
+- **Later (hash chain).** A later release adds sealing on top of these columns (a `redacted_at` column and separate seal
+  / checkpoint tables); the 2.2 columns stay as they are.
+
 ## To 2.1.0
 
 From **2.0.0**:
