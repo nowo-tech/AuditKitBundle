@@ -128,7 +128,7 @@ final class ConfigurationTest extends TestCase
         $this->assertSame([
             'provider'                     => false,
             'header_name'                  => 'X-Correlation-Id',
-            'inbound_headers'              => ['X-Correlation-Id', 'traceparent'],
+            'inbound_headers'              => [],
             'inbound_trusted_proxies_only' => true,
             'response_header_paths'        => [],
             'messenger_child_ids'          => false,

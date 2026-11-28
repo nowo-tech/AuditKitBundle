@@ -84,7 +84,7 @@ final readonly class TraceableActionLogMetadataListener
         $column  = $metadata->getColumnName('correlationId');
         $indexes = is_array($metadata->table['indexes'] ?? null) ? $metadata->table['indexes'] : [];
         foreach ($indexes as $index) {
-            if (($index['columns'][0] ?? null) === $column) {
+            if (($index['columns'][0] ?? null) === $column || ($index['fields'][0] ?? null) === 'correlationId') {
                 return;
             }
         }

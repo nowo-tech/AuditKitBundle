@@ -44,7 +44,8 @@ interface TraceableActionLogInterface
     public function getChanges(): ?array;
 
     /**
-     * @param array<string, mixed>|ChangeSet|null $changes an empty set is stored as null
+     * @param array<string, mixed>|ChangeSet|null $changes an empty set is stored as null; an array is stored raw (no
+     *                                                     masking, no cap)
      */
     public function setChanges(ChangeSet|array|null $changes): static;
 }

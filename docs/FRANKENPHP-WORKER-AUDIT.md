@@ -140,6 +140,8 @@ every call; the recorder never keeps the id it writes.
   `tests/Unit/Correlation/CorrelationMiddlewareTest.php` covers the serialised stamp round trip and a failing handler.
   With a host provider (`testWithAHostProviderTheBundleOnlyReadsItAndKeepsNoState`) the bundle registers no holder or
   listener, three requests keep the host's own ids, and receiving a message leaves the host provider untouched.
+  `testMessagesDispatchedAfterTheCurrentBusKeepTheReceivedContext` checks that a `DispatchAfterCurrentBusStamp`
+  follow-up is stamped with the received context and that the holder is empty afterwards.
 - Blame: `CurrentUserResolverWorkerTest`, `AuditableEntityListenerTest::testSecondRequestOutsideFirewallIsNotBlamedOnPreviousUser`.
 
 Static checks: `composer igor` and the `nowo-tech/phpstan-frankenphp` classic + worker rulesets pass in CI.

@@ -21,7 +21,14 @@ final class InboundCorrelationIdTest extends TestCase
     {
         $request = $this->request(['HTTP_X_CORRELATION_ID' => 'client-chosen-id']);
 
-        $this->assertNull((new InboundCorrelationId())->from($request));
+        $this->assertNull((new InboundCorrelationId(InboundCorrelationId::SUPPORTED_HEADERS))->from($request));
+    }
+
+    public function testOffByDefaultEvenFromATrustedProxy(): void
+    {
+        Request::setTrustedProxies(['10.0.0.1'], Request::HEADER_X_FORWARDED_FOR);
+
+        $this->assertNull((new InboundCorrelationId())->from($this->request(['HTTP_X_CORRELATION_ID' => 'edge-id-123', 'HTTP_TRACEPARENT' => self::TRACEPARENT])));
     }
 
     public function testATrustedProxyIdIsAdoptedInHeaderOrder(): void
@@ -29,13 +36,13 @@ final class InboundCorrelationIdTest extends TestCase
         Request::setTrustedProxies(['10.0.0.1'], Request::HEADER_X_FORWARDED_FOR);
 
         $both = $this->request(['HTTP_X_CORRELATION_ID' => 'edge-id-123', 'HTTP_TRACEPARENT' => self::TRACEPARENT]);
-        $this->assertSame('edge-id-123', (new InboundCorrelationId())->from($both)?->toString());
+        $this->assertSame('edge-id-123', (new InboundCorrelationId(InboundCorrelationId::SUPPORTED_HEADERS))->from($both)?->toString());
 
         $traceOnly = $this->request(['HTTP_X_CORRELATION_ID' => 'bad id with spaces', 'HTTP_TRACEPARENT' => self::TRACEPARENT]);
-        $this->assertSame('4bf92f3577b34da6a3ce929d0e0e4736', (new InboundCorrelationId())->from($traceOnly)?->toString());
+        $this->assertSame('4bf92f3577b34da6a3ce929d0e0e4736', (new InboundCorrelationId(InboundCorrelationId::SUPPORTED_HEADERS))->from($traceOnly)?->toString());
 
         $invalid = $this->request(['HTTP_TRACEPARENT' => 'ff-0-0-0']);
-        $this->assertNull((new InboundCorrelationId())->from($invalid));
+        $this->assertNull((new InboundCorrelationId(InboundCorrelationId::SUPPORTED_HEADERS))->from($invalid));
     }
 
     public function testNoHeadersConfiguredReadsNothing(): void

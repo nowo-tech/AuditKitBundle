@@ -18,7 +18,7 @@ use function str_starts_with;
  * Since 2.2 (with `correlation.provider: true`): one correlation id per main request in {@see CorrelationIdHolder}.
  *
  * - `kernel.request` (main request, first): forgets whatever a previous request left, then starts a context with the
- *   inbound id ({@see InboundCorrelationId}) or a new one. Sub-requests share the main request's id.
+ *   inbound id ({@see InboundCorrelationId}, off by default) or a new one. Sub-requests share the main request's id.
  * - `kernel.response` (main request): adds `X-Correlation-Id` (or `correlation.header_name`) to responses whose path starts with one of
  *   `correlation.response_header_paths` (none by default), unless the response already carries one.
  * - `kernel.terminate` (last): clears the holder, so a worker never carries the id into its next request. Log lines

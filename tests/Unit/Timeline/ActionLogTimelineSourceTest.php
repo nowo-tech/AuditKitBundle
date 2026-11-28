@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\Tests\Unit\Timeline;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use Nowo\AuditKitBundle\ActionLog\ActionLogCriteria;
 use Nowo\AuditKitBundle\ActionLog\ActionLogCursor;
 use Nowo\AuditKitBundle\ActionLog\ActionLogPage;
@@ -13,6 +14,7 @@ use Nowo\AuditKitBundle\ActionLog\ActionLogView;
 use Nowo\AuditKitBundle\Timeline\ActionLogTimelineSource;
 use Nowo\AuditKitBundle\Timeline\TimelineCriteria;
 use Nowo\AuditKitBundle\Timeline\TimelineCursor;
+use Nowo\AuditKitBundle\Timeline\TimelineEvent;
 use Nowo\AuditKitBundle\Timeline\TimelineSubject;
 use PHPUnit\Framework\TestCase;
 
@@ -77,6 +79,50 @@ final class ActionLogTimelineSourceTest extends TestCase
         $this->assertEquals(new ActionLogCursor($at, PHP_INT_MAX), $this->calls[1][1]);
         $this->assertEquals(new ActionLogCursor($at, 42), $this->calls[2][1]);
         $this->assertEquals(new ActionLogCursor($at, 0), $this->calls[3][1]);
+    }
+
+    public function testTheCorrelationSubjectReChecksEveryRow(): void
+    {
+        $reader = $this->createStub(ActionLogReaderInterface::class);
+        $reader->method('pageByCriteria')->willReturn(new ActionLogPage([
+            new ActionLogView(1, 'a', null, null, [], 'tenant-a', null, new DateTimeImmutable('2026-01-01'), 'c1'),
+            new ActionLogView(2, 'a', null, null, [], 'tenant-b', null, new DateTimeImmutable('2026-01-01'), 'other'),
+            new ActionLogView(3, 'a', null, null, [], 'tenant-b', null, new DateTimeImmutable('2026-01-01')),
+        ]));
+        $source = new ActionLogTimelineSource($reader);
+
+        $this->assertSame(['1'], array_map(static fn (TimelineEvent $e): string => $e->id, $source->page(new TimelineSubject('correlation', 'c1'), new TimelineCriteria(), null, 5)));
+        $this->assertSame(['1'], array_map(static fn (TimelineEvent $e): string => $e->id, $source->page(new TimelineSubject('scope', 'tenant-a'), new TimelineCriteria(correlationId: 'c1'), null, 5)));
+        $this->assertCount(3, $source->page(new TimelineSubject('scope', 'tenant-a'), new TimelineCriteria(), null, 5));
+    }
+
+    public function testAForeignCursorIsComparedInTheServerTimezoneAtWholeSeconds(): void
+    {
+        $timezone = date_default_timezone_get();
+        // @phpstan-ignore frankenphp.worker.noDateDefaultTimezoneSet (test only, restored in finally)
+        date_default_timezone_set('Europe/Madrid');
+
+        try {
+            $source  = new ActionLogTimelineSource($this->reader());
+            $user    = new TimelineSubject('user', 'u1');
+            $foreign = new DateTimeImmutable('2026-01-01 12:00:00.500000', new DateTimeZone('UTC'));
+
+            $source->page($user, new TimelineCriteria(), new TimelineCursor($foreign, 'comments', 'c-9'), 5);
+            $source->page($user, new TimelineCriteria(), new TimelineCursor($foreign, 'action_log', '7'), 5);
+            $source->page($user, new TimelineCriteria(), new TimelineCursor(new DateTimeImmutable('2026-01-01 12:00:00', new DateTimeZone('UTC')), 'comments', 'c-9'), 5);
+
+            $madrid = new DateTimeImmutable('2026-01-01 13:00:00', new DateTimeZone('Europe/Madrid'));
+            foreach ([[0, PHP_INT_MAX], [1, PHP_INT_MAX], [2, 0]] as [$call, $id]) {
+                $cursor = $this->calls[$call][1];
+                $this->assertNotNull($cursor);
+                $this->assertSame('2026-01-01 13:00:00.000000 Europe/Madrid', $cursor->createdAt->format('Y-m-d H:i:s.u e'));
+                $this->assertEquals($madrid, $cursor->createdAt);
+                $this->assertSame($id, $cursor->id);
+            }
+        } finally {
+            // @phpstan-ignore frankenphp.worker.noDateDefaultTimezoneSet (test only)
+            date_default_timezone_set($timezone);
+        }
     }
 
     private function reader(): ActionLogReaderInterface

@@ -15,8 +15,9 @@ use function usort;
  * Since 2.2: merges the entries of every {@see TimelineSourceInterface} (tag `nowo_audit_kit.timeline_source`) into one
  * newest-first page. Each source is asked for `limit + 1` entries after the cursor; the merge orders them by
  * `occurredAt` (newest first), then source name, then each source's own order, and keeps `limit`. Page boundaries are
- * stable: an entry is never repeated or skipped from one page to the next, whatever the sources hold at the same
- * instant.
+ * stable (no entry repeated or skipped from one page to the next) as long as every source honours
+ * {@see TimelineCursor::boundFor()} at the precision and in the timezone it stores, as {@see ActionLogTimelineSource}
+ * does (whole seconds, the server's timezone).
  *
  * Stateless (the sources are injected once and asked on every call).
  *

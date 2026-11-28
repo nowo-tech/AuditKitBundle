@@ -87,7 +87,7 @@ final class TraceabilityTestKernel extends Kernel
             'mailer'               => ['dsn' => 'null://null'],
             'messenger'            => [
                 'default_bus' => 'trace.bus',
-                'buses'       => ['trace.bus' => ['middleware' => [NowoAuditKitExtension::MESSENGER_MIDDLEWARE]]],
+                'buses'       => ['trace.bus' => ['middleware' => [NowoAuditKitExtension::MESSENGER_MIDDLEWARE, EnvelopeRecorder::class]]],
             ],
         ]);
         $container->loadFromExtension('doctrine', [
@@ -124,6 +124,10 @@ final class TraceabilityTestKernel extends Kernel
             ->addTag('messenger.message_handler', ['handles' => TraceMessage::class]);
 
         $container->register(HttpRecorder::class)->setPublic(true);
+        $container->register(EnvelopeRecorder::class)->setPublic(true);
+        $container->register(AfterBusHandler::class)
+            ->setArguments([new Reference('trace.bus')])
+            ->addTag('messenger.message_handler', ['handles' => AfterBusMessage::class]);
         $container->register(MailRecorder::class)
             ->setPublic(true)
             ->addTag('kernel.event_listener', ['event' => MessageEvent::class, 'priority' => -255]);

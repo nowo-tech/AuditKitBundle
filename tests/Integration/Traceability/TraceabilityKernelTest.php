@@ -17,6 +17,7 @@ use Nowo\AuditKitBundle\Timeline\TimelineSubject;
 use Nowo\CorrelationContract\CorrelationContext;
 use Nowo\CorrelationContract\CorrelationId;
 use Nowo\CorrelationContract\Messenger\CorrelationIdStamp;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Component\Console\Input\ArrayInput;
@@ -30,7 +31,9 @@ use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 
+use function array_filter;
 use function array_map;
+use function array_values;
 use function count;
 
 /**
@@ -95,8 +98,9 @@ final class TraceabilityKernelTest extends TestCase
         $this->assertSame([$byId[0]->id], array_map(static fn (TimelineEvent $e): int => (int) $e->id, $timeline->page(new TimelineSubject('correlation', $firstId))->items));
     }
 
-    public function testAnUntrustedClientCannotChooseItsIdButATrustedProxyCan(): void
+    public function testOptedInHeadersAreReadOnlyFromATrustedProxy(): void
     {
+        $this->boot(['inbound_headers' => ['X-Correlation-Id', 'traceparent']]);
         $spoofed = $this->handle(Request::create('/api/trace', server: ['HTTP_X_CORRELATION_ID' => 'victim-request-id']));
         $this->assertNotSame('victim-request-id', $spoofed->headers->get('X-Correlation-Id'));
 
@@ -161,9 +165,13 @@ final class TraceabilityKernelTest extends TestCase
         $this->assertSame([$id], $this->service(MailRecorder::class)->headers);
     }
 
-    public function testEmptyInboundHeadersNeverAdoptAnInboundIdEvenFromATrustedProxy(): void
+    /**
+     * @param array<string, mixed> $correlation
+     */
+    #[DataProvider('inboundOff')]
+    public function testInboundIdsAreNeverAdoptedByDefaultOrWithAnEmptyList(array $correlation): void
     {
-        $this->boot(['inbound_headers' => []]);
+        $this->boot($correlation);
         Request::setTrustedProxies(['127.0.0.1'], Request::HEADER_X_FORWARDED_FOR);
 
         $response = $this->handle(Request::create('/api/trace', server: ['HTTP_X_CORRELATION_ID' => 'edge-id-0001', 'HTTP_TRACEPARENT' => '00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01']));
@@ -208,6 +216,57 @@ final class TraceabilityKernelTest extends TestCase
         $this->assertSame([['host-4', null], ['host-4', null]], $handler->seen, 'receiving steps aside: the host restores ids itself');
         $this->assertSame('host-4', $host->current()?->toString());
         $host->reset();
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function inboundOff(): iterable
+    {
+        yield 'default' => [[]];
+        yield 'explicit []' => [['inbound_headers' => []]];
+    }
+
+    /**
+     * A handler of a received message dispatches with DispatchAfterCurrentBusStamp: the follow-up is stamped with the
+     * received context and handled while it is still current (the order pass puts the middleware in front of
+     * dispatch_after_current_bus).
+     */
+    #[DataProvider('childIdModes')]
+    public function testMessagesDispatchedAfterTheCurrentBusKeepTheReceivedContext(bool $childIds): void
+    {
+        $this->boot(['messenger_child_ids' => $childIds]);
+        $bus = $this->service('test.bus');
+        self::assertInstanceOf(MessageBusInterface::class, $bus);
+
+        $bus->dispatch(new Envelope(new AfterBusMessage(), [new CorrelationIdStamp(CorrelationId::fromString('queued-5'), CorrelationId::fromString('req-1')), new ReceivedStamp('async')]));
+
+        $followUps = array_values(array_filter($this->service(EnvelopeRecorder::class)->envelopes, static fn (Envelope $e): bool => $e->getMessage() instanceof TraceMessage));
+        $this->assertCount(1, $followUps);
+        $stamp = $followUps[0]->last(CorrelationIdStamp::class);
+        self::assertInstanceOf(CorrelationIdStamp::class, $stamp);
+        $seen = $this->service(TraceHandler::class)->seen;
+        $this->assertCount(1, $seen);
+        $causedBy = $stamp->causedBy?->toString();
+
+        if ($childIds) {
+            $this->assertNotSame('queued-5', $stamp->correlationId->toString());
+            $this->assertSame('queued-5', $causedBy);
+        } else {
+            $this->assertSame('queued-5', $stamp->correlationId->toString());
+            $this->assertSame('req-1', $causedBy);
+        }
+        $this->assertSame([$stamp->correlationId->toString(), $causedBy], $seen[0]);
+        $this->assertSame(0, $this->holder()->depth());
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function childIdModes(): iterable
+    {
+        yield 'chain' => [false];
+        yield 'child ids' => [true];
     }
 
     public function testHttpClientIsDecorated(): void

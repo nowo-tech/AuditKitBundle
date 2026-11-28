@@ -14,6 +14,7 @@ use Doctrine\ORM\Tools\SchemaTool;
 use Nowo\AuditKitBundle\ActionLog\AbstractIdActionLog;
 use Nowo\AuditKitBundle\Doctrine\TraceableActionLogMetadataListener;
 use Nowo\AuditKitBundle\Tests\Fixtures\Traceable\PlainIdLog;
+use Nowo\AuditKitBundle\Tests\Fixtures\Traceable\TraceableFieldIndexLog;
 use Nowo\AuditKitBundle\Tests\Fixtures\Traceable\TraceableIdLog;
 use Nowo\AuditKitBundle\Tests\Fixtures\Traceable\TraceableRenamedLog;
 use Nowo\AuditKitBundle\Tests\Fixtures\Traceable\TraceableStiChild;
@@ -49,6 +50,13 @@ final class TraceableActionLogMetadataListenerTest extends TestCase
         $this->assertSame('request_correlation', $metadata->getColumnName('correlationId'));
         $this->assertSame('caused_by', $metadata->getColumnName('causedBy'));
         $this->assertSame(['idx_tr_renamed_corr_created'], array_keys($metadata->table['indexes'] ?? []));
+    }
+
+    public function testAnIndexDeclaredByFieldNameCounts(): void
+    {
+        $metadata = $this->entityManager()->getClassMetadata(TraceableFieldIndexLog::class);
+
+        $this->assertSame(['idx_tr_field_corr'], array_keys($metadata->table['indexes'] ?? []));
     }
 
     public function testSingleTableInheritanceIndexesTheRootOnce(): void

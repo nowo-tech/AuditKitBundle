@@ -22,6 +22,8 @@ use Symfony\Component\Messenger\Middleware\HandleMessageMiddleware;
 use Symfony\Component\Messenger\Stamp\ReceivedStamp;
 use Symfony\Component\Messenger\Transport\Serialization\PhpSerializer;
 
+use function strlen;
+
 final class CorrelationMiddlewareTest extends TestCase
 {
     /** @var list<array{0: string|null, 1: string|null}> correlation id and caused_by seen by the handler */
@@ -144,6 +146,21 @@ final class CorrelationMiddlewareTest extends TestCase
 
         $this->assertSame('host-1', $bus->dispatch(new stdClass())->last(CorrelationIdStamp::class)?->correlationId->toString());
         $this->assertNull($bus->dispatch(new stdClass())->last(CorrelationIdStamp::class));
+    }
+
+    public function testATamperedStampCountsAsNoStamp(): void
+    {
+        /** @var CorrelationId $bad */
+        $bad    = unserialize('O:' . strlen(CorrelationId::class) . ':"' . CorrelationId::class . '":1:{s:5:"value";s:8:"bad id x";}');
+        $worker = new CorrelationIdHolder();
+
+        $this->bus($worker)->dispatch(new Envelope(new stdClass(), [new CorrelationIdStamp($bad), new ReceivedStamp('async')]));
+        $this->bus($worker)->dispatch(new Envelope(new stdClass(), [new CorrelationIdStamp(CorrelationId::fromString('ok-1'), $bad), new ReceivedStamp('async')]));
+
+        $this->assertNotNull($this->seen[0][0]);
+        $this->assertNotSame('bad id x', $this->seen[0][0]);
+        $this->assertNull($this->seen[0][1]);
+        $this->assertSame(['ok-1', null], $this->seen[1]);
     }
 
     public function testWithAHostProviderReceivingIsLeftToTheHost(): void

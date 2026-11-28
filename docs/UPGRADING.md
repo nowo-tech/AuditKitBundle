@@ -103,12 +103,15 @@ From **2.1.x**: `composer update nowo-tech/audit-kit-bundle`. It now requires `n
 - **Header name.** Responses, outgoing requests and e-mails use `correlation.header_name` (default `X-Correlation-Id`).
   To use `X-Request-Id` everywhere, set `header_name: X-Request-Id` (add it to `inbound_headers` too if you adopt
   inbound ids under that name).
-- **Keeping inbound ids out.** Set `correlation.inbound_headers: []`: every request then gets a new id, and your HTTP
-  logger can keep the inbound value as an upstream id.
+- **Inbound ids are off by default** (`correlation.inbound_headers: []`): every request gets a new id, and your HTTP
+  logger can keep the inbound value as an upstream id. To adopt the id of your edge proxy, list the headers; the proxy
+  MUST then strip or overwrite them on requests from the internet.
 - **Own provider or the bundle's, not both.** With your own `CorrelationIdProviderInterface` binding, leave
   `correlation.provider` false (the default): the bundle then keeps no state and only reads your provider (your
   provider resets itself, e.g. `ResetInterface` + `kernel.reset`). Both at once fails the container build.
 - **E-mail.** `correlation.mailer: true` (needs symfony/mailer) adds the header to outgoing e-mails.
+- **Messenger order.** The bundle moves its middleware in front of `dispatch_after_current_bus` on the buses that list
+  it. With `default_middleware: false`, list it before `dispatch_after_current_bus` yourself.
 - **Messenger.** Add `nowo_audit_kit.correlation.messenger_middleware` to the `middleware` list of the buses that should
   carry the id (see [Usage](USAGE.md#correlation-id)).
 - **Monolog.** With monolog/monolog 3 installed, records written inside a unit of work get `extra.correlation_id`; set

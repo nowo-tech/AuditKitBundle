@@ -33,6 +33,7 @@
 | `DependencyInjection/NowoAuditKitExtension.php` | DI extension | FR-CFG-002, FR-CFG-003 | Mapped |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | `@NowoAuditKitBundle` Twig namespace, app override first | FR-TWIG-001 | Mapped |
 | `DependencyInjection/Compiler/BlamePortsPass.php` | BC for 1.14 port overrides in id mode | FR-BLAME-ID-001 | Mapped |
+| `DependencyInjection/Compiler/CorrelationMiddlewareOrderPass.php` | Correlation middleware before `dispatch_after_current_bus` (2.2) | 006 FR-TR-013 | Mapped |
 | `DependencyInjection/Compiler/CorrelationProviderPass.php` | Null correlation provider only when nothing binds the port (2.2) | 006 FR-TR-001 | Mapped |
 
 ## PHP — contracts & traits
@@ -154,7 +155,7 @@
 | Category | Files | Mapped |
 | --- | ---: | ---: |
 | Symfony config, views and translations | 14 | 14 |
-| PHP — bundle core | 6 | 6 |
+| PHP — bundle core | 7 | 7 |
 | PHP — contracts & traits | 11 | 11 |
 | PHP — profiles | 3 | 3 |
 | PHP — Doctrine & security | 20 | 20 |
@@ -162,6 +163,6 @@
 | PHP — traceability (2.2) | 23 | 23 |
 | PHP — avatars and Twig | 7 | 7 |
 | PHP — attributes | 1 | 1 |
-| **Total production sources** | **99** | **99** |
+| **Total production sources** | **100** | **100** |
 
-Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **99** (2026-11-28, 2.2 traceability A; 75 on 2026-11-27, 2.1.0; 75 on 2026-11-22; 70 on 2026-11-16).
+Audit command (production count): `find src -type f ! -name '*.test.*' | wc -l` → **100** (2026-11-28, 2.2 traceability A; 75 on 2026-11-27, 2.1.0; 75 on 2026-11-22; 70 on 2026-11-16).

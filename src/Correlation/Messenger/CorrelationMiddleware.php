@@ -35,7 +35,11 @@ use Symfony\Component\Messenger\Stamp\StampInterface;
  * - Receive with a provider of the host's (an alias of `CorrelationIdProviderInterface`): the middleware steps aside
  *   (no context is pushed anywhere); restoring the id is the host provider's job. It still stamps on dispatch.
  *
- * Messages handled synchronously (no `ReceivedStamp`) run in the dispatching unit of work and keep its context.
+ * Messages handled synchronously (no `ReceivedStamp`) run in the dispatching unit of work and keep its context. A
+ * stamp that does not hold a valid id (a tampered transport message) counts as no stamp.
+ *
+ * `CorrelationMiddlewareOrderPass` places it in front of `dispatch_after_current_bus`, so messages a handler dispatches
+ * with `DispatchAfterCurrentBusStamp` are stamped with the received context, which stays open until they are handled.
  *
  * Stateless; worker-safe through the holder (contract rules 1 and 2).
  *
@@ -88,10 +92,14 @@ final readonly class CorrelationMiddleware implements MiddlewareInterface
 
     private function receiveContext(?CorrelationIdStamp $stamp): CorrelationContext
     {
-        if (!$stamp instanceof CorrelationIdStamp) {
+        // A stamp restored by a serializer skips the value object's check: validate it again, else it has no parent.
+        $id = $stamp instanceof CorrelationIdStamp ? CorrelationId::tryFromString($stamp->correlationId->value) : null;
+        if (!$stamp instanceof CorrelationIdStamp || !$id instanceof CorrelationId) {
             return new CorrelationContext(CorrelationId::generate());
         }
 
-        return $this->childIds ? new CorrelationContext(CorrelationId::generate(), $stamp->correlationId) : $stamp->toContext();
+        $causedBy = CorrelationId::tryFromString($stamp->causedBy?->value);
+
+        return $this->childIds ? new CorrelationContext(CorrelationId::generate(), $id) : new CorrelationContext($id, $causedBy);
     }
 }

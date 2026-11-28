@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\AuditKitBundle\ActionLog;
 
 use Nowo\AuditKitBundle\Change\ChangeSet;
+use Nowo\AuditKitBundle\Change\ChangeSetBuilder;
 
 /**
  * Since 2.2: properties and accessors of {@see TraceableActionLogInterface}. No mapping here: the bundle maps the
@@ -57,6 +58,9 @@ trait TraceableActionLogTrait
     }
 
     /**
+     * A {@see ChangeSet} built with {@see ChangeSetBuilder} is masked and bounded; an array is
+     * stored raw (no masking, no cap), for hosts that build the value themselves.
+     *
      * @param array<string, mixed>|ChangeSet|null $changes
      */
     public function setChanges(ChangeSet|array|null $changes): static

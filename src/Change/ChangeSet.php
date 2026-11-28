@@ -17,8 +17,8 @@ use function count;
  * - `{changed: true}`: a secret field (the fixed mask: never the value, a hash or a length);
  * - `{changed: true, from_len, to_len}`: a long text, or any string longer than the length limit (500 characters by
  *   default), in characters;
- * - `{changed: true, truncated: true}`: a field cut because the whole set went over the size limit (16 KB of JSON by
- *   default).
+ * - `{changed: true, truncated: true}`: a field cut because the whole set went over the size limit (16 KB of unescaped
+ *   UTF-8 JSON by default; the stored text can be larger).
  *
  * When even the cut entries do not fit, the remaining fields are left out and the reserved key {@see TRUNCATED_KEY}
  * is `true`.
@@ -49,7 +49,12 @@ final readonly class ChangeSet implements Countable, JsonSerializable
     public const TRUNCATED_KEY = '_truncated';
 
     /**
+     * Stores the entries as given, with no masking and no size cap: build sets with {@see ChangeSetBuilder} or
+     * {@see self::between()}. Public for those builders and for rebuilding a stored set.
+     *
      * @param array<string, array<string, mixed>|true> $entries
+     *
+     * @internal
      */
     public function __construct(private array $entries = [])
     {

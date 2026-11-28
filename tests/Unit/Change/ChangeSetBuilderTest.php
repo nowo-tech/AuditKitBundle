@@ -20,6 +20,10 @@ use function json_encode;
 use function str_repeat;
 use function strlen;
 
+use const INF;
+use const JSON_THROW_ON_ERROR;
+use const NAN;
+
 final class ChangeSetBuilderTest extends TestCase
 {
     public function testPlainFieldsStoreFromAndToAndSkipUnchangedOnes(): void
@@ -187,6 +191,49 @@ final class ChangeSetBuilderTest extends TestCase
 
         $this->assertSame(['a' => ['changed' => true, 'truncated' => true]], $set->toArray());
         $this->assertTrue($set->isTruncated());
+    }
+
+    public function testValuesThatJsonCannotHoldAreMadeStorable(): void
+    {
+        $set = ChangeSet::between(
+            ['legacy' => 'ok', 'ratio' => 1.5, 'max' => 0.0, 'min' => 0.0, 'meta' => []],
+            ['legacy' => "caf\xE9", 'ratio' => NAN, 'max' => INF, 'min' => -INF, 'meta' => ["k\xFF" => "v\xFE"], "bad\xC3" => 'x'],
+        );
+
+        $array = $set->toArray();
+        $this->assertSame(['from' => 'ok', 'to' => 'caf?'], $array['legacy']);
+        $this->assertSame(['from' => 1.5, 'to' => 'NaN'], $array['ratio']);
+        $this->assertSame(['from' => 0.0, 'to' => 'INF'], $array['max']);
+        $this->assertSame(['from' => 0.0, 'to' => '-INF'], $array['min']);
+        $this->assertSame(['from' => [], 'to' => ['k?' => 'v?']], $array['meta']);
+        $this->assertSame(['from' => null, 'to' => 'x'], $array['bad?']);
+        $this->assertJson(json_encode($set, JSON_THROW_ON_ERROR));
+    }
+
+    public function testLongTextOnASecretNeverStoresLengths(): void
+    {
+        $set = (new ChangeSetBuilder(['recovery_note']))->between(
+            ['api_key' => 'a', 'recovery_note' => 'b', 'body' => 'c'],
+            ['api_key' => 'aa', 'recovery_note' => 'bb', 'body' => 'cc'],
+            ['api_key' => ChangeSet::LONG_TEXT, 'recovery_note' => ChangeSet::LONG_TEXT, 'body' => ChangeSet::LONG_TEXT],
+        );
+
+        $this->assertSame([
+            'api_key'       => ['changed' => true],
+            'recovery_note' => ['changed' => true],
+            'body'          => ['changed' => true, 'from_len' => 1, 'to_len' => 2],
+        ], $set->toArray());
+    }
+
+    public function testTheDefaultPatternCoversCommonSecretNames(): void
+    {
+        $builder = new ChangeSetBuilder();
+        foreach (['passphrase', 'db_pwd', 'Authorization', 'auth_header', 'cookie', 'session_id', 'bearer', 'otp_code', 'salt', 'signature', 'card_cvv'] as $name) {
+            $this->assertTrue($builder->isSecret($name), $name);
+        }
+
+        $set = $builder->between(['headers' => []], ['headers' => ['Authorization' => 'Bearer x', 'Cookie' => 'sid=1', 'Accept' => 'json']]);
+        $this->assertSame(['from' => [], 'to' => ['Authorization' => ChangeSet::MASK, 'Cookie' => ChangeSet::MASK, 'Accept' => 'json']], $set->toArray()['headers']);
     }
 
     public function testInvalidPatternIsRefused(): void

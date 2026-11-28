@@ -16,9 +16,13 @@ use function array_map;
 use function get_debug_type;
 use function in_array;
 use function is_array;
+use function is_float;
+use function is_infinite;
+use function is_nan;
 use function is_scalar;
 use function is_string;
 use function json_encode;
+use function mb_scrub;
 use function mb_strlen;
 use function mb_strtolower;
 use function preg_match;
@@ -44,7 +48,15 @@ use const JSON_UNESCAPED_UNICODE;
  * - In plain values, nested array keys that match the secret pattern or the secret fields become {@see ChangeSet::MASK}.
  *
  * Sizes are bounded: a string longer than `$maxStringLength` characters is stored as its lengths, and once the JSON of
- * the set would go over `$maxBytes` the remaining fields are cut field by field (see {@see ChangeSet}).
+ * the set would go over `$maxBytes` the remaining fields are cut field by field (see {@see ChangeSet}). The cap is
+ * measured on the unescaped UTF-8 JSON; the text a database stores can be larger (escaped `\uXXXX`), except with a
+ * binary JSON column type.
+ *
+ * Values are made storable: invalid UTF-8 in strings and keys is replaced (`mb_scrub()`), NaN / INF floats become the
+ * strings `NaN`, `INF`, `-INF`, so a value never makes the JSON column fail at flush.
+ *
+ * The secret pattern is a heuristic and masks generously (`auth` also matches `author`, `key` matches `sort_key`): use
+ * `public` for a field that only looks like a secret, and a policy plus `secret_fields` for the safe path.
  *
  * Stateless (configuration only); safe in a long-running worker.
  *
@@ -53,7 +65,7 @@ use const JSON_UNESCAPED_UNICODE;
 final readonly class ChangeSetBuilder
 {
     /** Default secret-looking names (case-insensitive substring match). */
-    public const DEFAULT_SECRET_PATTERN = '/password|passwd|secret|token|key|dsn|credential|private/i';
+    public const DEFAULT_SECRET_PATTERN = '/password|passwd|passphrase|pwd|secret|token|key|dsn|credential|private|auth|cookie|session|bearer|otp|salt|signature|cvv/i';
 
     public const DEFAULT_MAX_STRING_LENGTH = 500;
 
@@ -100,7 +112,7 @@ final readonly class ChangeSetBuilder
                 continue;
             }
 
-            $entries[$field] = $this->entry($mode, $from, $to);
+            $entries[mb_scrub((string) $field, 'UTF-8')] = $this->entry($mode, $from, $to);
         }
 
         return new ChangeSet($this->bounded($entries));
@@ -138,11 +150,14 @@ final readonly class ChangeSetBuilder
             if (!in_array($mode, [ChangeSet::PLAIN, ChangeSet::PUBLIC, ChangeSet::SECRET, ChangeSet::LONG_TEXT], true)) {
                 throw UnsafeTraceableFieldException::unknownPolicy($field, (string) $mode);
             }
-            if ($mode === ChangeSet::PLAIN && preg_match($this->secretPattern, $field) === 1) {
+            $looksSecret = preg_match($this->secretPattern, $field) === 1;
+            if ($mode === ChangeSet::PLAIN && $looksSecret) {
                 throw UnsafeTraceableFieldException::forField($field);
             }
 
-            $fields[$field] = in_array(mb_strtolower($field), $this->secretFields, true) ? ChangeSet::SECRET : $mode;
+            // A secret never stores lengths either: `long_text` on a secret-looking or configured field is a secret.
+            $secret         = in_array(mb_strtolower($field), $this->secretFields, true) || ($mode === ChangeSet::LONG_TEXT && $looksSecret);
+            $fields[$field] = $secret ? ChangeSet::SECRET : $mode;
         }
 
         return $fields;
@@ -181,6 +196,8 @@ final readonly class ChangeSetBuilder
     private function present(mixed $value): mixed
     {
         return match (true) {
+            is_string($value)                   => mb_scrub($value, 'UTF-8'),
+            is_float($value)                    => $this->presentFloat($value),
             $value === null, is_scalar($value)  => $value,
             $value instanceof DateTimeInterface => $value->format(DateTimeInterface::RFC3339_EXTENDED),
             $value instanceof BackedEnum        => $value->value,
@@ -188,6 +205,16 @@ final readonly class ChangeSetBuilder
             $value instanceof Stringable        => (string) $value,
             is_array($value)                    => $this->presentArray($value),
             default                             => '[' . get_debug_type($value) . ']',
+        };
+    }
+
+    /** A finite float as it is; NaN and the infinities as the markers `NaN`, `INF`, `-INF` (JSON has no such values). */
+    private function presentFloat(float $value): float|string
+    {
+        return match (true) {
+            is_nan($value)      => 'NaN',
+            is_infinite($value) => $value > 0 ? 'INF' : '-INF',
+            default             => $value,
         };
     }
 
@@ -200,7 +227,7 @@ final readonly class ChangeSetBuilder
     {
         $presented = [];
         foreach ($values as $key => $value) {
-            $presented[$key] = is_string($key) && $this->isSecret($key) ? ChangeSet::MASK : $this->present($value);
+            $presented[is_string($key) ? mb_scrub($key, 'UTF-8') : $key] = is_string($key) && $this->isSecret($key) ? ChangeSet::MASK : $this->present($value);
         }
 
         return $presented;

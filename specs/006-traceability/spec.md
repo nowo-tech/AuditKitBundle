@@ -59,8 +59,9 @@ Packages implement `TimelineSourceInterface`; `TimelineMerger` returns stable ke
 
 - **FR-TR-001** The bundle never implements the canonical provider unless asked (`correlation.provider: true`); it
   falls back to `NullCorrelationIdProvider` only when nothing binds the interface.
-- **FR-TR-002** Inbound ids are adopted only from trusted proxies by default and only when valid
-  (`CorrelationId::tryFromString()` / `tryFromTraceparent()`).
+- **FR-TR-002** Inbound ids are off by default (`inbound_headers: []`); when opted in, read only from trusted proxies,
+  only when valid (`CorrelationId::tryFromString()` / `tryFromTraceparent()`), and the docs require the edge proxy to
+  strip or overwrite them.
 - **FR-TR-003** Worker mode (kernel kept alive, no reset): no id leaks between requests, messages or commands; the holder
   is the only state, emptied at every boundary and by `kernel.reset`, bounded in depth.
 - **FR-TR-004** Messenger: stamp on dispatch (caller stamp kept), restore on receive in a `finally`.
@@ -76,6 +77,8 @@ Packages implement `TimelineSourceInterface`; `TimelineMerger` returns stable ke
   (`correlation.mailer`); caller-set headers are kept. `inbound_headers: []` disables inbound adoption.
 - **FR-TR-012** A message without a parent stamp runs under a fresh root id, `caused_by` null; with a host provider the
   bundle keeps no state (no holder, no listeners, receive steps aside); bundle provider + host binding is refused.
+- **FR-TR-013** Messages dispatched with `DispatchAfterCurrentBusStamp` keep the received context
+  (`CorrelationMiddlewareOrderPass`); a stamp without a valid id counts as no stamp.
 - **FR-TR-010** Writes keep REQ-RUNTIME-003: no new write path, no unique key, no host entity manager cleared or reset.
 
 ---
